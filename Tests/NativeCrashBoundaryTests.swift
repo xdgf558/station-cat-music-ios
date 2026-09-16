@@ -56,7 +56,7 @@ private func exitAtBoundary(_ config: CrashProbeConfiguration, store: KeychainSt
           (config.stage == "A13" ? record.generation == 1 && record.pending == nil : record.generation == 0 && record.pending != nil),
           try await store.read("expected-request") != nil,
           try await store.read("expected-receipt") != nil else { throw APIError.invalidPayload }
-    print("M2_BOUNDARY_REACHED:\(config.stage):durable-state-verified")
+    print("M2_BOUNDARY_REACHED:\(config.stage):durable-state-verified:pid=\(getpid())")
     fflush(nil)
     _exit(73)
 }

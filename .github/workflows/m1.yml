@@ -16,6 +16,7 @@ jobs:
       - run: python scripts/generate_contract.py && python scripts/seed_resources.py && python scripts/generate_project.py
       - run: git diff --exit-code
       - run: python scripts/validate_contract.py && python scripts/check_source.py
+      - run: python scripts/test_crash_probe_runner.py
   simulator:
     runs-on: macos-26
     steps:

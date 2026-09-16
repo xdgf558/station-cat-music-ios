@@ -3,7 +3,9 @@
 No production configuration, ATS exception, fake clock, or extended replay deadline.
 """
 from pathlib import Path
+from crash_probe_runner import run_crash
 import copy,hashlib,json,os,plistlib,shutil,subprocess,tempfile,time
+from urllib.request import Request,urlopen
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
 backend=Path(os.environ['M2_BACKEND_PATH']).resolve()
@@ -51,14 +53,24 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
                 xctestrun=products/('M2-boundary-'+stage+'-'+mode+'.xctestrun')
                 xctestrun.write_bytes(plistlib.dumps(data))
                 name='M2-boundary-'+stage+'-'+mode+'.log'
-                code=run(common+['-xctestrun',str(xctestrun),'-only-testing:StationCatMusicTests/NativeCrashBoundaryTests/'+method,'test-without-building'],name,300)
-                content=(output/name).read_text()
-                if mode=='CRASH':
-                    assert code!=0 and 'M2_BOUNDARY_REACHED:'+stage+':durable-state-verified' in content, 'Expected crash boundary not observed: '+stage
-                else:
-                    assert code==0 and 'M2_BOUNDARY_RECOVERED:'+stage+':' in content and 'TEST EXECUTE SUCCEEDED' in content, 'Recovery failed: '+stage
-                xctestrun.unlink()
-            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
+                args=common+['-xctestrun',str(xctestrun),'-only-testing:StationCatMusicTests/NativeCrashBoundaryTests/'+method,'test-without-building']
+                try:
+                    if mode=='CRASH':
+                        crash_evidence=run_crash(args,output/name,stage)
+                        print(stage+': host exit confirmed; XCTest teardown stopped',flush=True)
+                    else:
+                        code=run(args,name,300)
+                        content=(output/name).read_text()
+                        assert code==0 and 'M2_BOUNDARY_RECOVERED:'+stage+':' in content and 'TEST EXECUTE SUCCEEDED' in content, 'Recovery failed: '+stage
+                finally:
+                    xctestrun.unlink(missing_ok=True)
+            request=Request('http://127.0.0.1:'+str(connection['port'])+'/fixture/evidence',headers={'X-Probe-Key':connection['key']})
+            with urlopen(request,timeout=5) as response:
+                evidence=json.load(response)
+            requests=evidence['requests']
+            interval=(requests[1]['committedAt']-requests[0]['committedAt'])/1000
+            print(stage+': server request interval '+str(round(interval,3))+' seconds',flush=True)
+            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,**crash_evidence,'serverRequestIntervalSeconds':round(interval,3),'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
             (output/'M2-boundaries-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
             print(stage+': process termination and recovery passed',flush=True)
     finally:

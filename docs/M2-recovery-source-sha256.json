@@ -1,7 +1,9 @@
 {
-  "Tests/NativeCrashBoundaryTests.swift": "57e41c0ac6d1c484247413098ce66c2e953489227fe018f2d2501d6e2623a583",
-  "scripts/verify_native_crash_boundaries.py": "03685659c104e8cafbede0ad72f306b3d368f1aa2aea240d350d007eeebc442a",
+  "Tests/NativeCrashBoundaryTests.swift": "acb107d2a28370c1a7ab5a45176d538abad0752f43dbe9ad2d4e28a15ab6093e",
+  "scripts/verify_native_crash_boundaries.py": "5c0e386d638ffc9ef4846de5b9dbdbc3d94c18eee6983e72a0ade5a420377ec9",
   "StationCatMusic.xcodeproj/project.pbxproj": "82bd42f59b62bcaf87847f1017f3ae76403f207a5ac2eacaf1df88276960b980",
-  ".github/workflows/m1.yml": "fbd1a3bfbbe778aca5968e8b986723cf7e4564bd6c1a3262269c332452fd4132",
-  "contracts/backend-recovery-fixture.json": "6cde4812ef3b7b9b3589d62ebee72ea65660f3da6ca00b327dabb1b78709c0bd"
+  ".github/workflows/m1.yml": "2739d5762a8e62be28dff29d1df30b9bc5ed68bd6307983cff8a82f7805e3678",
+  "contracts/backend-recovery-fixture.json": "6cde4812ef3b7b9b3589d62ebee72ea65660f3da6ca00b327dabb1b78709c0bd",
+  "scripts/crash_probe_runner.py": "ac6ff64b7dbb24b3aa2d31fa2047ebb4ce69f84fb03a04b2e208e1942b86d833",
+  "scripts/test_crash_probe_runner.py": "15e36afa45d549df96669a917aaeb30c2ef5f306de33825211d5cae710bc945a"
 }

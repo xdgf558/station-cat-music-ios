@@ -85,6 +85,7 @@ nonisolated struct CredentialEnvelope: Codable, Equatable, Sendable {
     var absoluteExpiresAt: Date
 }
 nonisolated struct DeletionRecoveryEnvelope: Codable, Equatable, Sendable {
+    var accountID: String? = nil
     let environment: AppEnvironment
     let deletionRequestID: String
     let prepareRequestID: String

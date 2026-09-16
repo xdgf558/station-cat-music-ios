@@ -14,6 +14,8 @@ config=sys.argv[1]
 info=plistlib.loads((Path('.build/Build/Products')/(config+'-iphonesimulator/StationCatMusic.app/Info.plist')).read_bytes())
 assert info['StationEnvironment']==config.lower(), info.get('StationEnvironment')
 assert info['MinimumOSVersion']=='18.0'
+assert info['StationNativeAuthEnabled']=='NO'
+assert not info.get('StationNativeAuthOrigin')
 assert 'NSAppTransportSecurity' not in info
 print(config+': environment embedded, iOS18 minimum, no HTTP exception')
 PY

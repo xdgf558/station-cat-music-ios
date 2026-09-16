@@ -1,4 +1,4 @@
-name: M1 native foundation
+name: Native foundation and isolated authentication
 on:
   push:
   pull_request:
@@ -37,6 +37,7 @@ jobs:
       - run: bash scripts/verify_configurations.sh
       - run: bash scripts/test_ios.sh
       - run: bash scripts/verify_keychain_relaunch.sh
+      - run: bash scripts/verify_auth_crash_recovery.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -26,6 +26,9 @@ s['RefreshRequest']=obj({'clientId':{'const':'station-cat-ios'},'refreshToken':s
 tokens={'accountId':ID,'sessionId':ID,'tokenFamilyId':ID,'generation':N,'accessToken':secret,'accessExpiresAt':D,'refreshToken':secret,'refreshExpiresAt':D,'absoluteExpiresAt':D}
 s['Tokens']=obj(tokens)
 s['RefreshResult']=obj({**tokens,'refreshRequestId':ID,'previousGeneration':N,'replayUntil':D})
+s['LogoutRequest']=obj({'refreshToken':secret},closed=True)
+s['ReauthRequest']=obj({'password':secret,'totpCode':{'type':'string','maxLength':6}},closed=True)
+s['RecentAuthentication']=obj({'validUntil':D})
 s['GrantRequest']=obj({'audioVersion':{'type':'integer','minimum':1},'variant':enum('full','preview')},closed=True)
 s['PlaybackGrant']=obj({'playbackUrl':{'type':'string','format':'uri','pattern':'^https://[^/?#]+/api/mobile/v1/music/media/[^/?#]+/audio$'},'expiresAt':D,'playbackValidUntil':D,'revalidateAt':D,'authMode':enum('public','session_bearer'),'accountId':nullableID,'sessionId':nullableID,'trackId':ID,'audioVersion':{'type':'integer','minimum':1},'variant':enum('full','preview'),'durationSeconds':{'type':'number','exclusiveMinimum':0},'previewSourceStartSeconds':{'anyOf':[{'type':'number','minimum':0},{'type':'null'}]}})
 s['PlaybackGrant']['allOf']=[{'if':{'properties':{'authMode':{'const':'session_bearer'}}},'then':{'properties':{'accountId':ID,'sessionId':ID}},'else':{'properties':{'accountId':{'type':'null'},'sessionId':{'type':'null'}}}}]
@@ -69,7 +72,9 @@ def endpoint(method,path,response,request=None,auth='Bearer',status='200',descri
 endpoint('get','/config','Config',auth='none')
 endpoint('post','/auth/token','Tokens','TokenRequest','none',description='Exact registered redirect; S256 PKCE; atomically consume authorization code within 90 seconds. No Cookie fallback.')
 endpoint('post','/auth/refresh','RefreshResult','RefreshRequest','none',description='No Cookie or automatic 401 interceptor. Fixed request ID and canonical body across restarts. Original result retained 120 seconds; spent operation tombstone outlives result; outside window require reauthentication, never mint a replacement family.')
-endpoint('post','/auth/logout','Acknowledged')
+endpoint('post','/auth/logout','Acknowledged','LogoutRequest','optional',description='Revoke only. Either Bearer without a body, or no Authorization header plus a refreshToken body. A known current/spent refresh token revokes only its own family; it cannot authenticate, read account data or create tokens. Unknown refresh proof returns the same acknowledgement. This closes logout versus rotation races.')
+paths[prefix+'/auth/logout']['post']['requestBody']['required']=False
+endpoint('post','/auth/reauth','RecentAuthentication','ReauthRequest',description='M2 isolated implementation: verify existing password and enabled TOTP for this Bearer account; proof bound to session/security version, valid at most five minutes.')
 endpoint('get','/me','Account');endpoint('get','/me/entitlements','Entitlements')
 endpoint('get','/music/catalog','Catalog',auth='none');endpoint('get','/music/featured','Featured',auth='none')
 endpoint('get','/music/tracks/{id}','TrackDetail',auth='none');endpoint('get','/music/collections/{slug}','Collection',auth='none')
@@ -89,7 +94,7 @@ endpoint('post','/me/deletion-requests/{id}/confirm','DeleteAccepted','DeleteCon
 endpoint('get','/deletion-requests/{id}/status','DeleteStatus',auth='DeletionReceipt',description='Query only; no Bearer, Cookie, refresh interceptor or login redirect. Authorization: DeletionReceipt <unpadded base64url of 32 random bytes>. Strongly consistent minimal status. Invalid/expired/wrong receipt always 404 DELETION_STATUS_UNAVAILABLE.')
 paths[prefix+'/deletion-requests/{id}/status']['get']['responses']['404']={'description':'Indistinguishable absent, invalid or expired receipt.','content':{'application/json':{'schema':ref('Error')}}}
 paths['/auth/mobile/authorize']={'get':{'operationId':'browser_authorize','security':[],'description':'ASWebAuthenticationSession browser login, including existing TOTP. Exact registered redirect; no arbitrary return URL. Reuse interactive web identity, never website Cookie as native API fallback.','parameters':[parameter(k,'query',v,True) for k,v in {'client_id':{'const':'station-cat-ios'},'redirect_uri':{'type':'string','format':'uri'},'state':{'type':'string','minLength':32},'code_challenge':{'type':'string','pattern':'^[A-Za-z0-9_-]{43}$'},'code_challenge_method':{'const':'S256'}}.items()],'responses':{'200':{'description':'Interactive authentication page','content':{'text/html':{'schema':{'type':'string'}}}},'302':{'description':'Only registered redirect containing code and unchanged state; no tokens in URL.'},'400':{'description':'Invalid request; no redirect.'}}}}
-doc={'openapi':'3.1.0','info':{'title':'Station Cat Music Native — proposed v1.0 contract','version':'0.1.0','description':'M1 contract only. All endpoints proposed; mock runtime has no network or credentials. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract.'},'servers':[{'url':'https://mock.invalid','description':'Reserved non-routable placeholder; configure approved isolated service in M2.'}],'paths':paths,'components':{'securitySchemes':{'Bearer':{'type':'http','scheme':'bearer','description':'Native access token only. Do not accept website Cookie as fallback.'},'DeletionReceipt':{'type':'apiKey','in':'header','name':'Authorization','description':'DeletionReceipt followed by unpadded base64url of exactly32 random bytes; query-only credential, never Bearer.'}},'schemas':s}}
+doc={'openapi':'3.1.0','info':{'title':'Station Cat Music Native — proposed v1.0 contract','version':'0.2.0','description':'M2 auth/deletion implemented only in isolated local development; music and personal endpoints remain proposed. Default application is Mock with networking disabled. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract.'},'servers':[{'url':'https://mock.invalid','description':'Reserved non-routable placeholder; configure approved isolated service in M2.'}],'paths':paths,'components':{'securitySchemes':{'Bearer':{'type':'http','scheme':'bearer','description':'Native access token only. Do not accept website Cookie as fallback.'},'DeletionReceipt':{'type':'apiKey','in':'header','name':'Authorization','description':'DeletionReceipt followed by unpadded base64url of exactly32 random bytes; query-only credential, never Bearer.'}},'schemas':s}}
 (r/'contracts/openapi.json').write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n')
 # A deterministic, explicitly fictional positive fixture for every named schema.
 def sample(schema):
@@ -115,7 +120,7 @@ def sample(schema):
  if schema.get('format')=='uri':return 'https://mock.invalid/FIXTURE_ONLY'
  if schema.get('pattern')=='^[a-f0-9]{64}$':return '630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd'
  if schema.get('minLength',0)>20:return 'FIXTUREONLY' * 5
- return 'fixture-only'
+ return 'fixture-only'[:schema.get('maxLength',12)]
 (r/'contracts/fixtures/schema-examples.json').write_text(json.dumps({n:sample(v) for n,v in s.items()},ensure_ascii=False,indent=2)+'\n')
 (r/'contracts/error-keys.json').write_text(json.dumps(['error.'+c.lower() for c in codes],indent=2)+'\n')
 print('Generated',sum(len(p) for p in paths.values()),'operations and',len(s),'schemas')

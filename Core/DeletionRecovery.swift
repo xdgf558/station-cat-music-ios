@@ -13,10 +13,12 @@ actor DeletionJournal {
               record.receipt.count == 32 else { throw SecureStoreError.corrupt }
         return record
     }
-    func prepare() async throws -> DeletionRecoveryEnvelope {
+    func prepare(accountID: String? = nil) async throws -> DeletionRecoveryEnvelope {
         guard !busy else { throw APIError.staleResponse }; busy = true; defer { busy = false }
-        if let existing = try await read() { return existing }
-        let record = DeletionRecoveryEnvelope(environment: environment, deletionRequestID: UUID().uuidString,
+        if let existing = try await read() {
+            guard existing.accountID == accountID else { throw APIError.staleResponse }; return existing
+        }
+        let record = DeletionRecoveryEnvelope(accountID: accountID, environment: environment, deletionRequestID: UUID().uuidString,
             prepareRequestID: UUID().uuidString, receipt: try DeletionReceipt.generate(), scopeVersion: "station-account-v1",
             confirmAttempted: false, lastKnownStatus: "preparing")
         try await store.write(JSONEncoder().encode(record), key: key)

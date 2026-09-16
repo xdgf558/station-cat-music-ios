@@ -131,6 +131,16 @@
     "previousGeneration": 0,
     "replayUntil": "2026-09-16T00:10:00Z"
   },
+  "LogoutRequest": {
+    "refreshToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY"
+  },
+  "ReauthRequest": {
+    "password": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+    "totpCode": "fixtur"
+  },
+  "RecentAuthentication": {
+    "validUntil": "2026-09-16T00:00:00Z"
+  },
   "GrantRequest": {
     "audioVersion": 1,
     "variant": "full"
@@ -418,6 +428,13 @@
       "refreshRequestId": "fixture-only",
       "previousGeneration": 0,
       "replayUntil": "2026-09-16T00:10:00Z"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "RecentAuthenticationResponse": {
+    "data": {
+      "validUntil": "2026-09-16T00:00:00Z"
     },
     "requestId": "fixture-only",
     "serverNow": "2026-09-16T00:00:00Z"

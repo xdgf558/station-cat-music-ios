@@ -24,6 +24,10 @@
 	<true/>
 	<key>StationEnvironment</key>
 	<string>$(STATION_ENVIRONMENT)</string>
+	<key>StationNativeAuthEnabled</key>
+	<string>$(STATION_NATIVE_AUTH_ENABLED)</string>
+	<key>StationNativeAuthOrigin</key>
+	<string>$(STATION_NATIVE_AUTH_ORIGIN)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

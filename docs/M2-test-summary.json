@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-16",
+  "scope": "local-isolated-only",
+  "toolchain": "Xcode 27 beta 6, iOS 27 simulator",
+  "swift_passed": 47,
+  "ui_passed": 2,
+  "ordinary_suite_intentional_skips": 2,
+  "separate_abrupt_exit_and_keychain_recovery": "passed",
+  "build_configurations": [
+    "Mock",
+    "Development",
+    "Staging",
+    "Production"
+  ],
+  "auth_enabled_all_configurations": false,
+  "contract_operations": 25,
+  "contract_schemas": 62,
+  "positive_fixtures": 63,
+  "negative_fixtures": 10,
+  "backend_d1_tests_passed": 29,
+  "website_npm_test": "passed",
+  "website_build": "passed with ALLOW_EMPTY_SERIAL_CONTENT=1; not deployable",
+  "remote_ci": "not run for M2",
+  "real_https_aasa": "not configured",
+  "physical_iphone": "not tested",
+  "physical_account_deletion": "not implemented; durable attention_required",
+  "deployed": false
+}

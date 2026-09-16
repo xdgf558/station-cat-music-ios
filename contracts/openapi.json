@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Station Cat Music Native — proposed v1.0 contract",
-    "version": "0.1.0",
-    "description": "M1 contract only. All endpoints proposed; mock runtime has no network or credentials. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract."
+    "version": "0.2.0",
+    "description": "M2 auth/deletion implemented only in isolated local development; music and personal endpoints remain proposed. Default application is Mock with networking disabled. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract."
   },
   "servers": [
     {
@@ -153,11 +153,12 @@
       "post": {
         "operationId": "post__auth_logout",
         "security": [
+          {},
           {
             "Bearer": []
           }
         ],
-        "description": "Planned API. Not implemented or deployed by M1.",
+        "description": "Revoke only. Either Bearer without a body, or no Authorization header plus a refreshToken body. A known current/spent refresh token revokes only its own family; it cannot authenticate, read account data or create tokens. Unknown refresh proof returns the same acknowledgement. This closes logout versus rotation races.",
         "parameters": [],
         "responses": {
           "200": {
@@ -189,7 +190,70 @@
             }
           }
         },
-        "x-milestone": "v1.0"
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/auth/reauth": {
+      "post": {
+        "operationId": "post__auth_reauth",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "M2 isolated implementation: verify existing password and enabled TOTP for this Bearer account; proof bound to session/security version, valid at most five minutes.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentAuthenticationResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReauthRequest"
+              }
+            }
+          }
+        }
       }
     },
     "/api/mobile/v1/me": {
@@ -2195,6 +2259,54 @@
         ],
         "additionalProperties": true
       },
+      "LogoutRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096,
+            "description": "Sensitive value; never log or cache. Response credentials must remain decodable by generated clients."
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "additionalProperties": false
+      },
+      "ReauthRequest": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096,
+            "description": "Sensitive value; never log or cache. Response credentials must remain decodable by generated clients."
+          },
+          "totpCode": {
+            "type": "string",
+            "maxLength": 6
+          }
+        },
+        "required": [
+          "password",
+          "totpCode"
+        ],
+        "additionalProperties": false
+      },
+      "RecentAuthentication": {
+        "type": "object",
+        "properties": {
+          "validUntil": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "validUntil"
+        ],
+        "additionalProperties": true
+      },
       "GrantRequest": {
         "type": "object",
         "properties": {
@@ -3153,6 +3265,29 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/RefreshResult"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "RecentAuthenticationResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RecentAuthentication"
           },
           "requestId": {
             "type": "string",

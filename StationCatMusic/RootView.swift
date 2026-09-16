@@ -10,6 +10,10 @@ struct RootView: View {
     @Bindable var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var showDeletion = false
+    @State private var confirmDeletion = false
+    @State private var deletionPassword = ""
+    @State private var deletionTotp = ""
     var body: some View {
         TabView(selection: $model.selectedTab) {
             NavigationStack { discover.safeAreaInset(edge: .bottom) { miniPlayer } }.tabItem { Label(model.t("discover"), systemImage: "sparkles") }.tag(0)
@@ -18,7 +22,9 @@ struct RootView: View {
         }
         .tint(Palette.gold)
         .sheet(isPresented: $model.showPlayer) { player }
-        .task { await model.load() }
+        .task { await model.load(); await model.account.restore() }
+        .onChange(of: model.account.scope) { _, scope in Task { await model.changeScope(scope); await model.load() } }
+        .sheet(isPresented: $showDeletion) { deletionSheet }
         .onChange(of: scenePhase) { _, phase in if phase == .active { model.playback.checkDeadline() } }
         .environment(\.locale, Locale(identifier: model.locale))
     }
@@ -91,8 +97,21 @@ struct RootView: View {
     private var library: some View {
         Form {
             Section {
-                Label(model.t("guest"), systemImage: "person.crop.circle").font(.headline)
-                Text(model.t("authNotReady")).font(.footnote).foregroundStyle(Palette.muted)
+                Label(model.t(model.account.scope.accountID == nil ? "guest" : "signedIn"), systemImage: "person.crop.circle").font(.headline)
+                if model.account.enabled {
+                    Text(model.t("isolatedAuth")).font(.footnote).foregroundStyle(Palette.muted)
+                    if model.account.scope.accountID == nil {
+                        Button(model.t("signIn")) { Task { await model.account.signIn(locale: model.locale) } }.disabled(model.account.busy)
+                    } else {
+                        Button(model.t("signOut")) { Task { await model.account.signOut() } }.disabled(model.account.busy)
+                        Button(model.t("deleteAccount"), role: .destructive) { showDeletion = true }.disabled(model.account.busy)
+                    }
+                    Button(model.t("queryDeletion")) { Task { await model.account.queryDeletion() } }.disabled(model.account.busy)
+                    if !model.account.deletionStatus.isEmpty { Text(model.t("deletion." + model.account.deletionStatus)).font(.footnote) }
+                    if !model.account.messageKey.isEmpty { Text(model.t(model.account.messageKey)).font(.footnote).accessibilityIdentifier("authMessage") }
+                } else {
+                    Text(model.t("authNotReady")).font(.footnote).foregroundStyle(Palette.muted)
+                }
             }
             Section(model.t("favorites")) {
                 if model.favorites.isEmpty { Text(model.t("noFavorites")).foregroundStyle(Palette.muted) }
@@ -104,6 +123,32 @@ struct RootView: View {
                 Text(model.t("mockExplanation")).font(.footnote)
             }
         }.scrollContentBackground(.hidden).background(Palette.background).navigationTitle(model.t("library"))
+    }
+    private var deletionSheet: some View {
+        NavigationStack {
+            Form {
+                Section { Text(model.t("deleteScope")); Text(model.t("deleteSubscription")).font(.footnote) }
+                Section(model.t("verifyIdentity")) {
+                    SecureField(model.t("password"), text: $deletionPassword).textContentType(.password)
+                    TextField(model.t("totpCode"), text: $deletionTotp).keyboardType(.numberPad).textContentType(.oneTimeCode)
+                    Button(model.t("prepareDeletion")) {
+                        let password = deletionPassword, totp = deletionTotp; deletionPassword = ""; deletionTotp = ""
+                        Task { await model.account.prepareDeletion(password: password, totp: totp) }
+                    }.disabled(deletionPassword.isEmpty || model.account.busy)
+                }
+                if model.account.confirmationReady {
+                    Section { Text(model.t("deleteConfirmDetail")); Button(model.t("confirmDelete"), role: .destructive) { confirmDeletion = true }.disabled(model.account.busy) }
+                }
+                if !model.account.deletionStatus.isEmpty { Text(model.t("deletion." + model.account.deletionStatus)) }
+                if !model.account.messageKey.isEmpty { Text(model.t(model.account.messageKey)) }
+                Button(model.t("queryDeletion")) { Task { await model.account.queryDeletion() } }.disabled(model.account.busy)
+            }.navigationTitle(model.t("deleteAccount"))
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(model.t("close")) { showDeletion = false } } }
+            .confirmationDialog(model.t("confirmDelete"), isPresented: $confirmDeletion, titleVisibility: .visible) {
+                Button(model.t("confirmDelete"), role: .destructive) { Task { await model.account.confirmDeletion() } }
+            } message: { Text(model.t("deleteScope")) }
+            .onDisappear { deletionPassword = ""; deletionTotp = "" }
+        }.preferredColorScheme(.dark)
     }
     private var player: some View {
         NavigationStack {

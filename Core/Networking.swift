@@ -17,8 +17,13 @@ actor URLSessionTransport: HTTPTransport {
         session = URLSession(configuration: configuration, delegate: RejectRedirects(), delegateQueue: nil)
     }
     func send(_ request: URLRequest) async throws -> HTTPResult {
-        let (data, response) = try await session.data(for: request)
+        let (bytes, response) = try await session.bytes(for: request)
         guard let response = response as? HTTPURLResponse else { throw APIError.invalidPayload }
+        var data = Data()
+        for try await byte in bytes {
+            guard data.count < 262_144 else { throw APIError.invalidPayload }
+            data.append(byte)
+        }
         return HTTPResult(status: response.statusCode, data: data)
     }
 }

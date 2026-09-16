@@ -71,8 +71,8 @@ actor AuthJournal {
     private func release() {
         if waiters.isEmpty { writing = false } else { waiters.removeFirst().resume() }
     }
-    func install(_ envelope: CredentialEnvelope) async throws {
-        let ticket = epoch
+    func install(_ envelope: CredentialEnvelope, expectedEpoch: Int? = nil) async throws {
+        let ticket = expectedEpoch ?? epoch
         await acquire(); defer { release() }
         guard ticket == epoch, envelope.schemaVersion == 1, envelope.scope.environment == environment,
               envelope.scope.accountID != nil, envelope.generation >= 0, envelope.refreshExpiresAt <= envelope.absoluteExpiresAt else { throw APIError.staleResponse }
@@ -105,9 +105,14 @@ actor AuthJournal {
         guard ticket == epoch else { throw APIError.staleResponse }
     }
     func logout() async throws {
+        _ = try await logoutReturningCredential()
+    }
+    func logoutReturningCredential() async throws -> CredentialEnvelope? {
         epoch += 1 // Invalidate a suspended completion before waiting for its storage operation.
         await acquire(); defer { release() }
+        let previous = try await read()
         try await store.remove(key) // Separate deletion recovery namespace survives.
+        return previous
     }
 }
 nonisolated enum DeletionReceipt {

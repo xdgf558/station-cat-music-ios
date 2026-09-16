@@ -14,9 +14,10 @@ import Observation
     let playback: PlaybackService
     let library: ScopedLibrary
     let client: APIClient
+    let account: NativeAccountModel
     private var operation = 0
     @ObservationIgnored private var catalogTask: Task<Catalog, Error>?
-    init(client: APIClient, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary()) { self.client = client; self.playback = playback; self.library = library }
+    init(client: APIClient, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel()) { self.client = client; self.playback = playback; self.library = library; self.account = account }
     func t(_ key: String) -> String { L10n.text(key, locale: locale) }
     func load() async {
         operation += 1; let id = operation; let startedScope = scope

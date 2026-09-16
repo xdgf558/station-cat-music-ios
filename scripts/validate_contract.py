@@ -34,5 +34,5 @@ for name in ['prepare','{id}/confirm']:
  assert paths['/api/mobile/v1/me/deletion-requests/'+name]['post']['security']==[{'Bearer':[]}]
 assert not any('/subscriptions/' in path for path in paths)
 assert '/auth/mobile/authorize' in paths
-assert sum(len(p) for p in paths.values())==24
-print(f'OpenAPI valid: 24 operations, {len(fixtures)+1} positive fixtures, {len(negative)} negative fixtures; four-language error keys and receipt hash verified.')
+assert sum(len(p) for p in paths.values())==25
+print(f'OpenAPI valid: 25 operations, {len(fixtures)+1} positive fixtures, {len(negative)} negative fixtures; four-language error keys and receipt hash verified.')

@@ -7,7 +7,7 @@ def obj(p,required=None,closed=False): return {'type':'object','properties':p,'r
 def arr(x): return {'type':'array','items':x,'maxItems':100}
 def enum(*x): return {'type':'string','enum':list(x)}
 S={'type':'string','minLength':1,'maxLength':200}; ID={**S,'maxLength':128}; B={'type':'boolean'}; N={'type':'integer','minimum':0}; D={'type':'string','format':'date-time'}; nullableD={'anyOf':[D,{'type':'null'}]}; nullableID={'anyOf':[ID,{'type':'null'}]}
-text={'type':'string','maxLength':4000}; secret={'type':'string','minLength':32,'maxLength':4096,'writeOnly':True}; cursor={'anyOf':[S,{'type':'null'}]}
+text={'type':'string','maxLength':4000}; secret={'type':'string','minLength':32,'maxLength':4096,'description':'Sensitive value; never log or cache. Response credentials must remain decodable by generated clients.'}; cursor={'anyOf':[S,{'type':'null'}]}
 s={}
 s['Track']=obj({'id':ID,'title':S,'artist':S,'durationSeconds':{'type':'number','minimum':0,'maximum':86400},'audioVersion':{'type':'integer','minimum':1},'access':enum('free','vip','preview','unavailable')})
 s['Catalog']=obj({'items':arr(ref('Track')),'nextCursor':cursor})

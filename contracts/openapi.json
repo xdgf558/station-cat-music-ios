@@ -2008,7 +2008,7 @@
             "type": "string",
             "minLength": 32,
             "maxLength": 4096,
-            "writeOnly": true
+            "description": "Sensitive value; never log or cache. Response credentials must remain decodable by generated clients."
           },
           "codeVerifier": {
             "type": "string",
@@ -2039,7 +2039,7 @@
             "type": "string",
             "minLength": 32,
             "maxLength": 4096,
-            "writeOnly": true
+            "description": "Sensitive value; never log or cache. Response credentials must remain decodable by generated clients."
           },
           "refreshRequestId": {
             "type": "string",
@@ -2085,7 +2085,7 @@
             "type": "string",
             "minLength": 32,
             "maxLength": 4096,
-            "writeOnly": true
+            "description": "Sensitive value; never log or cache. Response credentials must remain decodable by generated clients."
           },
           "accessExpiresAt": {
             "type": "string",
@@ -2095,7 +2095,7 @@
             "type": "string",
             "minLength": 32,
             "maxLength": 4096,
-            "writeOnly": true
+            "description": "Sensitive value; never log or cache. Response credentials must remain decodable by generated clients."
           },
           "refreshExpiresAt": {
             "type": "string",
@@ -2145,7 +2145,7 @@
             "type": "string",
             "minLength": 32,
             "maxLength": 4096,
-            "writeOnly": true
+            "description": "Sensitive value; never log or cache. Response credentials must remain decodable by generated clients."
           },
           "accessExpiresAt": {
             "type": "string",
@@ -2155,7 +2155,7 @@
             "type": "string",
             "minLength": 32,
             "maxLength": 4096,
-            "writeOnly": true
+            "description": "Sensitive value; never log or cache. Response credentials must remain decodable by generated clients."
           },
           "refreshExpiresAt": {
             "type": "string",

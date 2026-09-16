@@ -1,0 +1,44 @@
+name: M1 native foundation
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r contracts/requirements.lock
+      - run: python scripts/generate_contract.py && python scripts/seed_resources.py && python scripts/generate_project.py
+      - run: git diff --exit-code
+      - run: python scripts/validate_contract.py && python scripts/check_source.py
+  simulator:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select pinned stable Xcode
+        run: |
+          test -d /Applications/Xcode_26.4.1.app
+          echo DEVELOPER_DIR=/Applications/Xcode_26.4.1.app/Contents/Developer >> "$GITHUB_ENV"
+      - name: Choose available iPhone simulator
+        run: |
+          xcrun simctl list devices available -j > /tmp/m1-simulators.json
+          python3 - <<'PY'
+          import json,os
+          devices=json.load(open('/tmp/m1-simulators.json'))['devices']
+          candidates=[d for runtime,rows in sorted(devices.items(),reverse=True) if 'iOS' in runtime for d in rows if d.get('isAvailable') and d['name'].startswith('iPhone')]
+          assert candidates, 'No iPhone simulator installed'
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('M1_SIMULATOR_ID='+candidates[0]['udid']+'\n')
+          PY
+      - run: bash scripts/verify_configurations.sh
+      - run: bash scripts/test_ios.sh
+      - run: bash scripts/verify_keychain_relaunch.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: m1-local-test-evidence
+          path: evidence/

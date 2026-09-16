@@ -1,0 +1,11 @@
+.build/
+.venv/
+evidence/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+*.p12
+*.mobileprovision
+.env*
+__pycache__/
+.baseline-check/

@@ -1,0 +1,19 @@
+[
+  "error.invalid_request",
+  "error.auth_required",
+  "error.session_revoked",
+  "error.refresh_reauth_required",
+  "error.refresh_conflict",
+  "error.recent_auth_required",
+  "error.totp_required",
+  "error.version_conflict",
+  "error.history_epoch_stale",
+  "error.music_disabled",
+  "error.media_unavailable",
+  "error.grant_expired",
+  "error.access_denied",
+  "error.deletion_status_unavailable",
+  "error.rate_limited",
+  "error.service_unavailable",
+  "error.client_upgrade_required"
+]

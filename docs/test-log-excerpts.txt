@@ -1,0 +1,63 @@
+layout-acceptance.log
+Test Case '-[StationCatMusicTests.CoreTests test503IsUnavailableNotExpiredMembership]' passed (0.002 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testBuiltAppIsExplicitlyMockWithoutHTTPExceptions]' passed (0.000 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testCapabilitiesAndEntitlementKindsFailClosed]' passed (0.000 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testCatalogDecodesAndMutationClosed]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testContinuousDeadlineConservativelySubtractsRTT]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testCrossAccountRotationRejected]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testDeadlineHardStopAndTrackChangeInvalidateOldGrant]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testDefaultRemoteEnvironmentsClosed]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testDeletionCannotConfirmBeforeKnownDeadlines]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testDeletionConfirmationPersistsAndRestartOnlyQueries]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testDeletionPersistFailureStopsPrepare]' passed (0.000 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testExpiredDeletionPrepareRejected]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testFailedPendingWriteCannotAuthorizeSend]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testGrantIdentityAndURLBinding]' passed (0.000 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testInvalidAndExhaustedDeadlineRejected]' passed (0.000 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testLateCatalogCannotOverwriteNewAccount]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testLocaleCoverageAndFallback]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testLogoutWinsAgainstSuspendedRotation]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testMalformedCatalogRejected]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testPendingRefreshSurvivesNewJournalWithSameID]' passed (0.000 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testPlaybackWireFixtureDecodesAndValidates]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testPlayerOwnershipAcrossNavigation]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testProtectedStorageFailurePreservesExistingRecord]' passed (0.000 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testRealKeychainSingleItemAcrossInstancesAndReplacement]' passed (0.006 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testReceiptEncodingHashesDecodedBytes]' passed (0.000 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testRequestCancellation]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testRotationAtomicWriteFailureRetainsOldEnvelope]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testScopeCachesNeverImplicitlyMerge]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testSuccessfulRotationAndStaleReplayRejected]' passed (0.001 seconds).
+Test Case '-[StationCatMusicTests.CoreTests testUnknownPolicyFailsClosed]' passed (0.000 seconds).
+Executed 30 tests, with 0 failures (0 unexpected) in 0.026 (0.034) seconds
+Test Case '-[StationCatMusicTests.KeychainRelaunchTests testAWriteDurableFixture]' passed (0.002 seconds).
+Test Case '-[StationCatMusicTests.KeychainRelaunchTests testBReadAndRemoveFixture]' passed (0.001 seconds).
+Executed 2 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Executed 32 tests, with 0 failures (0 unexpected) in 0.030 (0.038) seconds
+Executed 32 tests, with 0 failures (0 unexpected) in 0.030 (0.039) seconds
+Test Case '-[StationCatMusicUITests.NavigationTests testFourLocalesAndLargestDynamicType]' passed (21.232 seconds).
+Test Case '-[StationCatMusicUITests.NavigationTests testThreeTabsAndPlayerNeverAutoPlays]' passed (14.029 seconds).
+Executed 2 tests, with 0 failures (0 unexpected) in 35.261 (35.265) seconds
+Executed 2 tests, with 0 failures (0 unexpected) in 35.261 (35.266) seconds
+Executed 2 tests, with 0 failures (0 unexpected) in 35.261 (35.268) seconds
+** TEST SUCCEEDED **
+
+configurations-final.log
+Mock: environment embedded, iOS18 minimum, no HTTP exception
+Development: environment embedded, iOS18 minimum, no HTTP exception
+Staging: environment embedded, iOS18 minimum, no HTTP exception
+Production: environment embedded, iOS18 minimum, no HTTP exception
+
+keychain-testAWriteDurableFixture.log
+Test Case '-[StationCatMusicTests.KeychainRelaunchTests testAWriteDurableFixture]' passed (0.009 seconds).
+** TEST SUCCEEDED **
+
+keychain-testBReadAndRemoveFixture.log
+Test Case '-[StationCatMusicTests.KeychainRelaunchTests testBReadAndRemoveFixture]' passed (0.004 seconds).
+** TEST SUCCEEDED **
+
+latest-snapshot-tests-r3.log
+ℹ tests 101
+ℹ pass 101
+ℹ fail 0
+ℹ skipped 0

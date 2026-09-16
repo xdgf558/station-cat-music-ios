@@ -1,0 +1,543 @@
+{
+  "Track": {
+    "id": "fixture-only",
+    "title": "fixture-only",
+    "artist": "fixture-only",
+    "durationSeconds": 0,
+    "audioVersion": 1,
+    "access": "free"
+  },
+  "Catalog": {
+    "items": [],
+    "nextCursor": "fixture-only"
+  },
+  "LyricLine": {
+    "startSeconds": 0,
+    "text": "fixture-only"
+  },
+  "Lyrics": {
+    "kind": "none",
+    "text": "fixture-only",
+    "lines": [],
+    "audioVersion": 1
+  },
+  "TrackDetail": {
+    "track": {
+      "id": "fixture-only",
+      "title": "fixture-only",
+      "artist": "fixture-only",
+      "durationSeconds": 0,
+      "audioVersion": 1,
+      "access": "free"
+    },
+    "summary": "fixture-only",
+    "coverUrl": "https://mock.invalid/FIXTURE_ONLY",
+    "lyrics": {
+      "kind": "none",
+      "text": "fixture-only",
+      "lines": [],
+      "audioVersion": 1
+    },
+    "genres": [],
+    "moods": [],
+    "previewAvailable": false,
+    "previewSourceStartSeconds": 0,
+    "previewDurationSeconds": 1
+  },
+  "Collection": {
+    "id": "fixture-only",
+    "slug": "fixture-only",
+    "title": "fixture-only",
+    "description": "fixture-only",
+    "version": 1,
+    "tracks": [],
+    "nextCursor": "fixture-only"
+  },
+  "Featured": {
+    "tracks": [],
+    "collections": []
+  },
+  "Config": {
+    "apiVersion": "1",
+    "minimumAppVersion": "fixture-only",
+    "capabilities": {
+      "musicCatalog": false,
+      "nativeAuthentication": false,
+      "musicPlayback": false,
+      "personalSync": false,
+      "accountDeletion": false,
+      "musicPurchases": false
+    },
+    "storeUrl": "https://mock.invalid/FIXTURE_ONLY"
+  },
+  "Account": {
+    "accountId": "fixture-only",
+    "displayName": "fixture-only",
+    "status": "active"
+  },
+  "EntitlementSource": {
+    "kind": "site_vip",
+    "provider": "station",
+    "status": "active",
+    "validUntil": "2026-09-16T00:00:00Z"
+  },
+  "Entitlements": {
+    "accountId": "fixture-only",
+    "music": {
+      "canPlayVipFull": false,
+      "accessValidUntil": "2026-09-16T00:10:00Z",
+      "revalidateAt": "2026-09-16T00:01:00Z",
+      "sources": []
+    },
+    "siteVip": {
+      "active": false,
+      "validUntil": "2026-09-16T00:00:00Z"
+    }
+  },
+  "TokenRequest": {
+    "clientId": "station-cat-ios",
+    "code": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+    "codeVerifier": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+    "redirectUri": "https://mock.invalid/FIXTURE_ONLY"
+  },
+  "RefreshRequest": {
+    "clientId": "station-cat-ios",
+    "refreshToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+    "refreshRequestId": "fixture-only",
+    "generation": 0
+  },
+  "Tokens": {
+    "accountId": "fixture-only",
+    "sessionId": "fixture-only",
+    "tokenFamilyId": "fixture-only",
+    "generation": 0,
+    "accessToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+    "accessExpiresAt": "2026-09-16T00:10:00Z",
+    "refreshToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+    "refreshExpiresAt": "2026-09-16T00:10:00Z",
+    "absoluteExpiresAt": "2026-09-16T00:10:00Z"
+  },
+  "RefreshResult": {
+    "accountId": "fixture-only",
+    "sessionId": "fixture-only",
+    "tokenFamilyId": "fixture-only",
+    "generation": 0,
+    "accessToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+    "accessExpiresAt": "2026-09-16T00:10:00Z",
+    "refreshToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+    "refreshExpiresAt": "2026-09-16T00:10:00Z",
+    "absoluteExpiresAt": "2026-09-16T00:10:00Z",
+    "refreshRequestId": "fixture-only",
+    "previousGeneration": 0,
+    "replayUntil": "2026-09-16T00:10:00Z"
+  },
+  "GrantRequest": {
+    "audioVersion": 1,
+    "variant": "full"
+  },
+  "PlaybackGrant": {
+    "playbackUrl": "https://mock.invalid/api/mobile/v1/music/media/FIXTURE_ONLY/audio",
+    "expiresAt": "2026-09-16T00:10:00Z",
+    "playbackValidUntil": "2026-09-16T00:10:00Z",
+    "revalidateAt": "2026-09-16T00:01:00Z",
+    "authMode": "public",
+    "accountId": null,
+    "sessionId": null,
+    "trackId": "fixture-only",
+    "audioVersion": 1,
+    "variant": "full",
+    "durationSeconds": 1,
+    "previewSourceStartSeconds": 0
+  },
+  "Favorite": {
+    "trackId": "fixture-only",
+    "favorite": false,
+    "version": 0,
+    "updatedAt": "2026-09-16T00:00:00Z"
+  },
+  "Favorites": {
+    "items": [],
+    "nextCursor": "fixture-only",
+    "syncVersion": 0
+  },
+  "FavoriteRequest": {
+    "favorite": false,
+    "mutationId": "fixture-only",
+    "expectedVersion": 0
+  },
+  "RecentItem": {
+    "trackId": "fixture-only",
+    "lastPlayedAt": "2026-09-16T00:00:00Z",
+    "positionSeconds": 0
+  },
+  "Recent": {
+    "items": [],
+    "nextCursor": "fixture-only",
+    "historyEpoch": 0
+  },
+  "Preferences": {
+    "historyEnabled": false,
+    "historyEpoch": 0,
+    "version": 0
+  },
+  "PreferenceRequest": {
+    "historyEnabled": false,
+    "expectedVersion": 0,
+    "mutationId": "fixture-only"
+  },
+  "ListenRequest": {
+    "trackId": "fixture-only",
+    "audioVersion": 1,
+    "variant": "full",
+    "eventId": "fixture-only",
+    "historyEpoch": 0,
+    "audibleSeconds": 0,
+    "positionSeconds": 0
+  },
+  "ClearHistoryRequest": {
+    "confirmed": true,
+    "historyEpoch": 0,
+    "mutationId": "fixture-only"
+  },
+  "Acknowledged": {
+    "accepted": false
+  },
+  "DeletePrepareRequest": {
+    "deletionRequestId": "fixture-only",
+    "deletionReceiptHash": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+    "scopeVersion": "station-account-v1"
+  },
+  "DeleteConfirmRequest": {
+    "confirmedScopeVersion": "station-account-v1"
+  },
+  "DeletePrepared": {
+    "deletionRequestId": "fixture-only",
+    "status": "prepared",
+    "scopeVersion": "station-account-v1",
+    "prepareExpiresAt": "2026-09-16T00:10:00Z",
+    "receiptExpiresAt": "2026-09-16T00:10:00Z",
+    "confirmAccepted": false
+  },
+  "DeleteAccepted": {
+    "deletionRequestId": "fixture-only",
+    "status": "accepted",
+    "confirmAccepted": true,
+    "stage": "fixture-only",
+    "confirmedAt": "2026-09-16T00:00:00Z",
+    "completedAt": "2026-09-16T00:00:00Z",
+    "receiptExpiresAt": "2026-09-16T00:10:00Z"
+  },
+  "DeleteExpired": {
+    "deletionRequestId": "fixture-only",
+    "status": "preparation_expired",
+    "confirmAccepted": false,
+    "receiptExpiresAt": "2026-09-16T00:10:00Z"
+  },
+  "DeleteStatus": {
+    "deletionRequestId": "fixture-only",
+    "status": "prepared",
+    "scopeVersion": "station-account-v1",
+    "prepareExpiresAt": "2026-09-16T00:10:00Z",
+    "receiptExpiresAt": "2026-09-16T00:10:00Z",
+    "confirmAccepted": false
+  },
+  "Error": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "retryable": false,
+      "messageKey": "error.invalid_request"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "TrackResponse": {
+    "data": {
+      "id": "fixture-only",
+      "title": "fixture-only",
+      "artist": "fixture-only",
+      "durationSeconds": 0,
+      "audioVersion": 1,
+      "access": "free"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "CatalogResponse": {
+    "data": {
+      "items": [],
+      "nextCursor": "fixture-only"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "LyricLineResponse": {
+    "data": {
+      "startSeconds": 0,
+      "text": "fixture-only"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "LyricsResponse": {
+    "data": {
+      "kind": "none",
+      "text": "fixture-only",
+      "lines": [],
+      "audioVersion": 1
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "TrackDetailResponse": {
+    "data": {
+      "track": {
+        "id": "fixture-only",
+        "title": "fixture-only",
+        "artist": "fixture-only",
+        "durationSeconds": 0,
+        "audioVersion": 1,
+        "access": "free"
+      },
+      "summary": "fixture-only",
+      "coverUrl": "https://mock.invalid/FIXTURE_ONLY",
+      "lyrics": {
+        "kind": "none",
+        "text": "fixture-only",
+        "lines": [],
+        "audioVersion": 1
+      },
+      "genres": [],
+      "moods": [],
+      "previewAvailable": false,
+      "previewSourceStartSeconds": 0,
+      "previewDurationSeconds": 1
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "CollectionResponse": {
+    "data": {
+      "id": "fixture-only",
+      "slug": "fixture-only",
+      "title": "fixture-only",
+      "description": "fixture-only",
+      "version": 1,
+      "tracks": [],
+      "nextCursor": "fixture-only"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "FeaturedResponse": {
+    "data": {
+      "tracks": [],
+      "collections": []
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "ConfigResponse": {
+    "data": {
+      "apiVersion": "1",
+      "minimumAppVersion": "fixture-only",
+      "capabilities": {
+        "musicCatalog": false,
+        "nativeAuthentication": false,
+        "musicPlayback": false,
+        "personalSync": false,
+        "accountDeletion": false,
+        "musicPurchases": false
+      },
+      "storeUrl": "https://mock.invalid/FIXTURE_ONLY"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "AccountResponse": {
+    "data": {
+      "accountId": "fixture-only",
+      "displayName": "fixture-only",
+      "status": "active"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "EntitlementSourceResponse": {
+    "data": {
+      "kind": "site_vip",
+      "provider": "station",
+      "status": "active",
+      "validUntil": "2026-09-16T00:00:00Z"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "EntitlementsResponse": {
+    "data": {
+      "accountId": "fixture-only",
+      "music": {
+        "canPlayVipFull": false,
+        "accessValidUntil": "2026-09-16T00:10:00Z",
+        "revalidateAt": "2026-09-16T00:01:00Z",
+        "sources": []
+      },
+      "siteVip": {
+        "active": false,
+        "validUntil": "2026-09-16T00:00:00Z"
+      }
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "TokensResponse": {
+    "data": {
+      "accountId": "fixture-only",
+      "sessionId": "fixture-only",
+      "tokenFamilyId": "fixture-only",
+      "generation": 0,
+      "accessToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+      "accessExpiresAt": "2026-09-16T00:10:00Z",
+      "refreshToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+      "refreshExpiresAt": "2026-09-16T00:10:00Z",
+      "absoluteExpiresAt": "2026-09-16T00:10:00Z"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "RefreshResultResponse": {
+    "data": {
+      "accountId": "fixture-only",
+      "sessionId": "fixture-only",
+      "tokenFamilyId": "fixture-only",
+      "generation": 0,
+      "accessToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+      "accessExpiresAt": "2026-09-16T00:10:00Z",
+      "refreshToken": "FIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLYFIXTUREONLY",
+      "refreshExpiresAt": "2026-09-16T00:10:00Z",
+      "absoluteExpiresAt": "2026-09-16T00:10:00Z",
+      "refreshRequestId": "fixture-only",
+      "previousGeneration": 0,
+      "replayUntil": "2026-09-16T00:10:00Z"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "PlaybackGrantResponse": {
+    "data": {
+      "playbackUrl": "https://mock.invalid/api/mobile/v1/music/media/FIXTURE_ONLY/audio",
+      "expiresAt": "2026-09-16T00:10:00Z",
+      "playbackValidUntil": "2026-09-16T00:10:00Z",
+      "revalidateAt": "2026-09-16T00:01:00Z",
+      "authMode": "public",
+      "accountId": null,
+      "sessionId": null,
+      "trackId": "fixture-only",
+      "audioVersion": 1,
+      "variant": "full",
+      "durationSeconds": 1,
+      "previewSourceStartSeconds": 0
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "FavoriteResponse": {
+    "data": {
+      "trackId": "fixture-only",
+      "favorite": false,
+      "version": 0,
+      "updatedAt": "2026-09-16T00:00:00Z"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "FavoritesResponse": {
+    "data": {
+      "items": [],
+      "nextCursor": "fixture-only",
+      "syncVersion": 0
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "RecentItemResponse": {
+    "data": {
+      "trackId": "fixture-only",
+      "lastPlayedAt": "2026-09-16T00:00:00Z",
+      "positionSeconds": 0
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "RecentResponse": {
+    "data": {
+      "items": [],
+      "nextCursor": "fixture-only",
+      "historyEpoch": 0
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "PreferencesResponse": {
+    "data": {
+      "historyEnabled": false,
+      "historyEpoch": 0,
+      "version": 0
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "AcknowledgedResponse": {
+    "data": {
+      "accepted": false
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "DeletePreparedResponse": {
+    "data": {
+      "deletionRequestId": "fixture-only",
+      "status": "prepared",
+      "scopeVersion": "station-account-v1",
+      "prepareExpiresAt": "2026-09-16T00:10:00Z",
+      "receiptExpiresAt": "2026-09-16T00:10:00Z",
+      "confirmAccepted": false
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "DeleteAcceptedResponse": {
+    "data": {
+      "deletionRequestId": "fixture-only",
+      "status": "accepted",
+      "confirmAccepted": true,
+      "stage": "fixture-only",
+      "confirmedAt": "2026-09-16T00:00:00Z",
+      "completedAt": "2026-09-16T00:00:00Z",
+      "receiptExpiresAt": "2026-09-16T00:10:00Z"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "DeleteExpiredResponse": {
+    "data": {
+      "deletionRequestId": "fixture-only",
+      "status": "preparation_expired",
+      "confirmAccepted": false,
+      "receiptExpiresAt": "2026-09-16T00:10:00Z"
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "DeleteStatusResponse": {
+    "data": {
+      "deletionRequestId": "fixture-only",
+      "status": "prepared",
+      "scopeVersion": "station-account-v1",
+      "prepareExpiresAt": "2026-09-16T00:10:00Z",
+      "receiptExpiresAt": "2026-09-16T00:10:00Z",
+      "confirmAccepted": false
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "date": "2026-09-16",
+  "stage": "M1 local foundation",
+  "xcode": "27.0 beta 6 (27A5252f)",
+  "simulator": "iPhone 17 Pro / iOS27",
+  "minimumDeploymentTarget": "iOS18",
+  "swiftTests": {
+    "passed": 32,
+    "failed": 0
+  },
+  "uiTests": {
+    "passed": 2,
+    "failed": 0,
+    "includesFourLocalesAtLargestDynamicType": true
+  },
+  "keychainSeparateProcesses": {
+    "passed": true,
+    "syntheticRecordOnly": true
+  },
+  "websiteLatestLocalSnapshotTests": {
+    "passed": 101,
+    "failed": 0
+  },
+  "openapi": {
+    "operations": 24,
+    "positiveFixtures": 59,
+    "negativeFixtures": 10,
+    "passed": true
+  },
+  "configurations": [
+    "Mock",
+    "Development",
+    "Staging",
+    "Production"
+  ],
+  "stableRemoteCIExecuted": false,
+  "physicalDeviceTested": false,
+  "productionMutations": false,
+  "remoteRepositoryCreated": false
+}

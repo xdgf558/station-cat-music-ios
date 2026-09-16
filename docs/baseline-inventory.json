@@ -1,0 +1,96 @@
+{
+  "main": "05e27342b2d43adaddf6b44905bfaa1dd9180e4f",
+  "latestLocalProductionSnapshot": "music-play-counts-deploy-20260916/source",
+  "snapshotDeploymentVersion": "f8a46544-e497-4c4c-b2de-9ba2d4743ffb",
+  "liveProductionQueried": false,
+  "changedTrackedFiles": [
+    {
+      "path": "package.json",
+      "mainSHA256": "634b868986d2d74b745d2960f589534b3c6f68c54e60380b7eeeb1bcce1557cb",
+      "productionSnapshotSHA256": "639b4b54728947bbc967ea76587b8eaee39ff676c3fba5f931ac357f5ed6b392"
+    },
+    {
+      "path": "scripts/test-music-analytics.mjs",
+      "mainSHA256": "39a9f8761e61e32f71b97d0466267983d55ffcb45283ef2be630d9fb8f8fb1dd",
+      "productionSnapshotSHA256": "2f035af174ad46622330f158760ed3061a7599ae86af42443f4cc92aa6efa4a1"
+    },
+    {
+      "path": "scripts/test-music-library.mjs",
+      "mainSHA256": "cf3fc703d30ad871b2eae2bb8bca3e4f3f483c4595e70d3d11d82c29c163cc24",
+      "productionSnapshotSHA256": "0d4844d97a1be267f804f0fb33d3ab4a2aacb5d6da0297424a0d8f8171b68dd7"
+    },
+    {
+      "path": "scripts/test-music-player.mjs",
+      "mainSHA256": "887c42e8b8f369d341080a4bb328732a210fc92d64eb54bad31ed283cfb3501f",
+      "productionSnapshotSHA256": "729d05b5d79dc3d281867fdffb3f4cd6d01168f0f5c12e44025e9de9d186c5ea"
+    },
+    {
+      "path": "scripts/test-music-public.mjs",
+      "mainSHA256": "606fa79cf6dbc1854d0eb77f4ab433694932ed12611e5a2ca8b6aa2db6648a37",
+      "productionSnapshotSHA256": "bbffdacdd22b7afb7748f1418641ff9971a53cfde93b43ed420c5cd627da424d"
+    },
+    {
+      "path": "scripts/test-music-system-controls.mjs",
+      "mainSHA256": "3534d846c1bb8b4e4df46203b4f2e84e722a77599f5dbc9eae816cc6833e47cf",
+      "productionSnapshotSHA256": "15d9a8fcb90b0418473b05b1309c25427db748040e0c5f9a32229b3e8fcc255c"
+    },
+    {
+      "path": "src/components/MusicPlayer.astro",
+      "mainSHA256": "40aca59e38051a489a100637e1733cc96774e0fa4c0a39d49751bbe930f3a04c",
+      "productionSnapshotSHA256": "e4464a88a6f6c896796b2c196c4899238a2bb54e2fd6b7f44c9ec60fae7ec09f"
+    },
+    {
+      "path": "src/music/analytics.js",
+      "mainSHA256": "db1c193c0acf18246e72afdd78f7042c1535237a4305eb5cd2553255f0464628",
+      "productionSnapshotSHA256": "481499d9880d795f8b098d16255e3877f9b3e1b70db183ec1d5e612f2bb248f5"
+    },
+    {
+      "path": "src/music/publicHttp.js",
+      "mainSHA256": "8ed42ad693534a6977d986ab7e0ce8c8fe91251de80ef78a799f4f35e830eddc",
+      "productionSnapshotSHA256": "671013eaa8a37f02b09a966e9cf9f13e48ea8325a35318dec3404f61e1606fe3"
+    },
+    {
+      "path": "src/scripts/musicLibrary.js",
+      "mainSHA256": "7a0d254ade9d43d10e2cd75ad699b3418242071a1d42d896e838dacfda675ac5",
+      "productionSnapshotSHA256": "7ef971a9df5451d0d5fdd93f7320fc3bb9f2e456692063bd60ce0e0d7d0ae16f"
+    },
+    {
+      "path": "src/scripts/musicLibraryControls.js",
+      "mainSHA256": "4b12554bd4cff9b76c9c1d93adfed88c8ec752a0da3c6d161eed289f7abca19e",
+      "productionSnapshotSHA256": "b3e1efb518883e8e64f872c7c4beecc70f3b317c201583c9403dc62e3c494843"
+    },
+    {
+      "path": "src/scripts/musicMessages.js",
+      "mainSHA256": "a201b2262695d0f7fc135af1c964004834ae18697b1c6ad1830eaf876a033ac4",
+      "productionSnapshotSHA256": "c65c13e7cc08a8f6ec5d4a767d1b7a52ca9f287465be93f39d6e63262cbfedd4"
+    },
+    {
+      "path": "src/scripts/musicPlayerCatalog.js",
+      "mainSHA256": "e9f5cea26ae4f7df26db35101b1f939c5b077c81beb782eb012b614d65e98bcb",
+      "productionSnapshotSHA256": "9e9e38a64db9317f6a2dda1e097dbf14bbf373af4dcf6156af6d611da1b50cca"
+    },
+    {
+      "path": "src/scripts/musicPlayerClient.js",
+      "mainSHA256": "d762e983d21d8cb38d9c6b79a6379d4a2095c06b1298b8b7616d10649feabe4f",
+      "productionSnapshotSHA256": "3ac8c843b0ecba511c14617c74898898d489dfbf9affcf2c6e46a1b66b1fa7da"
+    },
+    {
+      "path": "src/scripts/musicSystemControls.js",
+      "mainSHA256": "465a1df0030178c5ecbf48af17b883589f7ef298b9e76559651c4c8ed17c61eb",
+      "productionSnapshotSHA256": "b07f316e7ee4da975329866f882db0172fb2a32a8e2f2338799b0129c798ab85"
+    },
+    {
+      "path": "src/styles/music-night.css",
+      "mainSHA256": "754a5463750e559ba8b73bd3db7c67b6a0de7bd9340839a938225b7589c089a6",
+      "productionSnapshotSHA256": "4c2deecdfbeebb3dc1641539d7d2ccd12188c997f9e108cd9882a63491a91311"
+    },
+    {
+      "path": "src/worker.js",
+      "mainSHA256": "2fd40cc50f8276b39bb2ab4beee776a041cfa44d320f743b4ee590f09ca88d60",
+      "productionSnapshotSHA256": "a13e642060a31d7b88368b4b2cb878588862b90a51fe77e5ee870800b5467396"
+    }
+  ],
+  "trackedFilesAbsentFromSnapshot": [],
+  "excluded": "docs/mobile-ios-m0 (documentation added after snapshot)",
+  "action": "Preserved snapshot and existing worktrees; no production integration or deploy."
+}

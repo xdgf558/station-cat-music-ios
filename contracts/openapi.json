@@ -1,0 +1,3429 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Station Cat Music Native — proposed v1.0 contract",
+    "version": "0.1.0",
+    "description": "M1 contract only. All endpoints proposed; mock runtime has no network or credentials. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract."
+  },
+  "servers": [
+    {
+      "url": "https://mock.invalid",
+      "description": "Reserved non-routable placeholder; configure approved isolated service in M2."
+    }
+  ],
+  "paths": {
+    "/api/mobile/v1/config": {
+      "get": {
+        "operationId": "get__config",
+        "security": [],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/auth/token": {
+      "post": {
+        "operationId": "post__auth_token",
+        "security": [],
+        "description": "Exact registered redirect; S256 PKCE; atomically consume authorization code within 90 seconds. No Cookie fallback.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokensResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/auth/refresh": {
+      "post": {
+        "operationId": "post__auth_refresh",
+        "security": [],
+        "description": "No Cookie or automatic 401 interceptor. Fixed request ID and canonical body across restarts. Original result retained 120 seconds; spent operation tombstone outlives result; outside window require reauthentication, never mint a replacement family.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResultResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/auth/logout": {
+      "post": {
+        "operationId": "post__auth_logout",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcknowledgedResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/me": {
+      "get": {
+        "operationId": "get__me",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/me/entitlements": {
+      "get": {
+        "operationId": "get__me_entitlements",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitlementsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/music/catalog": {
+      "get": {
+        "operationId": "get__music_catalog",
+        "security": [],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "access",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "free",
+                "vip"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/music/featured": {
+      "get": {
+        "operationId": "get__music_featured",
+        "security": [],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeaturedResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/music/tracks/{id}": {
+      "get": {
+        "operationId": "get__music_tracks_id",
+        "security": [],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackDetailResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/music/collections/{slug}": {
+      "get": {
+        "operationId": "get__music_collections_slug",
+        "security": [],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/music/tracks/{id}/playback-grants": {
+      "post": {
+        "operationId": "post__music_tracks_id_playback_grants",
+        "security": [
+          {},
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Server chooses authMode. VIP full requires Bearer. Account, session, version, variant and expiry are bound. Invalid Bearer never downgrades to public.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackGrantResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/music/media/{grant}/audio": {
+      "get": {
+        "operationId": "get__music_media_grant_audio",
+        "security": [
+          {},
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Actual GET/HEAD and every Range re-check grant and requester. session_bearer requires same account/session Bearer. public restricted to valid free/preview. Never redirect or use shared CDN cache. Failure to resolve authorization is 503 without audio.",
+        "parameters": [
+          {
+            "name": "grant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "Range",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^bytes=[0-9]*-[0-9]*$"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Audio body for GET, empty for HEAD. Protected responses private, no-store.",
+            "headers": {
+              "Content-Length": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "audio/mpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "Audio body for GET, empty for HEAD. Protected responses private, no-store.",
+            "headers": {
+              "Content-Length": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "audio/mpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "416": {
+            "description": "Range not satisfiable; no audio."
+          }
+        },
+        "x-milestone": "v1.0"
+      },
+      "head": {
+        "operationId": "head__music_media_grant_audio",
+        "security": [
+          {},
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Actual GET/HEAD and every Range re-check grant and requester. session_bearer requires same account/session Bearer. public restricted to valid free/preview. Never redirect or use shared CDN cache. Failure to resolve authorization is 503 without audio.",
+        "parameters": [
+          {
+            "name": "grant",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "Range",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^bytes=[0-9]*-[0-9]*$"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Audio body for GET, empty for HEAD. Protected responses private, no-store.",
+            "headers": {
+              "Content-Length": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "Audio body for GET, empty for HEAD. Protected responses private, no-store.",
+            "headers": {
+              "Content-Length": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "416": {
+            "description": "Range not satisfiable; no audio."
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/me/music/favorites": {
+      "get": {
+        "operationId": "get__me_music_favorites",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoritesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/api/mobile/v1/me/music/favorites/{id}": {
+      "put": {
+        "operationId": "put__me_music_favorites_id",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FavoriteRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/me/music/recent": {
+      "get": {
+        "operationId": "get__me_music_recent",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      },
+      "delete": {
+        "operationId": "delete__me_music_recent",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClearHistoryRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/me/music/preferences": {
+      "get": {
+        "operationId": "get__me_music_preferences",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      },
+      "patch": {
+        "operationId": "patch__me_music_preferences",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferenceRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/me/music/listens": {
+      "post": {
+        "operationId": "post__me_music_listens",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Planned API. Not implemented or deployed by M1.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcknowledgedResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListenRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/me/deletion-requests/prepare": {
+      "post": {
+        "operationId": "post__me_deletion_requests_prepare",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Bearer + recent auth <=5 minutes, existing TOTP rules. Idempotency-Key is persisted prepareRequestId. Only prepare; no session revocation or deletion outbox. 10-minute preparation; 14-day receipt. Known placeholder hashes rejected.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletePreparedResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletePrepareRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/me/deletion-requests/{id}/confirm": {
+      "post": {
+        "operationId": "post__me_deletion_requests_id_confirm",
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "description": "Explicit consent, Bearer + recent auth + TOTP, persisted confirmRequestId. Atomically accept task, block account, revoke sessions/grants and insert outbox. Receipt alone never authorizes confirmation.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAcceptedResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteConfirmRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mobile/v1/deletion-requests/{id}/status": {
+      "get": {
+        "operationId": "get__deletion_requests_id_status",
+        "security": [
+          {
+            "DeletionReceipt": []
+          }
+        ],
+        "description": "Query only; no Bearer, Cookie, refresh interceptor or login redirect. Authorization: DeletionReceipt <unpadded base64url of 32 random bytes>. Strongly consistent minimal status. Invalid/expired/wrong receipt always 404 DELETION_STATUS_UNAVAILABLE.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, no-store for identity, credentials, grants and deletion."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteStatusResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error; 503 never means expired entitlement. No redirects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Indistinguishable absent, invalid or expired receipt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-milestone": "v1.0"
+      }
+    },
+    "/auth/mobile/authorize": {
+      "get": {
+        "operationId": "browser_authorize",
+        "security": [],
+        "description": "ASWebAuthenticationSession browser login, including existing TOTP. Exact registered redirect; no arbitrary return URL. Reuse interactive web identity, never website Cookie as native API fallback.",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "const": "station-cat-ios"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 32
+            }
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          },
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "const": "S256"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Interactive authentication page",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Only registered redirect containing code and unchanged state; no tokens in URL."
+          },
+          "400": {
+            "description": "Invalid request; no redirect."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Native access token only. Do not accept website Cookie as fallback."
+      },
+      "DeletionReceipt": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "DeletionReceipt followed by unpadded base64url of exactly32 random bytes; query-only credential, never Bearer."
+      }
+    },
+    "schemas": {
+      "Track": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "artist": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 86400
+          },
+          "audioVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "free",
+              "vip",
+              "preview",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "artist",
+          "durationSeconds",
+          "audioVersion",
+          "access"
+        ],
+        "additionalProperties": true
+      },
+      "Catalog": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Track"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": true
+      },
+      "LyricLine": {
+        "type": "object",
+        "properties": {
+          "startSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "startSeconds",
+          "text"
+        ],
+        "additionalProperties": true
+      },
+      "Lyrics": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "none",
+              "plain",
+              "timed"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LyricLine"
+            },
+            "maxItems": 10000
+          },
+          "audioVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "lines",
+          "audioVersion"
+        ],
+        "additionalProperties": true
+      },
+      "TrackDetail": {
+        "type": "object",
+        "properties": {
+          "track": {
+            "$ref": "#/components/schemas/Track"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "coverUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lyrics": {
+            "$ref": "#/components/schemas/Lyrics"
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "maxItems": 100
+          },
+          "moods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "maxItems": 100
+          },
+          "previewAvailable": {
+            "type": "boolean"
+          },
+          "previewSourceStartSeconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previewDurationSeconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "track",
+          "summary",
+          "coverUrl",
+          "lyrics",
+          "genres",
+          "moods",
+          "previewAvailable",
+          "previewSourceStartSeconds",
+          "previewDurationSeconds"
+        ],
+        "additionalProperties": true
+      },
+      "Collection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tracks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Track"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "description",
+          "version",
+          "tracks",
+          "nextCursor"
+        ],
+        "additionalProperties": true
+      },
+      "Featured": {
+        "type": "object",
+        "properties": {
+          "tracks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Track"
+            },
+            "maxItems": 100
+          },
+          "collections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Collection"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "tracks",
+          "collections"
+        ],
+        "additionalProperties": true
+      },
+      "Config": {
+        "type": "object",
+        "properties": {
+          "apiVersion": {
+            "const": "1"
+          },
+          "minimumAppVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "musicCatalog": {
+                "type": "boolean"
+              },
+              "nativeAuthentication": {
+                "type": "boolean"
+              },
+              "musicPlayback": {
+                "type": "boolean"
+              },
+              "personalSync": {
+                "type": "boolean"
+              },
+              "accountDeletion": {
+                "type": "boolean"
+              },
+              "musicPurchases": {
+                "const": false
+              }
+            },
+            "required": [
+              "musicCatalog",
+              "nativeAuthentication",
+              "musicPlayback",
+              "personalSync",
+              "accountDeletion",
+              "musicPurchases"
+            ],
+            "additionalProperties": true
+          },
+          "storeUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "apiVersion",
+          "minimumAppVersion",
+          "capabilities",
+          "storeUrl"
+        ],
+        "additionalProperties": true
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "restricted",
+              "deletion_pending"
+            ]
+          }
+        },
+        "required": [
+          "accountId",
+          "displayName",
+          "status"
+        ],
+        "additionalProperties": true
+      },
+      "EntitlementSource": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "site_vip",
+              "music_subscription"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "station",
+              "apple"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "expired",
+              "revoked",
+              "grace"
+            ]
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "kind",
+          "provider",
+          "status",
+          "validUntil"
+        ],
+        "additionalProperties": true
+      },
+      "Entitlements": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "music": {
+            "type": "object",
+            "properties": {
+              "canPlayVipFull": {
+                "type": "boolean"
+              },
+              "accessValidUntil": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "revalidateAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EntitlementSource"
+                },
+                "maxItems": 100
+              }
+            },
+            "required": [
+              "canPlayVipFull",
+              "accessValidUntil",
+              "revalidateAt",
+              "sources"
+            ],
+            "additionalProperties": true
+          },
+          "siteVip": {
+            "type": "object",
+            "properties": {
+              "active": {
+                "type": "boolean"
+              },
+              "validUntil": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "active",
+              "validUntil"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "accountId",
+          "music",
+          "siteVip"
+        ],
+        "additionalProperties": true
+      },
+      "TokenRequest": {
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "const": "station-cat-ios"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096,
+            "writeOnly": true
+          },
+          "codeVerifier": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._~-]+$"
+          },
+          "redirectUri": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "clientId",
+          "code",
+          "codeVerifier",
+          "redirectUri"
+        ],
+        "additionalProperties": false
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "const": "station-cat-ios"
+          },
+          "refreshToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096,
+            "writeOnly": true
+          },
+          "refreshRequestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "clientId",
+          "refreshToken",
+          "refreshRequestId",
+          "generation"
+        ],
+        "additionalProperties": false
+      },
+      "Tokens": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "tokenFamilyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "accessToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096,
+            "writeOnly": true
+          },
+          "accessExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096,
+            "writeOnly": true
+          },
+          "refreshExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "absoluteExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "accountId",
+          "sessionId",
+          "tokenFamilyId",
+          "generation",
+          "accessToken",
+          "accessExpiresAt",
+          "refreshToken",
+          "refreshExpiresAt",
+          "absoluteExpiresAt"
+        ],
+        "additionalProperties": true
+      },
+      "RefreshResult": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "tokenFamilyId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "accessToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096,
+            "writeOnly": true
+          },
+          "accessExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 4096,
+            "writeOnly": true
+          },
+          "refreshExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "absoluteExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshRequestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "previousGeneration": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "replayUntil": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "accountId",
+          "sessionId",
+          "tokenFamilyId",
+          "generation",
+          "accessToken",
+          "accessExpiresAt",
+          "refreshToken",
+          "refreshExpiresAt",
+          "absoluteExpiresAt",
+          "refreshRequestId",
+          "previousGeneration",
+          "replayUntil"
+        ],
+        "additionalProperties": true
+      },
+      "GrantRequest": {
+        "type": "object",
+        "properties": {
+          "audioVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "full",
+              "preview"
+            ]
+          }
+        },
+        "required": [
+          "audioVersion",
+          "variant"
+        ],
+        "additionalProperties": false
+      },
+      "PlaybackGrant": {
+        "type": "object",
+        "properties": {
+          "playbackUrl": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://[^/?#]+/api/mobile/v1/music/media/[^/?#]+/audio$"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "playbackValidUntil": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revalidateAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "authMode": {
+            "type": "string",
+            "enum": [
+              "public",
+              "session_bearer"
+            ]
+          },
+          "accountId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sessionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "audioVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "full",
+              "preview"
+            ]
+          },
+          "durationSeconds": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "previewSourceStartSeconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "playbackUrl",
+          "expiresAt",
+          "playbackValidUntil",
+          "revalidateAt",
+          "authMode",
+          "accountId",
+          "sessionId",
+          "trackId",
+          "audioVersion",
+          "variant",
+          "durationSeconds",
+          "previewSourceStartSeconds"
+        ],
+        "additionalProperties": true,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "authMode": {
+                  "const": "session_bearer"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "accountId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "sessionId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "accountId": {
+                  "type": "null"
+                },
+                "sessionId": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Favorite": {
+        "type": "object",
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "favorite": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "trackId",
+          "favorite",
+          "version",
+          "updatedAt"
+        ],
+        "additionalProperties": true
+      },
+      "Favorites": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Favorite"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "syncVersion": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "syncVersion"
+        ],
+        "additionalProperties": true
+      },
+      "FavoriteRequest": {
+        "type": "object",
+        "properties": {
+          "favorite": {
+            "type": "boolean"
+          },
+          "mutationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "favorite",
+          "mutationId",
+          "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "RecentItem": {
+        "type": "object",
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "lastPlayedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "positionSeconds": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "trackId",
+          "lastPlayedAt",
+          "positionSeconds"
+        ],
+        "additionalProperties": true
+      },
+      "Recent": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecentItem"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "historyEpoch": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "historyEpoch"
+        ],
+        "additionalProperties": true
+      },
+      "Preferences": {
+        "type": "object",
+        "properties": {
+          "historyEnabled": {
+            "type": "boolean"
+          },
+          "historyEpoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "historyEnabled",
+          "historyEpoch",
+          "version"
+        ],
+        "additionalProperties": true
+      },
+      "PreferenceRequest": {
+        "type": "object",
+        "properties": {
+          "historyEnabled": {
+            "type": "boolean"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mutationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "historyEnabled",
+          "expectedVersion",
+          "mutationId"
+        ],
+        "additionalProperties": false
+      },
+      "ListenRequest": {
+        "type": "object",
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "audioVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "full",
+              "preview"
+            ]
+          },
+          "eventId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "historyEpoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "audibleSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "positionSeconds": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "trackId",
+          "audioVersion",
+          "variant",
+          "eventId",
+          "historyEpoch",
+          "audibleSeconds",
+          "positionSeconds"
+        ],
+        "additionalProperties": false
+      },
+      "ClearHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "confirmed": {
+            "const": true
+          },
+          "historyEpoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mutationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "confirmed",
+          "historyEpoch",
+          "mutationId"
+        ],
+        "additionalProperties": false
+      },
+      "Acknowledged": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted"
+        ],
+        "additionalProperties": true
+      },
+      "DeletePrepareRequest": {
+        "type": "object",
+        "properties": {
+          "deletionRequestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "deletionReceiptHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 of decoded 32 random bytes, never of base64url text."
+          },
+          "scopeVersion": {
+            "const": "station-account-v1"
+          }
+        },
+        "required": [
+          "deletionRequestId",
+          "deletionReceiptHash",
+          "scopeVersion"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteConfirmRequest": {
+        "type": "object",
+        "properties": {
+          "confirmedScopeVersion": {
+            "const": "station-account-v1"
+          }
+        },
+        "required": [
+          "confirmedScopeVersion"
+        ],
+        "additionalProperties": false
+      },
+      "DeletePrepared": {
+        "type": "object",
+        "properties": {
+          "deletionRequestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "status": {
+            "const": "prepared"
+          },
+          "scopeVersion": {
+            "const": "station-account-v1"
+          },
+          "prepareExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "receiptExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confirmAccepted": {
+            "const": false
+          }
+        },
+        "required": [
+          "deletionRequestId",
+          "status",
+          "scopeVersion",
+          "prepareExpiresAt",
+          "receiptExpiresAt",
+          "confirmAccepted"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteAccepted": {
+        "type": "object",
+        "properties": {
+          "deletionRequestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "processing",
+              "retrying",
+              "attention_required",
+              "completed"
+            ]
+          },
+          "confirmAccepted": {
+            "const": true
+          },
+          "stage": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "confirmedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receiptExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "deletionRequestId",
+          "status",
+          "confirmAccepted",
+          "stage",
+          "confirmedAt",
+          "completedAt",
+          "receiptExpiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteExpired": {
+        "type": "object",
+        "properties": {
+          "deletionRequestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "status": {
+            "const": "preparation_expired"
+          },
+          "confirmAccepted": {
+            "const": false
+          },
+          "receiptExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "deletionRequestId",
+          "status",
+          "confirmAccepted",
+          "receiptExpiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteStatus": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DeletePrepared"
+          },
+          {
+            "$ref": "#/components/schemas/DeleteAccepted"
+          },
+          {
+            "$ref": "#/components/schemas/DeleteExpired"
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "INVALID_REQUEST",
+                  "AUTH_REQUIRED",
+                  "SESSION_REVOKED",
+                  "REFRESH_REAUTH_REQUIRED",
+                  "REFRESH_CONFLICT",
+                  "RECENT_AUTH_REQUIRED",
+                  "TOTP_REQUIRED",
+                  "VERSION_CONFLICT",
+                  "HISTORY_EPOCH_STALE",
+                  "MUSIC_DISABLED",
+                  "MEDIA_UNAVAILABLE",
+                  "GRANT_EXPIRED",
+                  "ACCESS_DENIED",
+                  "DELETION_STATUS_UNAVAILABLE",
+                  "RATE_LIMITED",
+                  "SERVICE_UNAVAILABLE",
+                  "CLIENT_UPGRADE_REQUIRED"
+                ]
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "retryAfterSeconds": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "messageKey": {
+                "type": "string",
+                "enum": [
+                  "error.invalid_request",
+                  "error.auth_required",
+                  "error.session_revoked",
+                  "error.refresh_reauth_required",
+                  "error.refresh_conflict",
+                  "error.recent_auth_required",
+                  "error.totp_required",
+                  "error.version_conflict",
+                  "error.history_epoch_stale",
+                  "error.music_disabled",
+                  "error.media_unavailable",
+                  "error.grant_expired",
+                  "error.access_denied",
+                  "error.deletion_status_unavailable",
+                  "error.rate_limited",
+                  "error.service_unavailable",
+                  "error.client_upgrade_required"
+                ]
+              }
+            },
+            "required": [
+              "code",
+              "retryable",
+              "messageKey"
+            ],
+            "additionalProperties": true
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "error",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "TrackResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Track"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "CatalogResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Catalog"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "LyricLineResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LyricLine"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "LyricsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Lyrics"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "TrackDetailResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TrackDetail"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "CollectionResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Collection"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "FeaturedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Featured"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "ConfigResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Config"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "AccountResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "EntitlementSourceResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EntitlementSource"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "EntitlementsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Entitlements"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "TokensResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Tokens"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "RefreshResultResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RefreshResult"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "PlaybackGrantResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PlaybackGrant"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "FavoriteResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Favorite"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "FavoritesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Favorites"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "RecentItemResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RecentItem"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "RecentResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Recent"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "PreferencesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Preferences"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "AcknowledgedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Acknowledged"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "DeletePreparedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeletePrepared"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "DeleteAcceptedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeleteAccepted"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "DeleteExpiredResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeleteExpired"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      },
+      "DeleteStatusResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeleteStatus"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "data",
+          "requestId",
+          "serverNow"
+        ],
+        "additionalProperties": true
+      }
+    }
+  }
+}

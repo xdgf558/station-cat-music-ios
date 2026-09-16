@@ -1,0 +1,38 @@
+diff --git a/scripts/test-music-library.mjs b/scripts/test-music-library.mjs
+index 5e1755d..f392ab4 100644
+--- a/scripts/test-music-library.mjs
++++ b/scripts/test-music-library.mjs
+@@ -74,7 +74,7 @@ test('500-track catalog is bounded, rejects duplicate IDs and unsafe fields, and
+   assert.throws(() => readPlayerCatalog({ schemaVersion: 2, tracks: [tracks[0], tracks[0]] }));
+   assert.throws(() => readPlayerCatalog({ schemaVersion: 2, tracks: [{ ...tracks[0], genres: ['x'.repeat(41)] }] }));
+   const parsed = readPlayerCatalog({ schemaVersion: 2, tracks: [{ ...tracks[0], coverUrl: 'https://evil.test/image', objectKey: 'secret', canPlayFull: true }] })[0];
+-  assert.ok(parsed.coverUrl.startsWith('/api/music/tracks/')); assert.equal(parsed.objectKey, undefined); assert.equal(parsed.canPlayFull, undefined);
++  assert.ok(parsed.coverUrl.startsWith('/api/music/tracks/')); assert.equal(new URL(parsed.coverUrl, 'https://music.example.test').searchParams.get('size'), 'display'); assert.equal(parsed.objectKey, undefined); assert.equal(parsed.canPlayFull, undefined);
+ });
+ test('search NFKC/case normalization, tag OR/group AND, access and stable latest order', () => {
+   assert.equal(normalizeMusicSearch('  ＳＯＮＧ １  '), 'song 1');
+@@ -122,7 +122,7 @@ test('album category separates playlists and opens ordered songs without changin
+   const album = { ...group, id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', slug:'album', version:3, type:'album', listeningMode:'mixed', coverTrackId:tracks[0].id, coverUrl:'https://evil.test/cover' };
+   const groups = readPlayerCollections({ collections: [group, album] }, tracks);
+   assert.deepEqual(browseMusic(tracks, groups, {mode:'albums',collection:'album'}).map(t=>t.id), group.trackIds);
+-  assert.equal(groups[1].coverUrl,'/api/music/collections/album/cover?v=3');
++  assert.equal(groups[1].coverUrl,'/api/music/collections/album/cover?v=3&size=display');
+   assert.throws(()=>readPlayerCollections({collections:[{...album,listeningMode:'free'}]},tracks));
+   assert.throws(()=>readPlayerCollections({collections:[album]},tracks.slice(0,2)));
+   assert.deepEqual(browseMusic(tracks,groups,{mode:'albums'}),[]);
+diff --git a/scripts/test-music-share-cards.mjs b/scripts/test-music-share-cards.mjs
+index c5f94d6..7bd8af9 100644
+--- a/scripts/test-music-share-cards.mjs
++++ b/scripts/test-music-share-cards.mjs
+@@ -66,7 +66,10 @@ test('PNG reads only current public cover, keeps VIP anonymous, QR links contain
+   const png = new Uint8Array(await response.arrayBuffer()), decoded = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+   assert.equal(decoded.info.width, 1080); assert.equal(decoded.info.height, 1800);
+   assert.equal(jsQR(new Uint8ClampedArray(decoded.data), decoded.info.width, decoded.info.height).data, `${origin}/zh-hans/music/?track=${id}`);
+-  assert.equal(f.state.r2.length, 1); assert.ok(f.state.r2[0].includes('/covers/')); assert.equal(f.state.assets.length, 1);
++  assert.equal(f.state.r2.length, 1);
++  const originalCover = [...f.objects.values()].find(value => value.asset.id === f.cover).asset.object_key;
++  assert.equal(f.state.r2[0], originalCover, 'share renderer must load original artwork, not a display thumbnail');
++  assert.ok(f.state.r2[0].includes('/covers/')); assert.equal(f.state.assets.length, 1);
+ });
+ test('HEAD/version/downlisting/limit failure precede R2 and renderer', async () => {
+   const f = await fixture(), options = { clock: () => now, render() { assert.fail('render'); } };

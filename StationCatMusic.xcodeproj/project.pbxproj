@@ -1,0 +1,817 @@
+// !$*UTF8*$!
+{
+	"archiveVersion" = "1";
+	"classes" = {
+
+	};
+	"objectVersion" = "56";
+	"objects" = {
+		"415379D191FB660C6C2D3F77" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/Credentials.swift";
+			"sourceTree" = "<group>";
+		};
+		"FAF578F210B6D7731C51072B" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/DeletionRecovery.swift";
+			"sourceTree" = "<group>";
+		};
+		"04BCE6B8F94B0F1F3C99A88A" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/Domain.swift";
+			"sourceTree" = "<group>";
+		};
+		"EF1760F643E607959BA7F5EA" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/Networking.swift";
+			"sourceTree" = "<group>";
+		};
+		"CDA264872300F57A9D9E3F41" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/Playback.swift";
+			"sourceTree" = "<group>";
+		};
+		"DF53702AD235EE30F8EF00BA" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/ServiceContracts.swift";
+			"sourceTree" = "<group>";
+		};
+		"03C3910BAF424E355C2FFC81" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "StationCatMusic/AppModel.swift";
+			"sourceTree" = "<group>";
+		};
+		"A72639049DB3D571A6157C0E" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "StationCatMusic/RootView.swift";
+			"sourceTree" = "<group>";
+		};
+		"050D4392E412B57D5B554FF4" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "StationCatMusic/StationCatMusicApp.swift";
+			"sourceTree" = "<group>";
+		};
+		"E32A2A45BB038541E015BE31" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/CoreTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"14425DF16ACD5873ACD09D56" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/KeychainRelaunchTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"AC2AB77181D707D00C92E57A" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/NavigationTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"F6224FDB070D5ADADE4EE7C3" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.json";
+			"path" = "Resources/Localizations.json";
+			"sourceTree" = "<group>";
+		};
+		"008A82717D421854262EDCC1" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.json";
+			"path" = "contracts/fixtures/catalog.json";
+			"sourceTree" = "<group>";
+		};
+		"5036264C3DEA51F6A58CB4D8" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.json";
+			"path" = "contracts/fixtures/schema-examples.json";
+			"sourceTree" = "<group>";
+		};
+		"E811D27CD2F0628897E7CF46" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.xcconfig";
+			"path" = "Config/Mock.xcconfig";
+			"sourceTree" = "<group>";
+		};
+		"173EF11AFBC6BF90CFED671A" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.xcconfig";
+			"path" = "Config/Development.xcconfig";
+			"sourceTree" = "<group>";
+		};
+		"96E2F382A37329535AF733EC" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.xcconfig";
+			"path" = "Config/Staging.xcconfig";
+			"sourceTree" = "<group>";
+		};
+		"6D6A020F0D340335A485E65F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.xcconfig";
+			"path" = "Config/Production.xcconfig";
+			"sourceTree" = "<group>";
+		};
+		"993C0A3FC61479FA7902D17F" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.application";
+			"path" = "StationCatMusic.app";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"F0334F0A0BFDECC5CAAC885E" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Mock";
+			"baseConfigurationReference" = "E811D27CD2F0628897E7CF46";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusic";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev";
+				"GENERATE_INFOPLIST_FILE" = "NO";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"INFOPLIST_FILE" = "Config/Info.plist";
+				"INFOPLIST_KEY_CFBundleDisplayName" = "Station Cat Music";
+				"INFOPLIST_KEY_UILaunchScreen_Generation" = "YES";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation" = "YES";
+				"INFOPLIST_KEY_StationEnvironment" = "$(STATION_ENVIRONMENT)";
+				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
+				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
+				"MARKETING_VERSION" = "0.1.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+			};
+		};
+		"FBFB519E017124AD6A05AD21" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Development";
+			"baseConfigurationReference" = "173EF11AFBC6BF90CFED671A";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusic";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev";
+				"GENERATE_INFOPLIST_FILE" = "NO";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"INFOPLIST_FILE" = "Config/Info.plist";
+				"INFOPLIST_KEY_CFBundleDisplayName" = "Station Cat Music";
+				"INFOPLIST_KEY_UILaunchScreen_Generation" = "YES";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation" = "YES";
+				"INFOPLIST_KEY_StationEnvironment" = "$(STATION_ENVIRONMENT)";
+				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
+				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
+				"MARKETING_VERSION" = "0.1.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+			};
+		};
+		"0E4CA93122EFD27B46D9D173" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Staging";
+			"baseConfigurationReference" = "96E2F382A37329535AF733EC";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusic";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev";
+				"GENERATE_INFOPLIST_FILE" = "NO";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"INFOPLIST_FILE" = "Config/Info.plist";
+				"INFOPLIST_KEY_CFBundleDisplayName" = "Station Cat Music";
+				"INFOPLIST_KEY_UILaunchScreen_Generation" = "YES";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation" = "YES";
+				"INFOPLIST_KEY_StationEnvironment" = "$(STATION_ENVIRONMENT)";
+				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
+				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
+				"MARKETING_VERSION" = "0.1.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+			};
+		};
+		"5D3CF087F78DC3F53B689B47" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Production";
+			"baseConfigurationReference" = "6D6A020F0D340335A485E65F";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusic";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev";
+				"GENERATE_INFOPLIST_FILE" = "NO";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"INFOPLIST_FILE" = "Config/Info.plist";
+				"INFOPLIST_KEY_CFBundleDisplayName" = "Station Cat Music";
+				"INFOPLIST_KEY_UILaunchScreen_Generation" = "YES";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation" = "YES";
+				"INFOPLIST_KEY_StationEnvironment" = "$(STATION_ENVIRONMENT)";
+				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
+				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
+				"MARKETING_VERSION" = "0.1.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+			};
+		};
+		"B80656714F79C31C84EF4560" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = (
+				"F0334F0A0BFDECC5CAAC885E",
+				"FBFB519E017124AD6A05AD21",
+				"0E4CA93122EFD27B46D9D173",
+				"5D3CF087F78DC3F53B689B47"
+			);
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Mock";
+		};
+		"82359E116D53BA4D4799089D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "415379D191FB660C6C2D3F77";
+		};
+		"F105539AB7256D83D042EE1A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "FAF578F210B6D7731C51072B";
+		};
+		"41841BB389543407BB96116F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "04BCE6B8F94B0F1F3C99A88A";
+		};
+		"598F26289E0042BF6AAF33F9" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "EF1760F643E607959BA7F5EA";
+		};
+		"5EA790184D6A4E75EFF30E00" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "CDA264872300F57A9D9E3F41";
+		};
+		"858CB753DB8F246F3D5DCD90" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "DF53702AD235EE30F8EF00BA";
+		};
+		"B64905AFE4FDB3573AFC968F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "03C3910BAF424E355C2FFC81";
+		};
+		"3A1654930F77A31331C915C8" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A72639049DB3D571A6157C0E";
+		};
+		"1121AD0177DE1905D4415454" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "050D4392E412B57D5B554FF4";
+		};
+		"BB11F4F6389647273D7011A7" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = (
+				"82359E116D53BA4D4799089D",
+				"F105539AB7256D83D042EE1A",
+				"41841BB389543407BB96116F",
+				"598F26289E0042BF6AAF33F9",
+				"5EA790184D6A4E75EFF30E00",
+				"858CB753DB8F246F3D5DCD90",
+				"B64905AFE4FDB3573AFC968F",
+				"3A1654930F77A31331C915C8",
+				"1121AD0177DE1905D4415454"
+			);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"676D4409D88E423E93E1272A" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = (
+
+			);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"CC030F898649BDC2060D4F2B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "F6224FDB070D5ADADE4EE7C3";
+		};
+		"C421F6F8F9B24428752885FC" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "008A82717D421854262EDCC1";
+		};
+		"0B56917201EABEEB79085C5A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "5036264C3DEA51F6A58CB4D8";
+		};
+		"E6AFB084B19815C0E71DAA91" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = (
+				"CC030F898649BDC2060D4F2B",
+				"C421F6F8F9B24428752885FC",
+				"0B56917201EABEEB79085C5A"
+			);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"CA439131CAC74FDF3467DF9A" = {
+			"isa" = "PBXNativeTarget";
+			"name" = "StationCatMusic";
+			"productName" = "StationCatMusic";
+			"productReference" = "993C0A3FC61479FA7902D17F";
+			"productType" = "com.apple.product-type.application";
+			"buildConfigurationList" = "B80656714F79C31C84EF4560";
+			"buildPhases" = (
+				"BB11F4F6389647273D7011A7",
+				"676D4409D88E423E93E1272A",
+				"E6AFB084B19815C0E71DAA91"
+			);
+			"buildRules" = (
+
+			);
+			"dependencies" = (
+
+			);
+		};
+		"A97D82C6941F6E5DEDAC41B1" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.cfbundle";
+			"path" = "StationCatMusicTests.xctest";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"1A47F91AEE9F0659436E0921" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "98F54143AB4E86B28C3AFEE0";
+			"proxyType" = "1";
+			"remoteGlobalIDString" = "CA439131CAC74FDF3467DF9A";
+			"remoteInfo" = "StationCatMusic";
+		};
+		"81EF61A27DA3032FD0033A0F" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "CA439131CAC74FDF3467DF9A";
+			"targetProxy" = "1A47F91AEE9F0659436E0921";
+		};
+		"DA2B50B7D61EE6F69B8F81F6" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Mock";
+			"baseConfigurationReference" = "E811D27CD2F0628897E7CF46";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusicTests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev.tests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/StationCatMusic.app/StationCatMusic";
+				"BUNDLE_LOADER" = "$(TEST_HOST)";
+			};
+		};
+		"31E7BB7BF0C1BE4953FFF7FE" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Development";
+			"baseConfigurationReference" = "173EF11AFBC6BF90CFED671A";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusicTests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev.tests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/StationCatMusic.app/StationCatMusic";
+				"BUNDLE_LOADER" = "$(TEST_HOST)";
+			};
+		};
+		"179C20CA11F73B18846ED21F" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Staging";
+			"baseConfigurationReference" = "96E2F382A37329535AF733EC";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusicTests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev.tests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/StationCatMusic.app/StationCatMusic";
+				"BUNDLE_LOADER" = "$(TEST_HOST)";
+			};
+		};
+		"B1DA448C381F66E6D066887C" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Production";
+			"baseConfigurationReference" = "6D6A020F0D340335A485E65F";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusicTests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev.tests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/StationCatMusic.app/StationCatMusic";
+				"BUNDLE_LOADER" = "$(TEST_HOST)";
+			};
+		};
+		"32BBECFF1924A3BF46E8969F" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = (
+				"DA2B50B7D61EE6F69B8F81F6",
+				"31E7BB7BF0C1BE4953FFF7FE",
+				"179C20CA11F73B18846ED21F",
+				"B1DA448C381F66E6D066887C"
+			);
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Mock";
+		};
+		"28BAF51E9597A5CACECF6086" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E32A2A45BB038541E015BE31";
+		};
+		"C8127867318C593F65556E8F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "14425DF16ACD5873ACD09D56";
+		};
+		"73E264473066D2907348DB86" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = (
+				"28BAF51E9597A5CACECF6086",
+				"C8127867318C593F65556E8F"
+			);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"DFDC62C918F4069057A7438B" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = (
+
+			);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"EE198FE978C0959557826B53" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = (
+
+			);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"A8819C3380D69D09101D397D" = {
+			"isa" = "PBXNativeTarget";
+			"name" = "StationCatMusicTests";
+			"productName" = "StationCatMusicTests";
+			"productReference" = "A97D82C6941F6E5DEDAC41B1";
+			"productType" = "com.apple.product-type.bundle.unit-test";
+			"buildConfigurationList" = "32BBECFF1924A3BF46E8969F";
+			"buildPhases" = (
+				"73E264473066D2907348DB86",
+				"DFDC62C918F4069057A7438B",
+				"EE198FE978C0959557826B53"
+			);
+			"buildRules" = (
+
+			);
+			"dependencies" = (
+				"81EF61A27DA3032FD0033A0F"
+			);
+		};
+		"C1824D7F4DA129C9A1CDA879" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.cfbundle";
+			"path" = "StationCatMusicUITests.xctest";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"4888B3F26E03A32C51FCDE17" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "98F54143AB4E86B28C3AFEE0";
+			"proxyType" = "1";
+			"remoteGlobalIDString" = "CA439131CAC74FDF3467DF9A";
+			"remoteInfo" = "StationCatMusic";
+		};
+		"C35845B841B1C8BA2AC658F2" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "CA439131CAC74FDF3467DF9A";
+			"targetProxy" = "4888B3F26E03A32C51FCDE17";
+		};
+		"BE8D0651753D7EE973DEFE68" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Mock";
+			"baseConfigurationReference" = "E811D27CD2F0628897E7CF46";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusicUITests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev.uitests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"TEST_TARGET_NAME" = "StationCatMusic";
+			};
+		};
+		"0925F2EE27D00937B6D31AD8" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Development";
+			"baseConfigurationReference" = "173EF11AFBC6BF90CFED671A";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusicUITests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev.uitests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"TEST_TARGET_NAME" = "StationCatMusic";
+			};
+		};
+		"C6456EF100881130ACCF5211" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Staging";
+			"baseConfigurationReference" = "96E2F382A37329535AF733EC";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusicUITests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev.uitests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"TEST_TARGET_NAME" = "StationCatMusic";
+			};
+		};
+		"D4520DFE72515C41343430C8" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Production";
+			"baseConfigurationReference" = "6D6A020F0D340335A485E65F";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "StationCatMusicUITests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "org.stationcat.music.dev.uitests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"SWIFT_DEFAULT_ACTOR_ISOLATION" = "nonisolated";
+				"ENABLE_TESTABILITY" = "YES";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				"TEST_TARGET_NAME" = "StationCatMusic";
+			};
+		};
+		"42EF8B4480E6A405531AB04B" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = (
+				"BE8D0651753D7EE973DEFE68",
+				"0925F2EE27D00937B6D31AD8",
+				"C6456EF100881130ACCF5211",
+				"D4520DFE72515C41343430C8"
+			);
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Mock";
+		};
+		"CFBFD44240B7907E82B791FD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "AC2AB77181D707D00C92E57A";
+		};
+		"4D5F763C4BAE64E4E754AD9A" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = (
+				"CFBFD44240B7907E82B791FD"
+			);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"9771AB4B53FE8CF7BC54FE58" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = (
+
+			);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"F99A33D5E4D1A992D9287E38" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = (
+
+			);
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"2660726EF9D581B074BE0090" = {
+			"isa" = "PBXNativeTarget";
+			"name" = "StationCatMusicUITests";
+			"productName" = "StationCatMusicUITests";
+			"productReference" = "C1824D7F4DA129C9A1CDA879";
+			"productType" = "com.apple.product-type.bundle.ui-testing";
+			"buildConfigurationList" = "42EF8B4480E6A405531AB04B";
+			"buildPhases" = (
+				"4D5F763C4BAE64E4E754AD9A",
+				"9771AB4B53FE8CF7BC54FE58",
+				"F99A33D5E4D1A992D9287E38"
+			);
+			"buildRules" = (
+
+			);
+			"dependencies" = (
+				"C35845B841B1C8BA2AC658F2"
+			);
+		};
+		"FBDC4F23F93125BBEEAE800C" = {
+			"isa" = "PBXGroup";
+			"name" = "Products";
+			"children" = (
+				"993C0A3FC61479FA7902D17F",
+				"A97D82C6941F6E5DEDAC41B1",
+				"C1824D7F4DA129C9A1CDA879"
+			);
+			"sourceTree" = "<group>";
+		};
+		"64292B1C2B2E13EAD8788FC8" = {
+			"isa" = "PBXGroup";
+			"children" = (
+				"415379D191FB660C6C2D3F77",
+				"FAF578F210B6D7731C51072B",
+				"04BCE6B8F94B0F1F3C99A88A",
+				"EF1760F643E607959BA7F5EA",
+				"CDA264872300F57A9D9E3F41",
+				"DF53702AD235EE30F8EF00BA",
+				"03C3910BAF424E355C2FFC81",
+				"A72639049DB3D571A6157C0E",
+				"050D4392E412B57D5B554FF4",
+				"E32A2A45BB038541E015BE31",
+				"14425DF16ACD5873ACD09D56",
+				"AC2AB77181D707D00C92E57A",
+				"F6224FDB070D5ADADE4EE7C3",
+				"008A82717D421854262EDCC1",
+				"5036264C3DEA51F6A58CB4D8",
+				"E811D27CD2F0628897E7CF46",
+				"173EF11AFBC6BF90CFED671A",
+				"96E2F382A37329535AF733EC",
+				"6D6A020F0D340335A485E65F",
+				"FBDC4F23F93125BBEEAE800C"
+			);
+			"sourceTree" = "<group>";
+		};
+		"FFC575F5A34EB1B71C8E565D" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Mock";
+			"baseConfigurationReference" = "E811D27CD2F0628897E7CF46";
+			"buildSettings" = {
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "YES";
+			};
+		};
+		"E37B4563470BA792FF8EF62E" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Development";
+			"baseConfigurationReference" = "173EF11AFBC6BF90CFED671A";
+			"buildSettings" = {
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "YES";
+			};
+		};
+		"1CF6E37584D8D303ADB5D904" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Staging";
+			"baseConfigurationReference" = "96E2F382A37329535AF733EC";
+			"buildSettings" = {
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "YES";
+			};
+		};
+		"2BCC5D0615DEEFC5952F98FF" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Production";
+			"baseConfigurationReference" = "6D6A020F0D340335A485E65F";
+			"buildSettings" = {
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "YES";
+			};
+		};
+		"862894B703A6DEDF96A9DD6C" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = (
+				"FFC575F5A34EB1B71C8E565D",
+				"E37B4563470BA792FF8EF62E",
+				"1CF6E37584D8D303ADB5D904",
+				"2BCC5D0615DEEFC5952F98FF"
+			);
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Mock";
+		};
+		"98F54143AB4E86B28C3AFEE0" = {
+			"isa" = "PBXProject";
+			"attributes" = {
+				"BuildIndependentTargetsInParallel" = "YES";
+				"LastUpgradeCheck" = "2640";
+			};
+			"buildConfigurationList" = "862894B703A6DEDF96A9DD6C";
+			"compatibilityVersion" = "Xcode 14.0";
+			"developmentRegion" = "en";
+			"knownRegions" = (
+				"en",
+				"zh-Hans",
+				"zh-Hant",
+				"ja",
+				"Base"
+			);
+			"mainGroup" = "64292B1C2B2E13EAD8788FC8";
+			"productRefGroup" = "FBDC4F23F93125BBEEAE800C";
+			"projectDirPath" = "";
+			"projectRoot" = "";
+			"targets" = (
+				"CA439131CAC74FDF3467DF9A",
+				"A8819C3380D69D09101D397D",
+				"2660726EF9D581B074BE0090"
+			);
+		};
+	};
+	"rootObject" = "98F54143AB4E86B28C3AFEE0";
+}

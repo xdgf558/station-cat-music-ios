@@ -1,0 +1,14 @@
+--- a/scripts/test-music-share-cards.mjs
++++ b/scripts/test-music-share-cards.mjs
+@@ -66,7 +66,10 @@
+   const png = new Uint8Array(await response.arrayBuffer()), decoded = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+   assert.equal(decoded.info.width, 1080); assert.equal(decoded.info.height, 1800);
+   assert.equal(jsQR(new Uint8ClampedArray(decoded.data), decoded.info.width, decoded.info.height).data, `${origin}/zh-hans/music/?track=${id}`);
+-  assert.equal(f.state.r2.length, 1); assert.ok(f.state.r2[0].includes('/covers/')); assert.equal(f.state.assets.length, 1);
++  assert.equal(f.state.r2.length, 1);
++  const originalCover = [...f.objects.values()].find(value => value.asset.id === f.cover).asset.object_key;
++  assert.equal(f.state.r2[0], originalCover, 'share renderer must load original artwork, not a display thumbnail');
++  assert.ok(f.state.r2[0].includes('/covers/')); assert.equal(f.state.assets.length, 1);
+ });
+ test('HEAD/version/downlisting/limit failure precede R2 and renderer', async () => {
+   const f = await fixture(), options = { clock: () => now, render() { assert.fail('render'); } };

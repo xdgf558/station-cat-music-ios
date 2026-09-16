@@ -1,0 +1,33 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "sample-night-window",
+        "title": "夜窗 · Night Window",
+        "artist": "Station Cat · Sample",
+        "durationSeconds": 180,
+        "audioVersion": 1,
+        "access": "free"
+      },
+      {
+        "id": "sample-slow-morning",
+        "title": "慢一点的清晨 · Slow Morning",
+        "artist": "Station Cat · Sample",
+        "durationSeconds": 210,
+        "audioVersion": 1,
+        "access": "vip"
+      },
+      {
+        "id": "sample-paper-moon",
+        "title": "纸月亮 · Paper Moon",
+        "artist": "Station Cat · Sample",
+        "durationSeconds": 200,
+        "audioVersion": 1,
+        "access": "preview"
+      }
+    ],
+    "nextCursor": null
+  },
+  "requestId": "fixture-catalog",
+  "serverNow": "2026-09-16T00:00:00Z"
+}

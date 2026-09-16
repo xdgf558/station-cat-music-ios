@@ -27,10 +27,10 @@ xcodebuild "${common[@]}" -xctestrun .build/Build/Products/M2-YES.xctestrun \
   -only-testing:StationCatMusicTests/KeychainCrashRecoveryTests/testAExitAfterDurablePendingWrite test-without-building > evidence/M2-crash-exit.log 2>&1
 result=$?
 set -e
-if [[ $result -eq 0 ]] || ! rg -q 'M2_CRASH_POINT_REACHED' evidence/M2-crash-exit.log; then
+if [[ $result -eq 0 ]] || ! grep -q 'M2_CRASH_POINT_REACHED' evidence/M2-crash-exit.log; then
   echo 'The intentional test-host termination was not observed.' >&2; exit 1
 fi
 xcodebuild "${common[@]}" -xctestrun .build/Build/Products/M2-RECOVER.xctestrun \
   -only-testing:StationCatMusicTests/KeychainCrashRecoveryTests/testBRecoverAfterProcessTermination test-without-building > evidence/M2-crash-recovery.log 2>&1
-rg -q "testBRecoverAfterProcessTermination.*passed" evidence/M2-crash-recovery.log
+grep -q "testBRecoverAfterProcessTermination.*passed" evidence/M2-crash-recovery.log
 echo 'Abrupt test-host exit followed by a separate-process Keychain recovery passed.'

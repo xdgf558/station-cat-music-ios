@@ -37,7 +37,7 @@
   "scripts/seed_resources.py": "8211e41a4a624053ab024fe69b34825a710e1cf9405e8d48d2c246871b57cb28",
   "scripts/test_ios.sh": "4a800c70fb4a5aefbcbf0e8046f4f51b10827eec4db0ff4ecbfd92ad5910a70b",
   "scripts/validate_contract.py": "1ee4b5eccc372bdc20360da996811332252d0c95bcac5704296059371626bf38",
-  "scripts/verify_auth_crash_recovery.sh": "e94887f26d3c800ed718c481ab3d6fdec58077c5bd665353e5ebd1450d4e6a3d",
+  "scripts/verify_auth_crash_recovery.sh": "e66e44b24631de5b4b39987b4706a62c5268c62f4549f8cc9768ffce13aded8a",
   "scripts/verify_configurations.sh": "695ac3ae109bce24abc888277674b576b016e0debbfce16b6868837d40b538b9",
   "scripts/verify_keychain_relaunch.sh": "355eab09132d036bd20f05d0658dfc8276fb3aaec89e88ec69c579c78223526e"
 }

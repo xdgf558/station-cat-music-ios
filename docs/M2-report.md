@@ -64,3 +64,7 @@ OpenAPI 现有 25 个操作、62 个 schema。仅原生认证、用户基本资�
 ## 复现与记录
 
 按 README 的本机命令执行；强制退出探针必须通过专用脚本，不能把其第一次非零退出单独看成回归失败，也不能只看到套件 skip 就宣称通过。日志在忽略跟踪的 `evidence/M2-acceptance.log`、`M2-four-configurations.log`、`M2-crash-exit.log`、`M2-crash-recovery.log`。配套服务日志位于本机 `/private/tmp/m2-backend-final.log`、`m2-website-regression-r2.log`、`m2-website-final-build.log`。仓库收录无凭据的摘要与源码哈希，不提交原始凭据、真实用户或 simulator 数据。
+
+## 审查后 CI 可移植性修复
+
+首次稳定工具链 PR CI（35101280637）已通过四配置、普通测试与 Keychain relaunch，在强制退出脚本的日志检查处因 runner 缺少 rg 失败。仅把两处匹配改为系统自带 grep，保留非零退出与恢复成功两项判定；产品代码未改。新提交须重新通过 CI 后合并。

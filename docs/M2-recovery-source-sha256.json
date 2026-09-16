@@ -1,0 +1,7 @@
+{
+  "Tests/NativeCrashBoundaryTests.swift": "57e41c0ac6d1c484247413098ce66c2e953489227fe018f2d2501d6e2623a583",
+  "scripts/verify_native_crash_boundaries.py": "03685659c104e8cafbede0ad72f306b3d368f1aa2aea240d350d007eeebc442a",
+  "StationCatMusic.xcodeproj/project.pbxproj": "82bd42f59b62bcaf87847f1017f3ae76403f207a5ac2eacaf1df88276960b980",
+  ".github/workflows/m1.yml": "fbd1a3bfbbe778aca5968e8b986723cf7e4564bd6c1a3262269c332452fd4132",
+  "contracts/backend-recovery-fixture.json": "6cde4812ef3b7b9b3589d62ebee72ea65660f3da6ca00b327dabb1b78709c0bd"
+}

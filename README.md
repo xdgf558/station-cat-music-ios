@@ -12,13 +12,13 @@
 - 默认 Mock。Development、Staging、Production 分别写入环境字段，当前全部关闭真实网络。M2 新增系统认证窗口、PKCE、持久化刷新恢复和账号删除进度；仅 Development / Staging 可通过后续隔离配置启用，当前没有配置域名。缺失或未知环境也按关闭处理。
 - 25 个首版 API 操作、OpenAPI 3.1、请求与响应样例、四语错误键。认证与删除任务接口已有配套本地隔离 Worker 实现；目录、播放和同步等其余接口仍为拟定契约，不能按接口数量视为全部实现。
 - 单一 AVPlayer 所有者、连续时钟到期边界、取消与账号作用域、Keychain 单条记录更新、刷新和删除恢复 journal。
-- 本机测试、CI 定义与来源清单。当前结果见 [M2 本地交付记录](docs/M2-report.md)；[M1 验收记录](docs/M1-report.md)保留原阶段结果。
+- 本机测试、CI 定义与来源清单。最新的 A11–A13 实际进程终止证据见 [M2 恢复验收补充](docs/M2-recovery-acceptance.md)；此前结果见 [M2 本地交付记录](docs/M2-report.md)；[M1 验收记录](docs/M1-report.md)保留原阶段结果。
 
 ## 本地打开
 
 打开 `StationCatMusic.xcodeproj`，选择 `StationCatMusic` scheme 和 iPhone 模拟器运行。默认配置为 Mock，不需要 Apple 开发者团队，也不需要网站凭据。此开发 Bundle ID 是 `org.stationcat.music.dev`，没有注册正式 App ID。
 
-稳定 CI 固定 Xcode **26.4.1**；本机仅安装 Xcode **27 beta 6**，本轮使用该版本验证。M1 已有稳定 CI 通过记录；M2 新增改动尚未运行远端 CI，beta 模拟器结果不能视为真机/上架验收。
+稳定 CI 固定 Xcode **26.4.1**；本机仅安装 Xcode **27 beta 6**，本轮使用该版本验证。M1/M2 已合并版本已有稳定 CI 通过记录；本轮新增恢复验收步骤尚未运行远端 CI，beta 模拟器结果不能视为真机/上架验收。
 
 ```sh
 python3 -m venv .venv

@@ -1,0 +1,47 @@
+{
+  "date": "2026-09-16",
+  "toolchain": "Xcode 27 beta 6 (local override; not stable CI acceptance)",
+  "backendCommit": "0d7f6281c0d1d187298b6b6852ace18f3b3ce0f5",
+  "cases": [
+    {
+      "case": "A11",
+      "result": "passed",
+      "seconds": 51.4,
+      "actual_process_exit": true,
+      "storage": "simulator Keychain",
+      "server": "real isolated Worker + temporary D1",
+      "transport": "test-only HTTP loopback bridge",
+      "replay_window_seconds": 120
+    },
+    {
+      "case": "A12",
+      "result": "passed",
+      "seconds": 52.06,
+      "actual_process_exit": true,
+      "storage": "simulator Keychain",
+      "server": "real isolated Worker + temporary D1",
+      "transport": "test-only HTTP loopback bridge",
+      "replay_window_seconds": 120
+    },
+    {
+      "case": "A13",
+      "result": "passed",
+      "seconds": 58.21,
+      "actual_process_exit": true,
+      "storage": "simulator Keychain",
+      "server": "real isolated Worker + temporary D1",
+      "transport": "test-only HTTP loopback bridge",
+      "replay_window_seconds": 120
+    }
+  ],
+  "regression": {
+    "swiftPassed": 47,
+    "swiftDedicatedProbesSkipped": 4,
+    "uiPassed": 2,
+    "backendIsolatedPassed": 29,
+    "deletionAuditPassed": 10
+  },
+  "httpsAasaValidated": false,
+  "physicalDeviceValidated": false,
+  "productionModified": false
+}

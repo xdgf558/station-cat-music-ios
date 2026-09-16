@@ -38,6 +38,31 @@ jobs:
       - run: bash scripts/test_ios.sh
       - run: bash scripts/verify_keychain_relaunch.sh
       - run: bash scripts/verify_auth_crash_recovery.sh
+      - name: Read reviewed backend fixture revision
+        id: backend
+        run: |
+          python3 - <<'PYCODE'
+          import json,os
+          fixture=json.load(open('contracts/backend-recovery-fixture.json'))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('revision='+fixture['commit']+'\n')
+          PYCODE
+      - uses: actions/checkout@v4
+        with:
+          repository: xdgf558/caption-ai-landing-site
+          ref: ${{ steps.backend.outputs.revision }}
+          path: .backend-m2
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install isolated backend test dependencies
+        working-directory: .backend-m2
+        run: npm ci
+      - name: Verify A11–A13 actual process termination and recovery
+        env:
+          M2_BACKEND_PATH: ${{ github.workspace }}/.backend-m2
+        run: python3 scripts/verify_native_crash_boundaries.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

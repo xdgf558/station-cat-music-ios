@@ -23,6 +23,10 @@ struct RootView: View {
         .tint(Palette.gold)
         .sheet(isPresented: $model.showPlayer) { player }
         .task { await model.load(); await model.account.restore() }
+        .onChange(of: model.playback.state) { _, state in
+            if state == .verificationRequired && model.nativeMusic != nil { Task { await model.load() } }
+        }
+        .onChange(of: model.locale) { _, _ in if model.nativeMusic != nil { Task { await model.load() } } }
         .onChange(of: model.account.scope) { _, scope in Task { await model.changeScope(scope); await model.load() } }
         .sheet(isPresented: $showDeletion) { deletionSheet }
         .onChange(of: scenePhase) { _, phase in if phase == .active { model.playback.checkDeadline() } }
@@ -41,7 +45,7 @@ struct RootView: View {
         return layout {
             HStack(spacing: 10) { Image(systemName: "cat.fill").font(.system(size: 24)).accessibilityHidden(true); Text("Station Cat").font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true) }.foregroundStyle(Palette.gold)
             if !typeSize.isAccessibilitySize { Spacer() }
-            Text(model.t("mockBadge")).font(.caption).padding(.horizontal, 10).padding(.vertical, 7).background(Palette.panel, in: RoundedRectangle(cornerRadius: 14))
+            Text(model.t(model.nativeMusic == nil ? "mockBadge" : "isolatedMusic")).font(.caption).padding(.horizontal, 10).padding(.vertical, 7).background(Palette.panel, in: RoundedRectangle(cornerRadius: 14))
         }
     }
 
@@ -59,35 +63,50 @@ struct RootView: View {
                     }.padding(.vertical, 10)
                     Button { model.selectedTab = 1 } label: { Label(model.t("explore"), systemImage: "arrow.right").font(.headline).padding(.horizontal, 24).frame(minHeight: 48) }.buttonStyle(.borderedProminent).foregroundStyle(Palette.background)
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(LinearGradient(colors: [Palette.panel, Palette.background], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 26))
-                VStack(alignment: .leading, spacing: 6) { Text(model.t("tonight")).font(.title2.bold()); Text(model.t("mockOnly")).font(.caption).foregroundStyle(Palette.muted) }
-                stateContent
+                VStack(alignment: .leading, spacing: 6) { Text(model.t("tonight")).font(.title2.bold()); Text(model.t(model.nativeMusic == nil ? "mockOnly" : "isolatedMusic")).font(.caption).foregroundStyle(Palette.muted) }
+                trackContent(phase: model.discoveryPhase, tracks: model.discoveryTracks, search: false)
             }.padding(20)
         }.background(Palette.background).toolbar(.hidden, for: .navigationBar)
     }
     private var catalog: some View {
         ScrollView { VStack(alignment: .leading, spacing: 20) {
-            Text(model.t("mockExplanation")).font(.footnote).foregroundStyle(Palette.muted)
+            Text(model.t(model.nativeMusic == nil ? "mockExplanation" : "isolatedMusic")).font(.footnote).foregroundStyle(Palette.muted)
+            if !model.collections.isEmpty {
+                Menu {
+                    Button(model.t("allTracks")) { model.activeCollection = nil }
+                    ForEach(model.collections) { collection in Button(collection.title) { Task { await model.selectCollection(collection) } } }
+                } label: { Label(model.activeCollection?.title ?? model.t("albums"), systemImage: "square.stack").frame(minHeight: 44) }
+            }
             stateContent
         }.padding(20) }.background(Palette.background)
+        .accessibilityIdentifier("catalogScreen")
         .navigationTitle(model.t("catalog")).searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: Text(model.t("search")))
     }
-    @ViewBuilder private var stateContent: some View {
-        switch model.phase {
+    private var stateContent: some View { trackContent(phase: model.phase, tracks: model.results, search: true) }
+    @ViewBuilder private func trackContent(phase: AppModel.Phase, tracks: [Track], search: Bool) -> some View {
+        switch phase {
         case .loading: ProgressView(model.t("loading")).frame(maxWidth: .infinity, minHeight: 120).accessibilityIdentifier("loading")
         case .unavailable:
             ContentUnavailableView { Label(model.t("unavailable"), systemImage: "wifi.slash") } description: { Text(model.t("unavailableDetail")) } actions: { Button(model.t("retry")) { Task { await model.load() } }.frame(minHeight: 44) }
         case .empty: ContentUnavailableView(model.t("empty"), systemImage: "music.note")
         case .loaded:
-            if model.results.isEmpty { ContentUnavailableView.search(text: model.query) }
-            ForEach(model.results) { track in trackRow(track) }
+            if tracks.isEmpty {
+                if search { ContentUnavailableView.search(text: model.query) }
+                else { ContentUnavailableView(model.t("empty"), systemImage: "music.note") }
+            }
+            ForEach(tracks) { track in trackRow(track) }
         }
     }
     private func trackRow(_ track: Track) -> some View {
         HStack(spacing: 14) {
             Button { model.select(track) } label: {
                 HStack(spacing: 14) {
+                    if let url = track.coverUrl, url.scheme == "https", url.host == model.nativeMusic?.configuration.origin.host {
+                        AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: { Image(systemName: "music.note") }.frame(width: 52, height: 60).clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityHidden(true)
+                    } else {
                     Image(systemName: "moon.stars").font(.title2).frame(width: 52, height: 60).background(Palette.gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 12)).foregroundStyle(Palette.gold).accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 5) { Text(track.title).font(.headline); Text(track.artist).font(.subheadline).foregroundStyle(Palette.muted); Text(model.t("sampleTrack")).font(.caption2).foregroundStyle(Palette.gold) }
+                    }
+                    VStack(alignment: .leading, spacing: 5) { Text(track.title).font(.headline); Text(track.artist).font(.subheadline).foregroundStyle(Palette.muted); Text(model.t(model.nativeMusic == nil ? "sampleTrack" : "access." + track.access.rawValue)).font(.caption2).foregroundStyle(Palette.gold) }
                     Spacer(minLength: 0)
                 }
             }.buttonStyle(.plain).accessibilityIdentifier("track.\(track.id)")
@@ -155,8 +174,40 @@ struct RootView: View {
             ScrollView { VStack(spacing: 28) {
                 Image(systemName: "opticaldisc.fill").font(.system(size: 150)).foregroundStyle(Palette.gold.opacity(0.8)).padding(.top, 28).accessibilityHidden(true)
                 if let track = model.playback.selectedTrack { Text(track.title).font(.largeTitle.bold()).multilineTextAlignment(.center); Text(track.artist).foregroundStyle(Palette.muted) }
-                Text(model.t("notPlaying")).font(.subheadline)
-                Text(model.t("playbackNotReady")).multilineTextAlignment(.center).foregroundStyle(Palette.muted).accessibilityIdentifier("playbackUnavailable")
+                if model.nativeMusic == nil {
+                    Text(model.t("notPlaying")).font(.subheadline)
+                    Text(model.t("playbackNotReady")).multilineTextAlignment(.center).foregroundStyle(Palette.muted).accessibilityIdentifier("playbackUnavailable")
+                } else {
+                    if let detail = model.detail {
+                        if let url = detail.coverUrl, url.scheme == "https", url.host == model.nativeMusic?.configuration.origin.host {
+                            AsyncImage(url: url) { image in image.resizable().scaledToFit() } placeholder: { ProgressView() }.frame(maxHeight: 220).clipShape(RoundedRectangle(cornerRadius: 18))
+                        }
+                        Text(detail.summary).font(.footnote).foregroundStyle(Palette.muted)
+                    }
+                    if model.playback.state == .verificationRequired { Text(model.t("playbackDenied")).foregroundStyle(Palette.gold) }
+                    if model.playback.state == .authorizing { ProgressView(model.t("loading")) }
+                    HStack(spacing: 20) {
+                        Button { model.adjacent(-1) } label: { Image(systemName: "backward.end.fill").frame(width: 44, height: 44) }.accessibilityLabel(model.t("previous"))
+                        Button {
+                            if model.playback.state == .playing { model.playback.pause() } else { model.playback.requestPlay() }
+                        } label: { Label(model.t(model.playback.state == .playing ? "pause" : "play"), systemImage: model.playback.state == .playing ? "pause.fill" : "play.fill").padding(12) }.buttonStyle(.borderedProminent).foregroundStyle(Palette.background)
+                        Button { model.adjacent(1) } label: { Image(systemName: "forward.end.fill").frame(width: 44, height: 44) }.accessibilityLabel(model.t("next"))
+                    }
+                    if model.detail?.previewAvailable == true { Button(model.t("preview")) { model.playback.requestPlay(variant: "preview") }.frame(minHeight: 44) }
+                    Slider(value: Binding(get: { model.playback.position }, set: { model.playback.seek(to: $0) }), in: 0...max(1, model.playback.duration)).disabled(model.playback.state != .playing).accessibilityLabel(model.t("seek"))
+                    if let lyrics = model.detail?.lyrics, lyrics.kind != "none" {
+                        if lyrics.kind == "timed" {
+                            ScrollViewReader { reader in
+                                ScrollView { VStack(spacing: 20) {
+                                    ForEach(Array(lyrics.lines.enumerated()), id: \.offset) { index, line in
+                                        Text(line.text).font(.title3).foregroundStyle(index == lyrics.current(at: model.playback.position + model.playback.previewOffset) ? Palette.gold : Palette.muted).id(index)
+                                    }
+                                }.frame(maxWidth: .infinity).padding(.vertical) }.frame(height: 240)
+                                .onChange(of: lyrics.current(at: model.playback.position + model.playback.previewOffset)) { _, index in if let index { reader.scrollTo(index, anchor: .center) } }
+                            }
+                        } else { Text(lyrics.text).frame(maxWidth: .infinity, alignment: .leading) }
+                    }
+                }
             }.frame(maxWidth: .infinity).padding(24) }.background(Palette.background)
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button { model.showPlayer = false } label: { Image(systemName: "chevron.down").frame(minWidth: 44, minHeight: 44) }.accessibilityLabel(model.t("close")) }; ToolbarItem(placement: .principal) { Text("STATION CAT").font(.caption).tracking(3) } }
         }.preferredColorScheme(.dark)

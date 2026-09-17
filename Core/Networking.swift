@@ -18,6 +18,7 @@ actor URLSessionTransport: HTTPTransport {
     }
     func send(_ request: URLRequest) async throws -> HTTPResult {
         let (bytes, response) = try await session.bytes(for: request)
+        defer { bytes.task.cancel() }
         guard let response = response as? HTTPURLResponse else { throw APIError.invalidPayload }
         var data = Data()
         for try await byte in bytes {

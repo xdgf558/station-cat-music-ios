@@ -23,3 +23,11 @@ SwiftUI 不持有第二个 AVPlayer；页面开合/切换仅改变视图。连�
 CI 固定 Xcode 26.4.1 并显式检查路径，缺失时失败，不自动换版本。参考：[GitHub runner toolset](https://github.com/actions/runner-images/blob/main/images/macos/toolsets/toolset-26.json)、[Apple release notes](https://developer.apple.com/documentation/xcode-release-notes)。本机 Xcode 27 beta 6 通过显式覆盖执行，单独记入验收记录。
 
 CI 只做 schema/fixtures、四配置构建、Swift/XCUITest 和合成 Keychain 跨进程记录验证；没有 deploy、archive、TestFlight 或签名账号修改步骤。稳定工具链 CI 与实体 iPhone 仍是后续验收项。
+
+## M3 第一批增量（2026-09-17）
+
+M1 边界描述保留为历史。本批目录、推荐、专辑、资料、歌词与 grant/media 已在隔离后端实现。Track 新增可选 coverUrl；音乐 JSON GET 支持 locale；集合使用 limit/cursor 分页。grant path 固定 43 字节字符的 base64url 不透明随机值。歌词 text 上限与既有 128 KiB 资产限制对齐，时间轴响应不重复传全文。资格与媒体失败均不能变成新播放许可。
+
+NativeAuthContext 新增只读 sessionID；播放授权可要求至少 65 秒 token 余量，仍复用既有刷新 journal。Range 的 401 最多刷新一次，其余错误直接停止；整个媒体请求最多等待五秒，迟到刷新结果不能交付音频。前台定期续期会重新安装 URL 和连续时钟截止，旧截止在等待续期时仍然有效。正常暂停也移除音源，恢复时新授权并回到相同变体的位置。
+
+以上仅在隔离配置中可用，默认 Mock/Development/Staging/Production 全部 STATION_NATIVE_MUSIC_ENABLED=NO，无正式 origin、无 ATS 例外。真实域名、AASA、实体机和 StoreKit 未验收。完整记录见 M3-report.md。

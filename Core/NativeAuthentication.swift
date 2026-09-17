@@ -115,7 +115,7 @@ actor NativeAuthAPI {
 }
 nonisolated struct NativeAcknowledged: Decodable, Sendable { let accepted: Bool }
 nonisolated struct RecentAuthentication: Decodable, Sendable { let validUntil: Date }
-nonisolated struct NativeAuthContext: Equatable, Sendable { let epoch: Int; let scope: AccountScope; let bearer: String }
+nonisolated struct NativeAuthContext: Equatable, Sendable { let epoch: Int; let scope: AccountScope; let bearer: String; let sessionID: String }
 actor NativeAuthenticationService: AuthenticationServicing {
     private let configuration: NativeAuthConfiguration
     private let api: NativeAuthAPI
@@ -195,10 +195,13 @@ actor NativeAuthenticationService: AuthenticationServicing {
         let _: NativeResponse<RecentAuthentication> = try await api.request("/auth/reauth", body: ["password": password, "totpCode": totp], authorization: "Bearer " + token, as: RecentAuthentication.self)
         guard ticket == epoch else { throw APIError.staleResponse }
     }
-    func requestContext() async throws -> NativeAuthContext {
-        let ticket = epoch; let token = try await accessToken()
+    func requestContext(minimumValidity: Double = 0) async throws -> NativeAuthContext {
+        let ticket = epoch
+        let shouldRefresh = minimumValidity > 0 && (accessDeadline == nil || ContinuousClock().now.advanced(by: .seconds(minimumValidity)) >= accessDeadline!)
+        let token = try await accessToken(forceRefresh: shouldRefresh)
         guard ticket == epoch, case let .authenticated(scope) = current else { throw APIError.staleResponse }
-        return NativeAuthContext(epoch: ticket, scope: scope, bearer: token)
+        guard let credential = try await journal.read(), ticket == epoch, credential.scope == scope else { throw APIError.staleResponse }
+        return NativeAuthContext(epoch: ticket, scope: scope, bearer: token, sessionID: credential.sessionID)
     }
     func isCurrent(_ context: NativeAuthContext) -> Bool { context.epoch == epoch && current == .authenticated(context.scope) }
     func signOut(ifCurrent context: NativeAuthContext) async throws {

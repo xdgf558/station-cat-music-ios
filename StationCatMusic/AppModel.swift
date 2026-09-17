@@ -13,31 +13,60 @@ import Observation
     private(set) var scope = AccountScope.guest
     let playback: PlaybackService
     let library: ScopedLibrary
-    let client: APIClient
+    let client: any CatalogProviding
     let account: NativeAccountModel
+    var detail: TrackDetail?
+    var collections: [MusicCollection] = []
+    private(set) var featuredTracks: [Track] = []
+    private(set) var featuredPhase: Phase = .loading
+    var discoveryTracks: [Track] { nativeMusic == nil ? tracks : featuredTracks }
+    var discoveryPhase: Phase { nativeMusic == nil ? phase : featuredPhase }
+    var activeCollection: MusicCollection?
+    var nativeMusic: NativeMusicAPI? { client as? NativeMusicAPI }
+    @ObservationIgnored private var detailTask: Task<Void, Never>?
     private var operation = 0
     @ObservationIgnored private var catalogTask: Task<Catalog, Error>?
-    init(client: APIClient, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel()) { self.client = client; self.playback = playback; self.library = library; self.account = account }
+    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel()) { self.client = client; self.playback = playback; self.library = library; self.account = account
+        if let native = client as? NativeMusicAPI { playback.configure(authorizer: native) }
+        account.onInvalidate = { [weak playback] in playback?.deny() }
+    }
     func t(_ key: String) -> String { L10n.text(key, locale: locale) }
     func load() async {
         operation += 1; let id = operation; let startedScope = scope
-        phase = .loading; catalogTask?.cancel()
+        phase = .loading; featuredPhase = .loading; featuredTracks = []; collections = []; catalogTask?.cancel()
         let client = self.client
-        let work = Task { try await client.catalog() }; catalogTask = work
+        let locale = locale
+        let work = Task { if let native = client as? NativeMusicAPI { await native.setLocale(locale) }; return try await client.catalog() }; catalogTask = work
         do {
             let catalog = try await withTaskCancellationHandler(operation: { try await work.value }, onCancel: { work.cancel() })
             guard id == operation, startedScope == scope, !Task.isCancelled else { return }
             tracks = catalog.items; phase = tracks.isEmpty ? .empty : .loaded
+            if let selected = activeCollection {
+                let current = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
+                activeCollection = MusicCollection(id: selected.id, slug: selected.slug, title: selected.title, description: selected.description,
+                    version: selected.version, tracks: selected.tracks.compactMap { current[$0.id] }, nextCursor: nil)
+            }
+            if let nativeMusic {
+                do {
+                    let featured = try await nativeMusic.featured()
+                    guard id == operation, startedScope == scope, !Task.isCancelled else { return }
+                    featuredTracks = featured.tracks; collections = featured.collections
+                    featuredPhase = featuredTracks.isEmpty ? .empty : .loaded
+                } catch {
+                    guard id == operation, startedScope == scope, !Task.isCancelled else { return }
+                    featuredPhase = .unavailable
+                }
+            }
         } catch {
             guard id == operation, startedScope == scope, !Task.isCancelled else { return }
-            phase = .unavailable
+            phase = .unavailable; featuredPhase = .unavailable
         }
     }
     var results: [Track] {
-        query.isEmpty ? tracks : tracks.filter { ($0.title + " " + $0.artist).localizedCaseInsensitiveContains(query) }
+        query.isEmpty ? (activeCollection?.tracks ?? tracks) : (activeCollection?.tracks ?? tracks).filter { ($0.title + " " + $0.artist).localizedCaseInsensitiveContains(query) }
     }
     func changeScope(_ scope: AccountScope) async {
-        operation += 1; catalogTask?.cancel(); playback.deny(); tracks = []; favorites = []; self.scope = scope
+        operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.deny(); tracks = []; favorites = []; self.scope = scope
         let value = await library.favorites(in: scope)
         guard self.scope == scope else { return }; favorites = value
     }
@@ -47,7 +76,28 @@ import Observation
         let updated = await library.favorites(in: scope)
         guard self.scope == scope else { return }; favorites = updated
     }
-    func select(_ track: Track) { playback.select(track); showPlayer = true }
+    func select(_ track: Track) {
+        playback.select(track); showPlayer = true; detail = nil; detailTask?.cancel()
+        guard let nativeMusic else { return }
+        let version = operation, locale = locale
+        detailTask = Task { [weak self] in
+            let value = try? await nativeMusic.detail(track, locale: locale)
+            guard let self, !Task.isCancelled, self.operation == version, self.playback.selectedTrack == track else { return }
+            self.detail = value
+        }
+    }
+    func selectCollection(_ collection: MusicCollection) async {
+        guard let nativeMusic else { return }; operation += 1; let ticket = operation
+        phase = .loading
+        do {
+            let result = try await nativeMusic.collection(collection)
+            guard operation == ticket else { return }; activeCollection = result; phase = .loaded
+        } catch { if operation == ticket { phase = .unavailable } }
+    }
+    func adjacent(_ offset: Int) {
+        guard let selected = playback.selectedTrack, let index = results.firstIndex(where: { $0.id == selected.id }), results.indices.contains(index + offset) else { return }
+        select(results[index + offset])
+    }
 }
 nonisolated enum L10n {
     static func resolve(_ value: String) -> String {

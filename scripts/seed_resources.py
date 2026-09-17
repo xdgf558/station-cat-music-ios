@@ -54,6 +54,21 @@ deletion.processing|Deletion is being processed.|正在处理删除。|正在處
 deletion.retrying|Processing will be retried; deletion is not complete.|处理将重试，删除尚未完成。|處理將重試，刪除尚未完成。|再試行を待っています。削除は未完了です。
 deletion.attention_required|Further processing is required. Your account is blocked; deletion is not complete.|需要进一步处理。账号已停止访问，删除尚未完成。|需要進一步處理。帳號已停止存取，刪除尚未完成。|追加の処理が必要です。アカウントへのアクセスは停止中ですが、削除は未完了です。
 deletion.completed|Account deletion completed.|账号删除已完成。|帳號刪除已完成。|アカウント削除が完了しました。'''
+rows+='''
+isolatedMusic|Isolated test catalog|隔离测试曲库|隔離測試曲庫|隔離テストライブラリ
+albums|Albums|专辑|專輯|アルバム
+allTracks|All songs|全部歌曲|全部歌曲|すべての曲
+access.free|Free|免费|免費|無料
+access.vip|VIP|VIP 专享|VIP 專享|VIP
+access.preview|Preview available|可试听|可試聽|試聴可能
+access.unavailable|Unavailable|暂不可用|暫不可用|利用不可
+playbackDenied|Playback access expired or is unavailable. Try playing again.|播放资格已失效或暂不可用，请重新播放。|播放資格已失效或暫不可用，請重新播放。|再生権限が失効したか利用できません。再度お試しください。
+play|Play|播放|播放|再生
+pause|Pause|暂停|暫停|一時停止
+previous|Previous song|上一首|上一首|前の曲
+next|Next song|下一首|下一首|次の曲
+preview|Play preview|试听|試聽|試聴
+seek|Playback position|播放进度|播放進度|再生位置'''
 # Embedded hero newlines are restored from escaped markers after splitting rows.
 rows=rows.replace('A little music.\nA slower day.','A little music.\\nA slower day.').replace('听一点音乐，\n让日常慢下来。','听一点音乐，\\n让日常慢下来。').replace('聽一點音樂，\n讓日常慢下來。','聽一點音樂，\\n讓日常慢下來。').replace('音楽とともに、\nゆっくり過ごす。','音楽とともに、\\nゆっくり過ごす。')
 translations={x:{} for x in ['en','zh-Hans','zh-Hant','ja']}

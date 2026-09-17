@@ -10,7 +10,9 @@ S={'type':'string','minLength':1,'maxLength':200}; ID={**S,'maxLength':128}; B={
 text={'type':'string','maxLength':4000}; secret={'type':'string','minLength':32,'maxLength':4096,'description':'Sensitive value; never log or cache. Response credentials must remain decodable by generated clients.'}; cursor={'anyOf':[S,{'type':'null'}]}
 s={}
 s['Track']=obj({'id':ID,'title':S,'artist':S,'durationSeconds':{'type':'number','minimum':0,'maximum':86400},'audioVersion':{'type':'integer','minimum':1},'access':enum('free','vip','preview','unavailable')})
+s['Track']['properties']['coverUrl']={'anyOf':[{'type':'string','format':'uri'},{'type':'null'}]}
 s['Catalog']=obj({'items':arr(ref('Track')),'nextCursor':cursor})
+text={'type':'string','maxLength':131072}
 s['LyricLine']=obj({'startSeconds':{'type':'number','minimum':0},'text':text})
 s['Lyrics']=obj({'kind':enum('none','plain','timed'),'text':text,'lines':arr(ref('LyricLine')),'audioVersion':{'type':'integer','minimum':1}})
 s['Lyrics']['properties']['lines']['maxItems']=10000
@@ -30,7 +32,7 @@ s['LogoutRequest']=obj({'refreshToken':secret},closed=True)
 s['ReauthRequest']=obj({'password':secret,'totpCode':{'type':'string','maxLength':6}},closed=True)
 s['RecentAuthentication']=obj({'validUntil':D})
 s['GrantRequest']=obj({'audioVersion':{'type':'integer','minimum':1},'variant':enum('full','preview')},closed=True)
-s['PlaybackGrant']=obj({'playbackUrl':{'type':'string','format':'uri','pattern':'^https://[^/?#]+/api/mobile/v1/music/media/[^/?#]+/audio$'},'expiresAt':D,'playbackValidUntil':D,'revalidateAt':D,'authMode':enum('public','session_bearer'),'accountId':nullableID,'sessionId':nullableID,'trackId':ID,'audioVersion':{'type':'integer','minimum':1},'variant':enum('full','preview'),'durationSeconds':{'type':'number','exclusiveMinimum':0},'previewSourceStartSeconds':{'anyOf':[{'type':'number','minimum':0},{'type':'null'}]}})
+s['PlaybackGrant']=obj({'playbackUrl':{'type':'string','format':'uri','pattern':'^https://[^/?#]+/api/mobile/v1/music/media/[A-Za-z0-9_-]{43}/audio$'},'expiresAt':D,'playbackValidUntil':D,'revalidateAt':D,'authMode':enum('public','session_bearer'),'accountId':nullableID,'sessionId':nullableID,'trackId':ID,'audioVersion':{'type':'integer','minimum':1},'variant':enum('full','preview'),'durationSeconds':{'type':'number','exclusiveMinimum':0},'previewSourceStartSeconds':{'anyOf':[{'type':'number','minimum':0},{'type':'null'}]}})
 s['PlaybackGrant']['allOf']=[{'if':{'properties':{'authMode':{'const':'session_bearer'}}},'then':{'properties':{'accountId':ID,'sessionId':ID}},'else':{'properties':{'accountId':{'type':'null'},'sessionId':{'type':'null'}}}}]
 s['Favorite']=obj({'trackId':ID,'favorite':B,'version':N,'updatedAt':D})
 s['Favorites']=obj({'items':arr(ref('Favorite')),'nextCursor':cursor,'syncVersion':N})
@@ -63,6 +65,8 @@ def endpoint(method,path,response,request=None,auth='Bearer',status='200',descri
  pars=[parameter(x[1:-1],'path',ID,True) for x in path.split('/') if x.startswith('{')]
  if path in ['/music/catalog','/me/music/favorites','/me/music/recent']:
   pars += [parameter('limit','query',{'type':'integer','minimum':1,'maximum':100,'default':50}),parameter('cursor','query',S)]
+ if path.startswith('/music/') and method=='get' and '/media/' not in path: pars += [parameter('locale','query',enum('en','zh-Hans','zh-Hant','ja'))]
+ if path=='/music/collections/{slug}': pars += [parameter('limit','query',{'type':'integer','minimum':1,'maximum':100}),parameter('cursor','query',S)]
  if path=='/music/catalog': pars += [parameter('q','query',{'type':'string','maxLength':200}),parameter('access','query',enum('all','free','vip'))]
  if method in ['post'] and ('deletion-requests' in path and auth=='Bearer'): pars += [parameter('Idempotency-Key','header',ID,True)]
  responses={status:{'description':'Proposed v1.0 response; M1 serves fixtures only.','headers':{'Cache-Control':{'schema':{'type':'string'},'description':'private, no-store for identity, credentials, grants and deletion.'}},'content':{'application/json':{'schema':ref(response+'Response')}}},'default':{'description':'Stable error; 503 never means expired entitlement. No redirects.','content':{'application/json':{'schema':ref('Error')}}}}
@@ -94,7 +98,7 @@ endpoint('post','/me/deletion-requests/{id}/confirm','DeleteAccepted','DeleteCon
 endpoint('get','/deletion-requests/{id}/status','DeleteStatus',auth='DeletionReceipt',description='Query only; no Bearer, Cookie, refresh interceptor or login redirect. Authorization: DeletionReceipt <unpadded base64url of 32 random bytes>. Strongly consistent minimal status. Invalid/expired/wrong receipt always 404 DELETION_STATUS_UNAVAILABLE.')
 paths[prefix+'/deletion-requests/{id}/status']['get']['responses']['404']={'description':'Indistinguishable absent, invalid or expired receipt.','content':{'application/json':{'schema':ref('Error')}}}
 paths['/auth/mobile/authorize']={'get':{'operationId':'browser_authorize','security':[],'description':'ASWebAuthenticationSession browser login, including existing TOTP. Exact registered redirect; no arbitrary return URL. Reuse interactive web identity, never website Cookie as native API fallback.','parameters':[parameter(k,'query',v,True) for k,v in {'client_id':{'const':'station-cat-ios'},'redirect_uri':{'type':'string','format':'uri'},'state':{'type':'string','minLength':32},'code_challenge':{'type':'string','pattern':'^[A-Za-z0-9_-]{43}$'},'code_challenge_method':{'const':'S256'}}.items()],'responses':{'200':{'description':'Interactive authentication page','content':{'text/html':{'schema':{'type':'string'}}}},'302':{'description':'Only registered redirect containing code and unchanged state; no tokens in URL.'},'400':{'description':'Invalid request; no redirect.'}}}}
-doc={'openapi':'3.1.0','info':{'title':'Station Cat Music Native — proposed v1.0 contract','version':'0.2.0','description':'M2 auth/deletion implemented only in isolated local development; music and personal endpoints remain proposed. Default application is Mock with networking disabled. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract.'},'servers':[{'url':'https://mock.invalid','description':'Reserved non-routable placeholder; configure approved isolated service in M2.'}],'paths':paths,'components':{'securitySchemes':{'Bearer':{'type':'http','scheme':'bearer','description':'Native access token only. Do not accept website Cookie as fallback.'},'DeletionReceipt':{'type':'apiKey','in':'header','name':'Authorization','description':'DeletionReceipt followed by unpadded base64url of exactly32 random bytes; query-only credential, never Bearer.'}},'schemas':s}}
+doc={'openapi':'3.1.0','info':{'title':'Station Cat Music Native — proposed v1.0 contract','version':'0.3.0','description':'M2 authentication/deletion requests and M3 catalog/playback are implemented only in isolated local development; personal sync and physical deletion execution remain proposed. Default application is Mock with networking disabled. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract.'},'servers':[{'url':'https://mock.invalid','description':'Reserved non-routable placeholder; configure approved isolated service in M2.'}],'paths':paths,'components':{'securitySchemes':{'Bearer':{'type':'http','scheme':'bearer','description':'Native access token only. Do not accept website Cookie as fallback.'},'DeletionReceipt':{'type':'apiKey','in':'header','name':'Authorization','description':'DeletionReceipt followed by unpadded base64url of exactly32 random bytes; query-only credential, never Bearer.'}},'schemas':s}}
 (r/'contracts/openapi.json').write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n')
 # A deterministic, explicitly fictional positive fixture for every named schema.
 def sample(schema):
@@ -107,6 +111,7 @@ def sample(schema):
  if t=='object':
   value={k:sample(v) for k,v in schema['properties'].items() if k in schema['required']}
   if value.get('authMode')=='public': value.update(accountId=None,sessionId=None)
+  if 'playbackUrl' in value and value.get('variant')=='full': value['previewSourceStartSeconds']=None
   for k in ['expiresAt','playbackValidUntil','accessValidUntil','accessExpiresAt','refreshExpiresAt','absoluteExpiresAt','receiptExpiresAt','prepareExpiresAt','replayUntil']:
    if k in value: value[k]='2026-09-16T00:10:00Z'
   if 'revalidateAt' in value:value['revalidateAt']='2026-09-16T00:01:00Z'
@@ -116,7 +121,7 @@ def sample(schema):
  if t in ['integer','number']:return schema.get('minimum',schema.get('exclusiveMinimum',-1)+1)
  if t=='null':return None
  if schema.get('format')=='date-time':return '2026-09-16T00:00:00Z'
- if schema.get('pattern','').startswith('^https:'):return 'https://mock.invalid/api/mobile/v1/music/media/FIXTURE_ONLY/audio'
+ if schema.get('pattern','').startswith('^https:'):return 'https://mock.invalid/api/mobile/v1/music/media/'+'f'*43+'/audio'
  if schema.get('format')=='uri':return 'https://mock.invalid/FIXTURE_ONLY'
  if schema.get('pattern')=='^[a-f0-9]{64}$':return '630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd'
  if schema.get('minLength',0)>20:return 'FIXTUREONLY' * 5

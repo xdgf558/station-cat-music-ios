@@ -23,6 +23,7 @@ nonisolated struct Track: Codable, Identifiable, Equatable, Sendable {
     let durationSeconds: Double
     let audioVersion: Int
     let access: AccessPolicy
+    var coverUrl: URL? = nil
 }
 nonisolated struct Catalog: Codable, Sendable { let items: [Track]; let nextCursor: String? }
 nonisolated struct APIEnvelope<T: Codable & Sendable>: Codable, Sendable {
@@ -55,11 +56,19 @@ nonisolated struct PlaybackGrant: Codable, Sendable {
         guard playbackUrl.scheme == "https", let host = playbackUrl.host, allowedHosts.contains(host),
               playbackUrl.user == nil, playbackUrl.password == nil, playbackUrl.query == nil, playbackUrl.fragment == nil,
               playbackUrl.port == nil || playbackUrl.port == 443,
-              playbackUrl.path.hasPrefix("/api/mobile/v1/music/media/"), playbackUrl.path.hasSuffix("/audio"),
-              serverNow < playbackValidUntil, revalidateAt <= playbackValidUntil, durationSeconds > 0,
+              playbackUrl.path.range(of: "^/api/mobile/v1/music/media/[A-Za-z0-9_-]{43}/audio$", options: .regularExpression) != nil,
+              serverNow < playbackValidUntil, serverNow <= revalidateAt, revalidateAt <= playbackValidUntil, durationSeconds > 0, durationSeconds.isFinite,
+              playbackValidUntil.timeIntervalSince(serverNow) <= 600,
               track.access != .unavailable,
               expiresAt == playbackValidUntil, track.id == trackID, track.audioVersion == audioVersion,
               ["full", "preview"].contains(variant) else { throw APIError.invalidPayload }
+        if variant == "preview" {
+            guard let offset = previewSourceStartSeconds, offset.isFinite, offset >= 0,
+                  durationSeconds <= min(45, track.durationSeconds / 2) + 0.25,
+                  offset + durationSeconds <= track.durationSeconds + 0.25 else { throw APIError.invalidPayload }
+        } else {
+            guard previewSourceStartSeconds == nil, abs(durationSeconds - track.durationSeconds) < 0.001 else { throw APIError.invalidPayload }
+        }
         switch authMode {
         case .sessionBearer:
             guard let id = scope.accountID, id == accountID, let session, session == sessionID else { throw APIError.requiresAuthentication }

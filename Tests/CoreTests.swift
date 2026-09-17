@@ -217,11 +217,11 @@ import XCTest
         service.select(track()); XCTAssertThrowsError(try service.installBoundary(serverNow: 1000, validUntil: 2000, sent: 60, received: 60, sequence: sequence))
     }
     func testGrantIdentityAndURLBinding() throws {
-        func grant(_ mode: GrantAuthMode = .sessionBearer, account: String? = "fixture-A", url: String = "https://music.example/api/mobile/v1/music/media/fixture/audio", version: Int = 3) -> PlaybackGrant {
+        func grant(_ mode: GrantAuthMode = .sessionBearer, account: String? = "fixture-A", url: String = "https://music.example/api/mobile/v1/music/media/fffffffffffffffffffffffffffffffffffffffffff/audio", version: Int = 3) -> PlaybackGrant {
             PlaybackGrant(playbackUrl: URL(string: url)!, expiresAt: Date(timeIntervalSince1970: 200), playbackValidUntil: Date(timeIntervalSince1970: 200), revalidateAt: Date(timeIntervalSince1970: 150), durationSeconds: 180, previewSourceStartSeconds: nil, authMode: mode, accountID: account, sessionID: mode == .sessionBearer ? "fixture-session" : nil, trackID: "fixture-song", audioVersion: version, variant: "full")
         }
         try grant().validate(serverNow: Date(timeIntervalSince1970: 100), scope: envelope().scope, session: "fixture-session", track: track(.vip), allowedHosts: ["music.example"])
-        for bad in [grant(account: "B"), grant(url: "http://music.example/api/mobile/v1/music/media/fixture/audio"), grant(url: "https://music.example/api/mobile/v1/music/media/fixture/audio?token=fixture"), grant(version: 2), grant(.publicAccess, account: nil)] {
+        for bad in [grant(account: "B"), grant(url: "http://music.example/api/mobile/v1/music/media/fffffffffffffffffffffffffffffffffffffffffff/audio"), grant(url: "https://music.example/api/mobile/v1/music/media/fffffffffffffffffffffffffffffffffffffffffff/audio?token=fixture"), grant(version: 2), grant(.publicAccess, account: nil)] {
             XCTAssertThrowsError(try bad.validate(serverNow: Date(timeIntervalSince1970: 100), scope: envelope().scope, session: "fixture-session", track: track(.vip), allowedHosts: ["music.example"]))
         }
     }

@@ -41,5 +41,7 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>StationNativeMusicEnabled</key>
+	<string>$(STATION_NATIVE_MUSIC_ENABLED)</string>
 </dict>
 </plist>

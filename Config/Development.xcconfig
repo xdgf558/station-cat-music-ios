@@ -5,3 +5,6 @@ SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG
 // M2 activation requires a separately approved isolated host and signed callback.
 STATION_NATIVE_AUTH_ENABLED = NO
 STATION_NATIVE_AUTH_ORIGIN =
+
+// M3 isolated music activation is separate and remains disabled.
+STATION_NATIVE_MUSIC_ENABLED = NO

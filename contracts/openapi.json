@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Station Cat Music Native — proposed v1.0 contract",
-    "version": "0.2.0",
-    "description": "M2 auth/deletion implemented only in isolated local development; music and personal endpoints remain proposed. Default application is Mock with networking disabled. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract."
+    "version": "0.3.0",
+    "description": "M2 authentication/deletion requests and M3 catalog/playback are implemented only in isolated local development; personal sync and physical deletion execution remain proposed. Default application is Mock with networking disabled. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract."
   },
   "servers": [
     {
@@ -370,6 +370,20 @@
             }
           },
           {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "zh-Hans",
+                "zh-Hant",
+                "ja"
+              ]
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "required": false,
@@ -430,7 +444,22 @@
         "operationId": "get__music_featured",
         "security": [],
         "description": "Planned API. Not implemented or deployed by M1.",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "zh-Hans",
+                "zh-Hant",
+                "ja"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Proposed v1.0 response; M1 serves fixtures only.",
@@ -478,6 +507,20 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 128
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "zh-Hans",
+                "zh-Hant",
+                "ja"
+              ]
             }
           }
         ],
@@ -528,6 +571,40 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 128
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "zh-Hans",
+                "zh-Hant",
+                "ja"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
             }
           }
         ],
@@ -1598,6 +1675,17 @@
               "preview",
               "unavailable"
             ]
+          },
+          "coverUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1648,7 +1736,7 @@
           },
           "text": {
             "type": "string",
-            "maxLength": 4000
+            "maxLength": 131072
           }
         },
         "required": [
@@ -1670,7 +1758,7 @@
           },
           "text": {
             "type": "string",
-            "maxLength": 4000
+            "maxLength": 131072
           },
           "lines": {
             "type": "array",
@@ -1700,7 +1788,7 @@
           },
           "summary": {
             "type": "string",
-            "maxLength": 4000
+            "maxLength": 131072
           },
           "coverUrl": {
             "anyOf": [
@@ -1793,7 +1881,7 @@
           },
           "description": {
             "type": "string",
-            "maxLength": 4000
+            "maxLength": 131072
           },
           "version": {
             "type": "integer",
@@ -2334,7 +2422,7 @@
           "playbackUrl": {
             "type": "string",
             "format": "uri",
-            "pattern": "^https://[^/?#]+/api/mobile/v1/music/media/[^/?#]+/audio$"
+            "pattern": "^https://[^/?#]+/api/mobile/v1/music/media/[A-Za-z0-9_-]{43}/audio$"
           },
           "expiresAt": {
             "type": "string",

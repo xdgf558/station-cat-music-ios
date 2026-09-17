@@ -146,7 +146,7 @@
     "variant": "full"
   },
   "PlaybackGrant": {
-    "playbackUrl": "https://mock.invalid/api/mobile/v1/music/media/FIXTURE_ONLY/audio",
+    "playbackUrl": "https://mock.invalid/api/mobile/v1/music/media/fffffffffffffffffffffffffffffffffffffffffff/audio",
     "expiresAt": "2026-09-16T00:10:00Z",
     "playbackValidUntil": "2026-09-16T00:10:00Z",
     "revalidateAt": "2026-09-16T00:01:00Z",
@@ -157,7 +157,7 @@
     "audioVersion": 1,
     "variant": "full",
     "durationSeconds": 1,
-    "previewSourceStartSeconds": 0
+    "previewSourceStartSeconds": null
   },
   "Favorite": {
     "trackId": "fixture-only",
@@ -441,7 +441,7 @@
   },
   "PlaybackGrantResponse": {
     "data": {
-      "playbackUrl": "https://mock.invalid/api/mobile/v1/music/media/FIXTURE_ONLY/audio",
+      "playbackUrl": "https://mock.invalid/api/mobile/v1/music/media/fffffffffffffffffffffffffffffffffffffffffff/audio",
       "expiresAt": "2026-09-16T00:10:00Z",
       "playbackValidUntil": "2026-09-16T00:10:00Z",
       "revalidateAt": "2026-09-16T00:01:00Z",
@@ -452,7 +452,7 @@
       "audioVersion": 1,
       "variant": "full",
       "durationSeconds": 1,
-      "previewSourceStartSeconds": 0
+      "previewSourceStartSeconds": null
     },
     "requestId": "fixture-only",
     "serverNow": "2026-09-16T00:00:00Z"

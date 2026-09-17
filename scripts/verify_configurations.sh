@@ -15,6 +15,7 @@ info=plistlib.loads((Path('.build/Build/Products')/(config+'-iphonesimulator/Sta
 assert info['StationEnvironment']==config.lower(), info.get('StationEnvironment')
 assert info['MinimumOSVersion']=='18.0'
 assert info['StationNativeAuthEnabled']=='NO'
+assert info['StationNativeMusicEnabled']=='NO'
 assert not info.get('StationNativeAuthOrigin')
 assert 'NSAppTransportSecurity' not in info
 print(config+': environment embedded, iOS18 minimum, no HTTP exception')

@@ -10,11 +10,15 @@ import XCTest
         app.buttons["Close"].tap()
         app.tabBars.buttons["Library"].tap()
         XCTAssertTrue(app.staticTexts["Fictional local preview. Live music and accounts are not connected."].exists)
+        let catalog = app.scrollViews["catalogScreen"]
+        XCTAssertTrue(catalog.waitForExistence(timeout: 5))
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap(); search.typeText("Night")
-        XCTAssertTrue(app.buttons["track.sample-night-window"].exists)
-        XCTAssertFalse(app.buttons["track.sample-slow-morning"].exists)
+        let filtered = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: catalog.buttons["track.sample-slow-morning"])
+        XCTAssertEqual(XCTWaiter.wait(for: [filtered], timeout: 5), .completed)
+        XCTAssertEqual(search.value as? String, "Night")
+        XCTAssertTrue(catalog.buttons["track.sample-night-window"].exists)
         let closeSearch = app.buttons["Close"].exists ? app.buttons["Close"] : app.buttons["Cancel"]
         closeSearch.tap()
         app.tabBars.buttons["You"].tap()

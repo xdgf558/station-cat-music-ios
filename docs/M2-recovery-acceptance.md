@@ -52,3 +52,5 @@ Node 24；稳定 CI 固定 Xcode 26.4.1。本机仅有 Xcode 27 beta 6，使用�
 探针不属于产品工程 target、scheme 或 archive。脚本只对 iphonesimulator 编译，安装前完成编译、启动与签名；使用固定 LOCALPROBE 前缀的本机 ad-hoc Keychain entitlement，不代表 Apple Team ID 或正式签名。初次独立宿主无该测试 entitlement 时曾返回 -34018，未被绕过或当作通过。产品四配置、签名设置与 Keychain 规则均不变。最终结果必须同时包含三个真实进程恢复、服务端请求间隔和固定稳定 Xcode 版本。
 
 最终本机探针验证通过：A11/A12/A13 请求间隔分别 1.032 / 1.328 / 1.085 秒，新旧 PID 不同。首次给模拟器可执行文件直接附正式 entitlement 的尝试不能启动；最终使用模拟器 Mach-O `__TEXT,__entitlements` 段的 application-identifier 配合 ad-hoc 签名，未配置正式团队、证书、设备签名或 ATS 例外。稳定 CI 将同样先执行直接启动探针，再运行原有常规测试链路。
+
+稳定 CI 35169087857 的独立探针已将 A11 间隔降到 15.184 秒；A12 随后暴露已退出 simctl 的进程组清理竞态。驱动现在先回收已退出启动器，遇组权限差异仅停止自己的仍在运行的子进程，不触碰模拟器服务；新增两项回归防止该竞态，驱动回归共 6 项。

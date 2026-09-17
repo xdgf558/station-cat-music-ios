@@ -13,14 +13,21 @@ def host_exited(pid):
 
 
 def stop_group(process):
+    if process.poll() is not None:
+        return
     try:
         os.killpg(process.pid, signal.SIGTERM)
     except ProcessLookupError:
         pass
+    except PermissionError:
+        # simctl may already have exited, or its group may contain protected helpers.
+        # Signal only our own still-running child; never escalate or kill simulator services.
+        if process.poll() is None:
+            process.terminate()
     try:
         process.wait(timeout=2)
     except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
+        process.kill()
         process.wait(timeout=5)
 
 

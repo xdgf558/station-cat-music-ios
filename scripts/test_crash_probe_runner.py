@@ -4,7 +4,8 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from crash_probe_runner import run_crash
+from crash_probe_runner import run_crash,stop_group
+from unittest.mock import Mock,patch
 
 class CrashRunnerTests(unittest.TestCase):
     def run_fixture(self, source, timeout=5):
@@ -33,6 +34,19 @@ time.sleep(60)
     def test_unexpected_failure_is_not_accepted(self):
         with self.assertRaisesRegex(RuntimeError,'without a confirmed host exit'):
             self.run_fixture("print('unrelated failure');raise SystemExit(73)")
+
+    def test_already_exited_launcher_is_not_signalled(self):
+        process=Mock();process.poll.return_value=0
+        with patch('crash_probe_runner.os.killpg') as kill:
+            stop_group(process)
+            kill.assert_not_called()
+
+    def test_launcher_exit_race_does_not_fail_on_group_permission(self):
+        process=Mock();process.poll.side_effect=[None,0]
+        with patch('crash_probe_runner.os.killpg',side_effect=PermissionError):
+            stop_group(process)
+        process.terminate.assert_not_called()
+        process.wait.assert_called_once()
 
     def test_wrong_stage_is_not_accepted(self):
         with self.assertRaisesRegex(RuntimeError,'without a confirmed host exit'):

@@ -16,6 +16,7 @@ jobs:
       - run: python scripts/generate_contract.py && python scripts/seed_resources.py && python scripts/generate_project.py
       - run: git diff --exit-code
       - run: python scripts/validate_contract.py && python scripts/check_source.py
+      - run: python scripts/test_crash_probe_runner.py
   simulator:
     runs-on: macos-26
     steps:
@@ -34,6 +35,31 @@ jobs:
           assert candidates, 'No iPhone simulator installed'
           with open(os.environ['GITHUB_ENV'],'a') as f:f.write('M1_SIMULATOR_ID='+candidates[0]['udid']+'\n')
           PY
+      - name: Read reviewed backend fixture revision
+        id: backend
+        run: |
+          python3 - <<'PYCODE'
+          import json,os
+          fixture=json.load(open('contracts/backend-recovery-fixture.json'))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('revision='+fixture['commit']+'\n')
+          PYCODE
+      - uses: actions/checkout@v4
+        with:
+          repository: xdgf558/caption-ai-landing-site
+          ref: ${{ steps.backend.outputs.revision }}
+          path: .backend-m2
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install isolated backend test dependencies
+        working-directory: .backend-m2
+        run: npm ci
+      - name: Verify A11–A13 actual process termination and recovery
+        env:
+          M2_BACKEND_PATH: ${{ github.workspace }}/.backend-m2
+        run: python3 scripts/verify_native_crash_boundaries.py
       - run: bash scripts/verify_configurations.sh
       - run: bash scripts/test_ios.sh
       - run: bash scripts/verify_keychain_relaunch.sh

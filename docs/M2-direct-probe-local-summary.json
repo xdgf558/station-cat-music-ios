@@ -1,0 +1,44 @@
+[
+  {
+    "case": "A11",
+    "result": "passed",
+    "seconds": 2.42,
+    "actual_process_exit": true,
+    "hostExitConfirmed": true,
+    "crashedHostPID": 48271,
+    "orchestratorStoppedAfterMarkerSeconds": 0.564,
+    "serverRequestIntervalSeconds": 1.032,
+    "storage": "simulator Keychain",
+    "server": "real isolated Worker + temporary D1",
+    "transport": "test-only HTTP loopback bridge",
+    "replay_window_seconds": 120
+  },
+  {
+    "case": "A12",
+    "result": "passed",
+    "seconds": 2.4,
+    "actual_process_exit": true,
+    "hostExitConfirmed": true,
+    "crashedHostPID": 48295,
+    "orchestratorStoppedAfterMarkerSeconds": 0.636,
+    "serverRequestIntervalSeconds": 1.328,
+    "storage": "simulator Keychain",
+    "server": "real isolated Worker + temporary D1",
+    "transport": "test-only HTTP loopback bridge",
+    "replay_window_seconds": 120
+  },
+  {
+    "case": "A13",
+    "result": "passed",
+    "seconds": 2.4,
+    "actual_process_exit": true,
+    "hostExitConfirmed": true,
+    "crashedHostPID": 48320,
+    "orchestratorStoppedAfterMarkerSeconds": 0.688,
+    "serverRequestIntervalSeconds": 1.085,
+    "storage": "simulator Keychain",
+    "server": "real isolated Worker + temporary D1",
+    "transport": "test-only HTTP loopback bridge",
+    "replay_window_seconds": 120
+  }
+]

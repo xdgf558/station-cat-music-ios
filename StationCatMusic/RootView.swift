@@ -79,6 +79,7 @@ struct RootView: View {
             }
             stateContent
         }.padding(20) }.background(Palette.background)
+        .accessibilityIdentifier("catalogScreen")
         .navigationTitle(model.t("catalog")).searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: Text(model.t("search")))
     }
     private var stateContent: some View { trackContent(phase: model.phase, tracks: model.results, search: true) }

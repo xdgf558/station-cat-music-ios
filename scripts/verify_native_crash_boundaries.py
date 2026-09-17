@@ -3,7 +3,7 @@
 No production configuration, ATS exception, fake clock, or extended replay deadline.
 """
 from pathlib import Path
-from crash_probe_runner import run_crash
+from crash_probe_runner import run_crash,wait_ready
 import hashlib,json,os,plistlib,platform,re,shutil,subprocess,tempfile,time
 from urllib.request import Request,urlopen
 root=Path(__file__).resolve().parents[1]
@@ -49,11 +49,7 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
     server=subprocess.Popen([node,'scripts/helpers/mobile-crash-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT)
     try:
         ready=Path(directory)/'ready.json'
-        for _ in range(100):
-            if ready.exists():break
-            if server.poll() is not None:raise RuntimeError('Local service failed to start')
-            time.sleep(.1)
-        connection=json.loads(ready.read_text())
+        connection=wait_ready(ready,server)
         for stage in ['A11','A12','A13']:
             started=time.monotonic()
             for mode in ['CRASH','RECOVER']:

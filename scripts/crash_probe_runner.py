@@ -1,5 +1,6 @@
 """Stop XCTest orchestration only after the marked simulator host actually exits."""
 import os
+import json
 import re
 import signal
 import subprocess
@@ -57,3 +58,16 @@ def run_crash(args, logfile, stage, timeout=300, env=None):
             raise RuntimeError('Crash boundary timed out')
         finally:
             stop_group(process)
+
+
+def wait_ready(path, process, timeout=120):
+    """Wait before creating any credentials; this is not part of the replay deadline."""
+    deadline=time.monotonic()+timeout
+    while time.monotonic()<deadline:
+        if process.poll() is not None:
+            raise RuntimeError('Local service failed before readiness')
+        try:
+            return json.loads(path.read_text())
+        except (FileNotFoundError,json.JSONDecodeError):
+            time.sleep(.1)
+    raise RuntimeError('Local service readiness timed out before any refresh operation')

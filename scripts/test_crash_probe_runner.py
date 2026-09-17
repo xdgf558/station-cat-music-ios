@@ -2,9 +2,10 @@
 import sys
 import tempfile
 import time
+import threading
 import unittest
 from pathlib import Path
-from crash_probe_runner import run_crash,stop_group
+from crash_probe_runner import run_crash,stop_group,wait_ready
 from unittest.mock import Mock,patch
 
 class CrashRunnerTests(unittest.TestCase):
@@ -47,6 +48,28 @@ time.sleep(60)
             stop_group(process)
         process.terminate.assert_not_called()
         process.wait.assert_called_once()
+
+    def test_delayed_service_readiness_is_checked_before_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'ready.json';process=Mock();process.poll.return_value=None
+            def ready():
+                path.write_text('{')
+                time.sleep(.15)
+                path.write_text('{"port":12345}')
+            thread=threading.Thread(target=ready);thread.start()
+            try:self.assertEqual(wait_ready(path,process,2),{'port':12345})
+            finally:thread.join()
+
+    def test_service_exit_does_not_wait_for_readiness_timeout(self):
+        process=Mock();process.poll.return_value=1
+        with self.assertRaisesRegex(RuntimeError,'failed before readiness'):
+            wait_ready(Path('/unused-ready'),process,.5)
+
+    def test_missing_readiness_has_explicit_bounded_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            process=Mock();process.poll.return_value=None
+            with self.assertRaisesRegex(RuntimeError,'before any refresh operation'):
+                wait_ready(Path(directory)/'ready.json',process,.1)
 
     def test_wrong_stage_is_not_accepted(self):
         with self.assertRaisesRegex(RuntimeError,'without a confirmed host exit'):

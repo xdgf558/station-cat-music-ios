@@ -17,6 +17,10 @@ import Observation
     let account: NativeAccountModel
     var detail: TrackDetail?
     var collections: [MusicCollection] = []
+    private(set) var featuredTracks: [Track] = []
+    private(set) var featuredPhase: Phase = .loading
+    var discoveryTracks: [Track] { nativeMusic == nil ? tracks : featuredTracks }
+    var discoveryPhase: Phase { nativeMusic == nil ? phase : featuredPhase }
     var activeCollection: MusicCollection?
     var nativeMusic: NativeMusicAPI? { client as? NativeMusicAPI }
     @ObservationIgnored private var detailTask: Task<Void, Never>?
@@ -29,7 +33,7 @@ import Observation
     func t(_ key: String) -> String { L10n.text(key, locale: locale) }
     func load() async {
         operation += 1; let id = operation; let startedScope = scope
-        phase = .loading; catalogTask?.cancel()
+        phase = .loading; featuredPhase = .loading; featuredTracks = []; collections = []; catalogTask?.cancel()
         let client = self.client
         let locale = locale
         let work = Task { if let native = client as? NativeMusicAPI { await native.setLocale(locale) }; return try await client.catalog() }; catalogTask = work
@@ -42,17 +46,27 @@ import Observation
                 activeCollection = MusicCollection(id: selected.id, slug: selected.slug, title: selected.title, description: selected.description,
                     version: selected.version, tracks: selected.tracks.compactMap { current[$0.id] }, nextCursor: nil)
             }
-            if let nativeMusic, let featured = try? await nativeMusic.featured(), id == operation, startedScope == scope { collections = featured.collections }
+            if let nativeMusic {
+                do {
+                    let featured = try await nativeMusic.featured()
+                    guard id == operation, startedScope == scope, !Task.isCancelled else { return }
+                    featuredTracks = featured.tracks; collections = featured.collections
+                    featuredPhase = featuredTracks.isEmpty ? .empty : .loaded
+                } catch {
+                    guard id == operation, startedScope == scope, !Task.isCancelled else { return }
+                    featuredPhase = .unavailable
+                }
+            }
         } catch {
             guard id == operation, startedScope == scope, !Task.isCancelled else { return }
-            phase = .unavailable
+            phase = .unavailable; featuredPhase = .unavailable
         }
     }
     var results: [Track] {
         query.isEmpty ? (activeCollection?.tracks ?? tracks) : (activeCollection?.tracks ?? tracks).filter { ($0.title + " " + $0.artist).localizedCaseInsensitiveContains(query) }
     }
     func changeScope(_ scope: AccountScope) async {
-        operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; collections = []; activeCollection = nil; playback.deny(); tracks = []; favorites = []; self.scope = scope
+        operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.deny(); tracks = []; favorites = []; self.scope = scope
         let value = await library.favorites(in: scope)
         guard self.scope == scope else { return }; favorites = value
     }

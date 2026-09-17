@@ -64,7 +64,7 @@ struct RootView: View {
                     Button { model.selectedTab = 1 } label: { Label(model.t("explore"), systemImage: "arrow.right").font(.headline).padding(.horizontal, 24).frame(minHeight: 48) }.buttonStyle(.borderedProminent).foregroundStyle(Palette.background)
                 }.padding(24).frame(maxWidth: .infinity, alignment: .leading).background(LinearGradient(colors: [Palette.panel, Palette.background], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 26))
                 VStack(alignment: .leading, spacing: 6) { Text(model.t("tonight")).font(.title2.bold()); Text(model.t(model.nativeMusic == nil ? "mockOnly" : "isolatedMusic")).font(.caption).foregroundStyle(Palette.muted) }
-                stateContent
+                trackContent(phase: model.discoveryPhase, tracks: model.discoveryTracks, search: false)
             }.padding(20)
         }.background(Palette.background).toolbar(.hidden, for: .navigationBar)
     }
@@ -81,15 +81,19 @@ struct RootView: View {
         }.padding(20) }.background(Palette.background)
         .navigationTitle(model.t("catalog")).searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: Text(model.t("search")))
     }
-    @ViewBuilder private var stateContent: some View {
-        switch model.phase {
+    private var stateContent: some View { trackContent(phase: model.phase, tracks: model.results, search: true) }
+    @ViewBuilder private func trackContent(phase: AppModel.Phase, tracks: [Track], search: Bool) -> some View {
+        switch phase {
         case .loading: ProgressView(model.t("loading")).frame(maxWidth: .infinity, minHeight: 120).accessibilityIdentifier("loading")
         case .unavailable:
             ContentUnavailableView { Label(model.t("unavailable"), systemImage: "wifi.slash") } description: { Text(model.t("unavailableDetail")) } actions: { Button(model.t("retry")) { Task { await model.load() } }.frame(minHeight: 44) }
         case .empty: ContentUnavailableView(model.t("empty"), systemImage: "music.note")
         case .loaded:
-            if model.results.isEmpty { ContentUnavailableView.search(text: model.query) }
-            ForEach(model.results) { track in trackRow(track) }
+            if tracks.isEmpty {
+                if search { ContentUnavailableView.search(text: model.query) }
+                else { ContentUnavailableView(model.t("empty"), systemImage: "music.note") }
+            }
+            ForEach(tracks) { track in trackRow(track) }
         }
     }
     private func trackRow(_ track: Track) -> some View {

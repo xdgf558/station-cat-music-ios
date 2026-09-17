@@ -32,7 +32,7 @@ nonisolated struct PlaybackBoundary: Sendable {
 @MainActor protocol MediaLoading { func cancelAll() }
 @MainActor final class UnavailableMediaLoader: MediaLoading { func cancelAll() {} }
 @MainActor @Observable final class PlaybackService {
-    enum State: Equatable { case idle, selected, verificationRequired, authorizing, playing, paused }
+    enum State: Equatable { case idle, selected, verificationRequired, authorizing, playing, paused, completed }
     private(set) var selectedTrack: Track?
     private(set) var state: State = .idle
     private(set) var boundary = PlaybackBoundary()
@@ -45,6 +45,7 @@ nonisolated struct PlaybackBoundary: Sendable {
     @ObservationIgnored private var nativeLoader: NativeMediaLoader?
     @ObservationIgnored private var authorizationTask: Task<Void, Never>?
     @ObservationIgnored private var renewalTask: Task<Void, Never>?
+    @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var progressTask: Task<Void, Never>?
     let identity = UUID()
     @ObservationIgnored private let player = AVPlayer()
@@ -83,7 +84,15 @@ nonisolated struct PlaybackBoundary: Sendable {
                 self.nativeLoader?.cancelAll(); self.progressTask?.cancel(); self.renewalTask?.cancel()
                 self.nativeLoader = loader
                 self.activeVariant = grant.variant; self.duration = grant.durationSeconds; self.previewOffset = grant.previewSourceStartSeconds ?? 0; self.position = min(renewal ? self.position : resumePosition, grant.durationSeconds)
-                self.player.replaceCurrentItem(with: AVPlayerItem(asset: loader.asset()))
+                self.removeEndObserver()
+                let item = AVPlayerItem(asset: loader.asset())
+                self.player.replaceCurrentItem(with: item)
+                self.endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self, weak item] _ in
+                    MainActor.assumeIsolated {
+                        guard let self, let item, self.player.currentItem === item, self.boundary.sequence == sequence else { return }
+                        self.completeNaturally()
+                    }
+                }
                 self.boundary.userResumed(); self.state = .playing
                 if self.position > 0 { self.player.seek(to: CMTime(seconds: self.position, preferredTimescale: 600), completionHandler: { _ in }) }
                 self.player.play()
@@ -103,13 +112,18 @@ nonisolated struct PlaybackBoundary: Sendable {
                         let seconds = self.player.currentTime().seconds
                         if seconds.isFinite { self.position = max(0, min(self.duration, seconds)) }
                         if self.player.currentItem?.status == .failed { self.deny(); return }
-                        if self.duration > 0 && self.position >= self.duration - 0.1 { self.pause(); return }
                     }
                 }
             } catch {
                 guard let self, self.boundary.sequence == sequence, !Task.isCancelled else { return }; self.deny()
             }
         }
+    }
+    private func removeEndObserver() {
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }; endObserver = nil
+    }
+    private func completeNaturally() {
+        boundary.deny(); stop(); position = 0; state = .completed
     }
     func pause() { boundary.deny(); stop(); state = .paused }
     func seek(to seconds: Double) {
@@ -129,5 +143,5 @@ nonisolated struct PlaybackBoundary: Sendable {
     }
     func checkDeadline() { if boundary.expire(at: clock.now) { stop(); state = .verificationRequired } }
     func deny() { boundary.deny(); stop(); state = .verificationRequired }
-    func stop() { renewalTask?.cancel(); renewalTask = nil; authorizationTask?.cancel(); authorizationTask = nil; progressTask?.cancel(); progressTask = nil; nativeLoader?.cancelAll(); nativeLoader = nil; player.pause(); loader.cancelAll(); player.replaceCurrentItem(with: nil); autoAdvance = false; deadlineTask?.cancel(); deadlineTask = nil }
+    func stop() { removeEndObserver(); renewalTask?.cancel(); renewalTask = nil; authorizationTask?.cancel(); authorizationTask = nil; progressTask?.cancel(); progressTask = nil; nativeLoader?.cancelAll(); nativeLoader = nil; player.pause(); loader.cancelAll(); player.replaceCurrentItem(with: nil); autoAdvance = false; deadlineTask?.cancel(); deadlineTask = nil }
 }

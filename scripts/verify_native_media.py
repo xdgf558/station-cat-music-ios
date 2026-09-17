@@ -31,6 +31,7 @@ with tempfile.TemporaryDirectory(prefix='station-m3-media-') as directory:
             path=products/'M3-media.xctestrun';path.write_bytes(plistlib.dumps(data))
             run(['xcodebuild','-destination','platform=iOS Simulator,id='+sim,'-parallel-testing-enabled','NO','-xctestrun',str(path),'-only-testing:StationCatMusicTests/NativeMediaIntegrationTests','test-without-building'],'M3-media-integration.log')
             assert 'M3_NATIVE_MEDIA_PASSED' in (output/'M3-media-integration.log').read_text()
+            assert 'M3_FEATURED_PASSED' in (output/'M3-media-integration.log').read_text()
             print('Actual native AVPlayer / HTTP HEAD / Range / revocation / hard-stop passed against isolated workerd. HTTPS/AASA and physical iPhone remain unverified.')
         finally:
             server.terminate()

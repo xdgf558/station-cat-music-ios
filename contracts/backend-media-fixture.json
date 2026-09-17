@@ -1,0 +1,22 @@
+{
+  "repository": "xdgf558/caption-ai-landing-site",
+  "commit": "525d1bc6c7db7e2c28cab298f9d3e81df3ea4f24",
+  "sha256": {
+    "package.json": "b2afd6845787cd0a7ccd70d0beb5c6f8e2d8fdc8439dec129ac29c23c9afdd86",
+    "package-lock.json": "b81e63fc2580e6e768dcfe5d799eb5944e95bf1fb51a056b8697ece1e6c9d4b0",
+    "scripts/helpers/mobile-music-service.mjs": "51ca32ec2c07dfb20808fdccb219550e2dd08ddb8e570463828985fe1c9c5195",
+    "scripts/helpers/mobile-music-fixture.mjs": "411f20632fb9f4350738d7e9cb8d02aa9fac368eb0fbd071f883e76e1f2aa11a",
+    "scripts/helpers/mobile-music-worker.js": "bcc04d25353e5572fd4b0113389a3e7996bd908a3335800a638f2177be40550e",
+    "src/mobile/music.js": "0d7e5e25949f3abdde90c174f8840bb04b6061109758bf62829006c7f616582a",
+    "src/mobile/musicEntitlements.js": "528fb94e61c9f73ad470be19a399633a64c9282492abc2e40a2e47278e84c1d7",
+    "src/mobile/http.js": "d1f0b471868a9531c8f8c6a1d0d884dbe1ac5a3dc9d26c4ebaa55105c62cfc7b",
+    "src/mobile/sessions.js": "be2bd9f1c6a0a9f92d125388b78f5805eef704286865b87491da79e407090a24",
+    "src/music/mediaResponse.js": "0bcb03e1fef4428c2ebe2b6bdb01a517fd0204e8a2322a7f988da7d771bd5ef5",
+    "src/music/publicStore.js": "96fb918876ba30ed5355d14bf2605948cd5f3e0a72a95dd6355cce74f4928f6b",
+    "src/music/catalog.js": "f90cb762adbca2e8e0452d85b4935f21dfe4a2dceeda3f40ede72425a1483a84",
+    "src/music/policy.js": "3caa5782482c4f8ec5555416a19784c869353a1d91a228209477b435f0ae4c08",
+    "src/scripts/musicLyrics.js": "692729c3bdf739931b20618fd9a42a11742ddc8ab9eea7b87effd5d1999ad1f8",
+    "src/readerMembership.js": "b61588511a693a05b5f39d8e69629bf0b4f3b189e129a8252c4e96ccb733af6e",
+    "migrations-mobile/0002_music_playback_grants.sql": "f47f0d8bb9275b58870751b3f427e85dd153c5d847c90ab0273ce524040b3b31"
+  }
+}

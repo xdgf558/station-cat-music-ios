@@ -60,6 +60,22 @@ jobs:
         env:
           M2_BACKEND_PATH: ${{ github.workspace }}/.backend-m2
         run: python3 scripts/verify_native_crash_boundaries.py
+      - name: Read isolated media fixture revision
+        id: media
+        run: python3 -c "import json,os; f=open(os.environ['GITHUB_OUTPUT'],'a'); f.write('revision='+json.load(open('contracts/backend-media-fixture.json'))['commit']+'\n')"
+      - uses: actions/checkout@v4
+        with:
+          repository: xdgf558/caption-ai-landing-site
+          ref: ${{ steps.media.outputs.revision }}
+          path: .backend-m3
+          persist-credentials: false
+      - name: Install isolated media dependencies
+        working-directory: .backend-m3
+        run: npm ci
+      - name: Verify actual native audio against isolated Worker
+        env:
+          M3_BACKEND_PATH: ${{ github.workspace }}/.backend-m3
+        run: python3 scripts/verify_native_media.py
       - run: bash scripts/verify_configurations.sh
       - run: bash scripts/test_ios.sh
       - run: bash scripts/verify_keychain_relaunch.sh

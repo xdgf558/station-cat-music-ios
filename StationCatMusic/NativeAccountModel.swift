@@ -5,6 +5,7 @@ import Observation
     let auth: NativeAuthenticationService?
     let deletion: NativeDeletionService?
     var scope: AccountScope = .guest
+    var onInvalidate: (@MainActor () -> Void)?
     var busy = false
     var messageKey = ""
     var deletionStatus = ""
@@ -33,8 +34,8 @@ import Observation
         await updateScope()
     }
     func restore() async { await run { try await auth?.restore(); if let status = try await deletion?.queryRecovery() { deletionStatus = status.status } } }
-    func signIn(locale: String) async { await run { confirmationReady = false; try await auth?.signIn(locale: locale) } }
-    func signOut() async { await run { confirmationReady = false; try await auth?.signOut() } }
+    func signIn(locale: String) async { await run { onInvalidate?(); confirmationReady = false; try await auth?.signIn(locale: locale) } }
+    func signOut() async { await run { onInvalidate?(); confirmationReady = false; try await auth?.signOut() } }
     func prepareDeletion(password: String, totp: String) async {
         await run {
             confirmationReady = false
@@ -46,6 +47,7 @@ import Observation
     func confirmDeletion() async {
         await run {
             confirmationReady = false
+            onInvalidate?()
             guard let result = try await deletion?.explicitlyConfirm() else { throw APIError.unavailable }
             deletionStatus = result.status
         }

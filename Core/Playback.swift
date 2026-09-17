@@ -32,22 +32,91 @@ nonisolated struct PlaybackBoundary: Sendable {
 @MainActor protocol MediaLoading { func cancelAll() }
 @MainActor final class UnavailableMediaLoader: MediaLoading { func cancelAll() {} }
 @MainActor @Observable final class PlaybackService {
-    enum State: Equatable { case idle, selected, verificationRequired }
+    enum State: Equatable { case idle, selected, verificationRequired, authorizing, playing, paused }
     private(set) var selectedTrack: Track?
     private(set) var state: State = .idle
     private(set) var boundary = PlaybackBoundary()
     private(set) var autoAdvance = false
+    private(set) var position: Double = 0
+    private(set) var duration: Double = 0
+    private(set) var previewOffset: Double = 0
+    private var activeVariant = "full"
+    private var authorizer: (any PlaybackAuthorizing)?
+    @ObservationIgnored private var nativeLoader: NativeMediaLoader?
+    @ObservationIgnored private var authorizationTask: Task<Void, Never>?
+    @ObservationIgnored private var renewalTask: Task<Void, Never>?
+    @ObservationIgnored private var progressTask: Task<Void, Never>?
     let identity = UUID()
     @ObservationIgnored private let player = AVPlayer()
     @ObservationIgnored private let clock: any PlaybackClock
+    @ObservationIgnored private let transport: any MediaHTTPTransport
     @ObservationIgnored private let loader: any MediaLoading
     @ObservationIgnored private var deadlineTask: Task<Void, Never>?
-    init(clock: any PlaybackClock = ContinuousPlaybackClock(), loader: any MediaLoading = UnavailableMediaLoader()) { self.clock = clock; self.loader = loader }
+    init(clock: any PlaybackClock = ContinuousPlaybackClock(), loader: any MediaLoading = UnavailableMediaLoader(), transport: any MediaHTTPTransport = NativeMediaTransport()) { self.clock = clock; self.loader = loader; self.transport = transport }
     var hasAudioSource: Bool { player.currentItem != nil }
     var isPlaying: Bool { player.rate > 0 }
-    func select(_ track: Track) { boundary.deny(); stop(); selectedTrack = track; state = .selected }
-    // M1 deliberately never installs remote audio. UI selection is not authorization.
-    func requestPlay() { state = .verificationRequired }
+    func select(_ track: Track) { boundary.deny(); stop(); selectedTrack = track; position = 0; duration = track.durationSeconds; previewOffset = 0; state = .selected }
+    func configure(authorizer: any PlaybackAuthorizing) { deny(); self.authorizer = authorizer }
+    func requestPlay(variant: String = "full") { begin(variant: variant, renewal: false) }
+    private func begin(variant: String, renewal: Bool) {
+        guard let track = selectedTrack, let authorizer else { state = .verificationRequired; return }
+        // Every explicit resume obtains a fresh URL and a fresh hard deadline.
+        let resumePosition = (renewal || state == .paused) && activeVariant == variant ? position : 0
+        if renewal {
+            guard state == .playing, boundary.deadline != nil else { return }
+        } else { boundary.deny(); stop(); state = .authorizing }
+        let sequence = boundary.sequence, sent = clock.now
+        authorizationTask = Task { [weak self] in
+            do {
+                let authorization = try await authorizer.authorize(track: track, variant: variant)
+                guard let self, !Task.isCancelled, self.boundary.sequence == sequence,
+                      self.selectedTrack == track, await authorizer.isCurrent(authorization) else { return }
+                let received = self.clock.now, grant = authorization.grant
+                try self.installBoundary(serverNow: authorization.serverNow.timeIntervalSince1970,
+                    validUntil: grant.playbackValidUntil.timeIntervalSince1970, sent: sent, received: received, sequence: sequence)
+                guard let deadline = self.boundary.deadline else { throw APIError.requiresAuthentication }
+                let channel = AuthorizedMediaChannel(authorization: authorization, authorizer: authorizer,
+                    transport: self.transport, lifetime: deadline - self.clock.now)
+                let loader = NativeMediaLoader(channel: channel) { [weak self] in
+                    guard self?.boundary.sequence == sequence else { return }; self?.deny()
+                }
+                self.nativeLoader?.cancelAll(); self.progressTask?.cancel(); self.renewalTask?.cancel()
+                self.nativeLoader = loader
+                self.activeVariant = grant.variant; self.duration = grant.durationSeconds; self.previewOffset = grant.previewSourceStartSeconds ?? 0; self.position = min(renewal ? self.position : resumePosition, grant.durationSeconds)
+                self.player.replaceCurrentItem(with: AVPlayerItem(asset: loader.asset()))
+                self.boundary.userResumed(); self.state = .playing
+                if self.position > 0 { self.player.seek(to: CMTime(seconds: self.position, preferredTimescale: 600), completionHandler: { _ in }) }
+                self.player.play()
+                let renewAfter = grant.revalidateAt.timeIntervalSince(authorization.serverNow) - (received - sent) - 2
+                if renewAfter > 1 && self.clock.now + renewAfter < deadline {
+                    self.renewalTask = Task { [weak self] in
+                        do { try await Task.sleep(for: .seconds(renewAfter)) } catch { return }
+                        guard let self, self.boundary.sequence == sequence, self.state == .playing else { return }
+                        self.begin(variant: variant, renewal: true)
+                    }
+                }
+                self.progressTask = Task { [weak self] in
+                    while !Task.isCancelled {
+                        do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
+                        guard let self, self.boundary.sequence == sequence else { return }
+                        self.checkDeadline()
+                        let seconds = self.player.currentTime().seconds
+                        if seconds.isFinite { self.position = max(0, min(self.duration, seconds)) }
+                        if self.player.currentItem?.status == .failed { self.deny(); return }
+                        if self.duration > 0 && self.position >= self.duration - 0.1 { self.pause(); return }
+                    }
+                }
+            } catch {
+                guard let self, self.boundary.sequence == sequence, !Task.isCancelled else { return }; self.deny()
+            }
+        }
+    }
+    func pause() { boundary.deny(); stop(); state = .paused }
+    func seek(to seconds: Double) {
+        checkDeadline()
+        guard state == .playing, boundary.deadline != nil, seconds.isFinite else { return }
+        player.seek(to: CMTime(seconds: max(0, min(duration, seconds)), preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+    }
     func installBoundary(serverNow: Double, validUntil: Double, sent: Double, received: Double, sequence: Int) throws {
         try boundary.install(serverNow: serverNow, validUntil: validUntil, sent: sent, received: received, sequence: sequence)
         deadlineTask?.cancel()
@@ -60,5 +129,5 @@ nonisolated struct PlaybackBoundary: Sendable {
     }
     func checkDeadline() { if boundary.expire(at: clock.now) { stop(); state = .verificationRequired } }
     func deny() { boundary.deny(); stop(); state = .verificationRequired }
-    func stop() { player.pause(); loader.cancelAll(); player.replaceCurrentItem(with: nil); autoAdvance = false; deadlineTask?.cancel(); deadlineTask = nil }
+    func stop() { renewalTask?.cancel(); renewalTask = nil; authorizationTask?.cancel(); authorizationTask = nil; progressTask?.cancel(); progressTask = nil; nativeLoader?.cancelAll(); nativeLoader = nil; player.pause(); loader.cancelAll(); player.replaceCurrentItem(with: nil); autoAdvance = false; deadlineTask?.cancel(); deadlineTask = nil }
 }

@@ -4,7 +4,7 @@ No production configuration, ATS exception, fake clock, or extended replay deadl
 """
 from pathlib import Path
 from crash_probe_runner import run_crash
-import copy,hashlib,json,os,plistlib,shutil,subprocess,tempfile,time
+import hashlib,json,os,plistlib,platform,re,shutil,subprocess,tempfile,time
 from urllib.request import Request,urlopen
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
@@ -23,15 +23,26 @@ simulator=os.environ['M1_SIMULATOR_ID']
 node=os.environ.get('M2_NODE_BINARY') or shutil.which('node')
 assert node, 'Node.js is required'
 output=root/'evidence';output.mkdir(exist_ok=True)
-products=root/'.build/Build/Products'
-common=['xcodebuild','-destination','platform=iOS Simulator,id='+simulator,'-parallel-testing-enabled','NO']
-def run(args,name,timeout=600):
+# Compile the exact product Core sources into a separate simulator-only probe App.
+# Install before any refresh commits; relaunch with simctl, never a second XCTest session.
+products=root/'.build/recovery-probe'
+app=products/'BoundaryProbe.app';app.mkdir(parents=True,exist_ok=True)
+bundle='org.stationcat.music.recoveryprobe'
+def run(args,name,timeout=600,env=None):
     with (output/name).open('w') as log:
-        try:return subprocess.run(args,stdout=log,stderr=subprocess.STDOUT,timeout=timeout).returncode
+        try:return subprocess.run(args,stdout=log,stderr=subprocess.STDOUT,timeout=timeout,env=env).returncode
         except subprocess.TimeoutExpired:raise RuntimeError('Probe command timed out; see '+name)
-assert run(['xcodebuild','-project','StationCatMusic.xcodeproj','-scheme','StationCatMusic','-configuration','Mock','-destination','platform=iOS Simulator,id='+simulator,'-derivedDataPath','.build','build-for-testing'],'M2-boundaries-build.log')==0, 'Build failed'
-source=max(products.glob('StationCatMusic_*.xctestrun'),key=lambda p:p.stat().st_mtime)
-base=plistlib.loads(source.read_bytes())
+sdk=subprocess.check_output(['xcrun','--sdk','iphonesimulator','--show-sdk-path'],text=True).strip()
+sources=[str(p) for directory in ['Core','TestsSupport','IntegrationProbes'] for p in sorted((root/directory).glob('*.swift'))]
+entitlements=products/'probe-entitlements.plist'
+entitlements.write_bytes(plistlib.dumps({'application-identifier':'LOCALPROBE.'+bundle}))
+assert run(['xcrun','--sdk','iphonesimulator','swiftc','-parse-as-library','-swift-version','6','-sdk',sdk,'-target',platform.machine()+'-apple-ios18.0-simulator','-module-name','BoundaryProbe','-Xlinker','-sectcreate','-Xlinker','__TEXT','-Xlinker','__entitlements','-Xlinker',str(entitlements),*sources,'-o',str(app/'BoundaryProbe')],'M2-boundaries-build.log')==0, 'Probe build failed'
+(app/'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':bundle,'CFBundleExecutable':'BoundaryProbe','CFBundlePackageType':'APPL','CFBundleVersion':'1','CFBundleShortVersionString':'1.0','MinimumOSVersion':'18.0','UIDeviceFamily':[1],'LSRequiresIPhoneOS':True,'UILaunchScreen':{},'UIApplicationSceneManifest':{'UIApplicationSupportsMultipleScenes':False}}))
+assert run(['codesign','--force','--sign','-',str(app)],'M2-boundaries-sign.log')==0, 'Simulator ad-hoc signing failed'
+# boot may return nonzero when already booted; bootstatus is authoritative.
+run(['xcrun','simctl','boot',simulator],'M2-boundaries-boot.log')
+assert run(['xcrun','simctl','bootstatus',simulator,'-b'],'M2-boundaries-bootstatus.log')==0, 'Simulator unavailable'
+assert run(['xcrun','simctl','install',simulator,str(app)],'M2-boundaries-install.log')==0, 'Probe install failed'
 summary=[]
 with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
     log=(output/'M2-boundaries-service.log').open('w')
@@ -45,25 +56,20 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
         connection=json.loads(ready.read_text())
         for stage in ['A11','A12','A13']:
             started=time.monotonic()
-            for mode,method in [('CRASH','testCrashAtRefreshBoundary'),('RECOVER','testRecoverOriginalOperation')]:
-                data=copy.deepcopy(base)
-                if 'TestConfigurations' in data:targets=[t for c in data['TestConfigurations'] for t in c['TestTargets']]
-                else:targets=[v for k,v in data.items() if k!='__xctestrun_metadata__']
-                for target in targets:target.setdefault('EnvironmentVariables',{}).update(M2_BOUNDARY_STAGE=stage,M2_BOUNDARY_MODE=mode,M2_PROBE_PORT=str(connection['port']),M2_PROBE_KEY=connection['key'])
-                xctestrun=products/('M2-boundary-'+stage+'-'+mode+'.xctestrun')
-                xctestrun.write_bytes(plistlib.dumps(data))
+            for mode in ['CRASH','RECOVER']:
+                env=os.environ.copy()
+                env.update({'SIMCTL_CHILD_'+key:value for key,value in {'M2_BOUNDARY_STAGE':stage,'M2_BOUNDARY_MODE':mode,'M2_PROBE_PORT':str(connection['port']),'M2_PROBE_KEY':connection['key']}.items()})
                 name='M2-boundary-'+stage+'-'+mode+'.log'
-                args=common+['-xctestrun',str(xctestrun),'-only-testing:StationCatMusicTests/NativeCrashBoundaryTests/'+method,'test-without-building']
-                try:
-                    if mode=='CRASH':
-                        crash_evidence=run_crash(args,output/name,stage)
-                        print(stage+': host exit confirmed; XCTest teardown stopped',flush=True)
-                    else:
-                        code=run(args,name,300)
-                        content=(output/name).read_text()
-                        assert code==0 and 'M2_BOUNDARY_RECOVERED:'+stage+':' in content and 'TEST EXECUTE SUCCEEDED' in content, 'Recovery failed: '+stage
-                finally:
-                    xctestrun.unlink(missing_ok=True)
+                args=['xcrun','simctl','launch','--console',simulator,bundle]
+                if mode=='CRASH':
+                    crash_evidence=run_crash(args,output/name,stage,env=env)
+                    print(stage+': probe host exit confirmed; launching new process directly',flush=True)
+                else:
+                    code=run(args,name,300,env=env)
+                    content=(output/name).read_text()
+                    match=re.search(r'M2_BOUNDARY_RECOVERED:'+stage+r':[^\n]*:pid=(\d+)',content)
+                    assert code==0 and match and 'M2_PROBE_FAILED' not in content, 'Recovery failed: '+stage
+                    assert int(match.group(1))!=crash_evidence['crashedHostPID'], 'Recovery must use a new process'
             request=Request('http://127.0.0.1:'+str(connection['port'])+'/fixture/evidence',headers={'X-Probe-Key':connection['key']})
             with urlopen(request,timeout=5) as response:
                 evidence=json.load(response)
@@ -78,4 +84,5 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
         try:server.wait(timeout=10)
         except subprocess.TimeoutExpired:server.kill();server.wait()
         log.close()
+        run(['xcrun','simctl','uninstall',simulator,bundle],'M2-boundaries-uninstall.log',60)
 print('All three boundaries passed; no production or HTTPS/AASA activation.',flush=True)

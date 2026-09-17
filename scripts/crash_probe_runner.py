@@ -24,12 +24,12 @@ def stop_group(process):
         process.wait(timeout=5)
 
 
-def run_crash(args, logfile, stage, timeout=300):
+def run_crash(args, logfile, stage, timeout=300, env=None):
     marker = re.compile(r'M2_BOUNDARY_REACHED:' + re.escape(stage) + r':durable-state-verified:pid=(\d+)')
     started = time.monotonic()
     observed = None
     with logfile.open('w') as log:
-        process = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        process = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env=env)
         try:
             while time.monotonic() - started < timeout:
                 match = marker.search(logfile.read_text(errors='replace'))
@@ -41,7 +41,7 @@ def run_crash(args, logfile, stage, timeout=300):
                         raise RuntimeError('Invalid simulator host PID')
                     if host_exited(pid):
                         stop_group(process)
-                        return {'hostExitConfirmed': True, 'orchestratorStoppedAfterMarkerSeconds': round(time.monotonic() - observed, 3)}
+                        return {'hostExitConfirmed': True, 'crashedHostPID': pid, 'orchestratorStoppedAfterMarkerSeconds': round(time.monotonic() - observed, 3)}
                     if time.monotonic() - observed > 5:
                         raise RuntimeError('Marked simulator host did not exit')
                 if process.poll() is not None:

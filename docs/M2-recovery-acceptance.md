@@ -12,11 +12,11 @@
 | A12 | 客户端已收到第 1 代，在 SecureStore 实际写入前退出 | 原 request ID 与第 0 代保留；重新取得相同结果指纹；仅一次服务端操作 |
 | A13 | 第 1 代已写入真实 Keychain，在内存成功状态发布前退出 | 重启读到第 1 代且无旧 pending；正常新 ID 刷到第 2 代，没有重放第 0 代 |
 
-每组先以 `_exit(73)` 终止测试宿主，再用新的 xcodebuild 测试宿主恢复。修订后的驱动监控带 PID 的崩溃标记，确认该宿主已退出或成为 zombie 后停止独立进程组中的 xcodebuild，避免等待 XCTest 自动重启收尾；恢复阶段仍要求恢复标记及成功测试退出；普通测试跳过这些专用方法。A11/A12 断言两次服务端请求落在原 120 秒窗口内。三组均验证同账号/家族、绝对到期点不变、未误撤销家族，独立删除 receipt 保留且恢复动作仅为查询。
+每组先以 `_exit(73)` 终止独立模拟器探针 App，再通过 simctl 直接启动同一 App 的新进程恢复。驱动同时要求崩溃标记、宿主 PID 已退出及恢复阶段的新 PID、成功标记和退出码；普通 XCTest 方法仍默认跳过，只包装同一份共享验收逻辑。A11/A12 断言两次服务端请求落在原 120 秒窗口内。三组均验证同账号/家族、绝对到期点不变、未误撤销家族，独立删除 receipt 保留且恢复动作仅为查询。
 
 本机三组全部通过，耗时分别 51.40 / 52.06 / 58.21 秒（包含退出及新宿主恢复）。另有 47 项 Swift 测试、2 项 UI 测试通过；4 个破坏性专用探针在常规套件中有意跳过。本轮新驱动执行其中新增的 A11–A13 两阶段方法，旧 Keychain/relaunch 探针继续由既有独立脚本与 CI 执行。本轮网站 29 项隔离认证和 10 项销户审计测试通过；153 页空小说编译验证通过，不是部署包。
 
-脱敏结果见 [M2-recovery-test-summary.json](M2-recovery-test-summary.json)。原始日志与 xcresult 在本机忽略目录 `evidence/`、`.build/`；摘要不含 token、邮箱或测试桥接密钥。源码指纹见 [M2-recovery-source-sha256.json](M2-recovery-source-sha256.json)。
+脱敏结果见 [M2-recovery-test-summary.json](M2-recovery-test-summary.json)。原始日志与 xcresult 在本机忽略目录 `evidence/`、`.build/`；摘要不含 token、邮箱或测试桥接密钥。初始本机记录保留为历史证据；直接启动探针的修订结果见 [M2-direct-probe-local-summary.json](M2-direct-probe-local-summary.json)。源码指纹见 [M2-recovery-source-sha256.json](M2-recovery-source-sha256.json)。
 
 ## 可重复执行
 
@@ -29,7 +29,7 @@ export M2_BACKEND_PATH='/配套网站 checkout 的绝对路径'
 python3 scripts/verify_native_crash_boundaries.py
 ```
 
-Node 24；稳定 CI 固定 Xcode 26.4.1。本机仅有 Xcode 27 beta 6，使用显式 `DEVELOPER_DIR`、`M1_ALLOW_LOCAL_TOOLCHAIN=1`；本机结果不能替代稳定 CI。新增 CI 步骤 checkout 固定后端提交后运行驱动。固定的后端测试提交已推送；原生恢复验收和网站销户盘点分别审查，不要求一起合并。 本轮仅本地验证，尚未运行新增远端 CI。
+Node 24；稳定 CI 固定 Xcode 26.4.1。本机仅有 Xcode 27 beta 6，使用显式 `DEVELOPER_DIR`、`M1_ALLOW_LOCAL_TOOLCHAIN=1`；本机结果不能替代稳定 CI。新增 CI 步骤 checkout 固定后端提交后运行驱动。固定的后端测试提交已推送；原生恢复验收和网站销户盘点分别审查，不要求一起合并。 新修订的远端 CI 结果另行记录。
 
 临时 bridge 只监听 127.0.0.1，随机密钥限制路由，拒绝跳转，屏蔽外部网络；退出后销毁临时 D1。测试不用正常 App 的 Keychain namespace，成功后清除专用凭据。桥接器与 fixture 路由绝不能作为生产入口部署。
 
@@ -45,3 +45,10 @@ Node 24；稳定 CI 固定 Xcode 26.4.1。本机仅有 Xcode 27 beta 6，使用�
 稳定 CI 35158222776 暴露旧驱动等待 XCTest 崩溃收尾与二次启动合计耗时过长，A11 请求间隔约 136 秒，超过真实 120 秒期限。此前本机摘要仅代表本机运行，不能证明稳定 CI 已通过。产品认证实现未修改。
 
 修复以宿主真实退出作为启动恢复阶段的依据，停止 xcodebuild 专用进程组并在 2 秒后必要时强制终止；不改服务端期限或时钟，不把驱动自己终止进程当作宿主崩溃。新增 4 项驱动回归覆盖长收尾、宿主仍存活、无标记失败与错误阶段标记。CI 继续执行三组真实模拟器测试，并记录宿主退出确认、收尾停止延迟及两次服务端请求间隔。原生 CI 的最终结果需独立确认，网站 PR #173 可单独处理。
+
+
+第二轮复验发现 993fded 的 PR CI 35163261959 三组通过，但 push CI 35163260450 的 A11 仍超时；不能以单轮成功宣称稳定。最终驱动改为提前编译并安装独立、仅模拟器使用的探针 App，通过 simctl 直接启动新宿主，完全移除刷新提交之后的 xcodebuild 启动开销。`TestsSupport/NativeCrashScenario.swift` 是 XCTest 包装和独立探针共享的断言；探针编译的是仓库原有 Core 文件，未复制或修改认证实现。
+
+探针不属于产品工程 target、scheme 或 archive。脚本只对 iphonesimulator 编译，安装前完成编译、启动与签名；使用固定 LOCALPROBE 前缀的本机 ad-hoc Keychain entitlement，不代表 Apple Team ID 或正式签名。初次独立宿主无该测试 entitlement 时曾返回 -34018，未被绕过或当作通过。产品四配置、签名设置与 Keychain 规则均不变。最终结果必须同时包含三个真实进程恢复、服务端请求间隔和固定稳定 Xcode 版本。
+
+最终本机探针验证通过：A11/A12/A13 请求间隔分别 1.032 / 1.328 / 1.085 秒，新旧 PID 不同。首次给模拟器可执行文件直接附正式 entitlement 的尝试不能启动；最终使用模拟器 Mach-O `__TEXT,__entitlements` 段的 application-identifier 配合 ad-hoc 签名，未配置正式团队、证书、设备签名或 ATS 例外。稳定 CI 将同样先执行直接启动探针，再运行原有常规测试链路。

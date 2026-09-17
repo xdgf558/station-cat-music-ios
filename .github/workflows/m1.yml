@@ -35,10 +35,6 @@ jobs:
           assert candidates, 'No iPhone simulator installed'
           with open(os.environ['GITHUB_ENV'],'a') as f:f.write('M1_SIMULATOR_ID='+candidates[0]['udid']+'\n')
           PY
-      - run: bash scripts/verify_configurations.sh
-      - run: bash scripts/test_ios.sh
-      - run: bash scripts/verify_keychain_relaunch.sh
-      - run: bash scripts/verify_auth_crash_recovery.sh
       - name: Read reviewed backend fixture revision
         id: backend
         run: |
@@ -64,6 +60,10 @@ jobs:
         env:
           M2_BACKEND_PATH: ${{ github.workspace }}/.backend-m2
         run: python3 scripts/verify_native_crash_boundaries.py
+      - run: bash scripts/verify_configurations.sh
+      - run: bash scripts/test_ios.sh
+      - run: bash scripts/verify_keychain_relaunch.sh
+      - run: bash scripts/verify_auth_crash_recovery.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

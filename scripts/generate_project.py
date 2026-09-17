@@ -18,7 +18,7 @@ files=[]
 def ref(path,kind):
  i=obj('file:'+path,'PBXFileReference',lastKnownFileType=kind,path=path,sourceTree='<group>');files.append(i);return i
 sources=[ref(str(p.relative_to(root)),'sourcecode.swift') for d in ['Core','StationCatMusic'] for p in sorted((root/d).glob('*.swift'))]
-tests=[ref(str(p.relative_to(root)),'sourcecode.swift') for p in sorted((root/'Tests').glob('*.swift'))]
+tests=[ref(str(p.relative_to(root)),'sourcecode.swift') for directory in ['Tests','TestsSupport'] for p in sorted((root/directory).glob('*.swift'))]
 uits=[ref(str(p.relative_to(root)),'sourcecode.swift') for p in sorted((root/'UITests').glob('*.swift'))]
 resources=[ref('Resources/Localizations.json','text.json'),ref('contracts/fixtures/catalog.json','text.json'),ref('contracts/fixtures/schema-examples.json','text.json')]
 configs=['Mock','Development','Staging','Production']

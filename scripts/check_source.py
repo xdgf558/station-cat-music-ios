@@ -2,7 +2,7 @@
 from pathlib import Path
 import re,json
 root=Path(__file__).resolve().parents[1]
-files=[p for d in ['Core','StationCatMusic','Tests','UITests','Config','contracts','scripts','.github'] for p in (root/d).rglob('*') if p.is_file() and p.suffix not in ['.pyc']]
+files=[p for d in ['Core','StationCatMusic','Tests','TestsSupport','IntegrationProbes','UITests','Config','contracts','scripts','.github'] for p in (root/d).rglob('*') if p.is_file() and p.suffix not in ['.pyc']]
 patterns=[r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',r'gh[pousr]_[A-Za-z0-9]{30,}',r'AKIA[0-9A-Z]{16}']
 for p in files:
  text=p.read_text()

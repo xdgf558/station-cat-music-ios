@@ -72,7 +72,7 @@ jobs:
       - name: Install isolated media dependencies
         working-directory: .backend-m3
         run: npm ci
-      - name: Verify actual native audio against isolated Worker
+      - name: Verify native audio, long renewals and policy expiry against isolated Worker
         env:
           M3_BACKEND_PATH: ${{ github.workspace }}/.backend-m3
         run: python3 scripts/verify_native_media.py

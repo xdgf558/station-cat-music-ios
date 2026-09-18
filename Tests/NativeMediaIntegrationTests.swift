@@ -2,7 +2,7 @@ import XCTest
 @testable import StationCatMusic
 
 // Test-only loopback mapping. No HTTP origin or ATS exception is added to the App.
-private struct MusicProbeBridge: HTTPTransport, MediaHTTPTransport {
+struct MusicProbeBridge: HTTPTransport, MediaHTTPTransport {
     let port: Int; let key: String
     private func local(_ request: URLRequest) throws -> URLRequest {
         guard request.url?.host == "native.local.test", let path = request.url?.path else { throw APIError.invalidRequest }
@@ -15,14 +15,18 @@ private struct MusicProbeBridge: HTTPTransport, MediaHTTPTransport {
     func send(_ request: URLRequest) async throws -> MediaHTTPResult { try await NativeMediaTransport().send(local(request)) }
     func fixture<T: Decodable>(_ path: String, as: T.Type) async throws -> T {
         let request = URLRequest(url: URL(string: "https://native.local.test/fixture/" + path)!)
-        let result: HTTPResult = try await send(request)
-        guard result.status == 200 else { throw APIError.rejected(result.status) }; return try JSONDecoder().decode(T.self, from: result.data)
+        // Fixture preparation is test control, not a five-second product API call.
+        let config = URLSessionConfiguration.ephemeral; config.timeoutIntervalForRequest = 30
+        let session = URLSession(configuration: config); defer { session.invalidateAndCancel() }
+        let (data, response) = try await session.data(for: local(request))
+        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else { throw APIError.unavailable }
+        return try JSONDecoder().decode(T.self, from: data)
     }
 }
 private struct FeaturedExpectation: Decodable { let primaryTrackId: String; let trackIds: [String]; let collectionIds: [String] }
-private struct ProbeIdentity: Decodable, Sendable { let accountId: String; let sessionId: String; let token: String; let trackId: String }
+struct ProbeIdentity: Decodable, Sendable { let accountId: String; let sessionId: String; let token: String; let trackId: String; let durationSeconds: Double? }
 private struct ProbeRequest: Decodable { let method: String; let range: String?; let bearerMatched: Bool; let status: Int; let r2Reads: Int }
-private struct ProbeAuthorizer: PlaybackAuthorizing {
+struct ProbeAuthorizer: PlaybackAuthorizing {
     let identity: ProbeIdentity; let bridge: MusicProbeBridge; let shortDeadline: Bool
     func authorize(track: Track, variant: String) async throws -> AuthorizedPlayback {
         var request = URLRequest(url: URL(string: "https://native.local.test/api/mobile/v1/music/tracks/" + track.id + "/playback-grants")!)

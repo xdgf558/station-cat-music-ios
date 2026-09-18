@@ -1,11 +1,11 @@
 {
   "repository": "xdgf558/caption-ai-landing-site",
-  "commit": "08fad16ccecff34b6254c0c979825862ca7b0725",
+  "commit": "0ed8e6ae86adf7ac846a4df1588430563521910e",
   "sha256": {
     "package.json": "b2afd6845787cd0a7ccd70d0beb5c6f8e2d8fdc8439dec129ac29c23c9afdd86",
     "package-lock.json": "b81e63fc2580e6e768dcfe5d799eb5944e95bf1fb51a056b8697ece1e6c9d4b0",
-    "scripts/helpers/mobile-music-service.mjs": "1f43147def952e118c92550aeee98bcb32ed5d19886036af82471895e26ba37c",
-    "scripts/helpers/mobile-music-fixture.mjs": "703f1c1418a771fd9b4431500979182c74a62cc4737df6d1b1d183249951c370",
+    "scripts/helpers/mobile-music-service.mjs": "bcbefe8dd4f7d0aa2bed226802753343d1f823c089160a93e24a3d0169ef68cb",
+    "scripts/helpers/mobile-music-fixture.mjs": "8b4541773aace9bbbb00443c99db9d73a51c2b8dff2285e8a694fbb198ba668e",
     "scripts/helpers/mobile-music-worker.js": "bcc04d25353e5572fd4b0113389a3e7996bd908a3335800a638f2177be40550e",
     "src/mobile/music.js": "ce4b1fc9ff68ce72b03f443927ca2f79af437de5792ecabb25325d177910d38b",
     "src/mobile/musicEntitlements.js": "528fb94e61c9f73ad470be19a399633a64c9282492abc2e40a2e47278e84c1d7",
@@ -17,6 +17,9 @@
     "src/music/policy.js": "3caa5782482c4f8ec5555416a19784c869353a1d91a228209477b435f0ae4c08",
     "src/scripts/musicLyrics.js": "692729c3bdf739931b20618fd9a42a11742ddc8ab9eea7b87effd5d1999ad1f8",
     "src/readerMembership.js": "b61588511a693a05b5f39d8e69629bf0b4f3b189e129a8252c4e96ccb733af6e",
-    "migrations-mobile/0002_music_playback_grants.sql": "f47f0d8bb9275b58870751b3f427e85dd153c5d847c90ab0273ce524040b3b31"
+    "migrations-mobile/0002_music_playback_grants.sql": "f47f0d8bb9275b58870751b3f427e85dd153c5d847c90ab0273ce524040b3b31",
+    "tests/fixtures/music-mp3/long-cbr.mp3": "6f90592956e867eea0edf89da9c697fc08bad4c87d8d7a38d5beb086faaaf54b",
+    "tests/fixtures/music-mp3/mobile-long.json": "06e53f637c147b3cf934393e7c9a2e927009ba7ea90c808e0c4aa2eafb409b5c",
+    "scripts/generate-mobile-long-fixture.mjs": "1d58be11ec774844c6782317db878bf5f554e949bfa294b2448a32ab2321e8d3"
   }
 }

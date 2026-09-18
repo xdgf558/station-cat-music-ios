@@ -16,11 +16,15 @@ private actor RangeTransport: MediaHTTPTransport {
     }
 }
 private actor GrantStub: PlaybackAuthorizing {
-    var current = true; var refreshes = 0; let response: AuthorizedPlayback; let delay: Duration
-    init(_ response: AuthorizedPlayback, delay: Duration = .zero) { self.response = response; self.delay = delay }
+    var current = true; var refreshes = 0; let response: AuthorizedPlayback; let delay: Duration; let bearerDelay: Duration
+    init(_ response: AuthorizedPlayback, delay: Duration = .zero, bearerDelay: Duration = .zero) { self.response = response; self.delay = delay; self.bearerDelay = bearerDelay }
     func authorize(track: Track, variant: String) async throws -> AuthorizedPlayback { try await Task.sleep(for: delay); return response }
     func isCurrent(_ authorization: AuthorizedPlayback) -> Bool { current }
-    func bearer(for authorization: AuthorizedPlayback, refresh: Bool) throws -> String? { if !current { throw APIError.staleResponse }; if refresh { refreshes += 1 }; return refresh ? "new-access" : "old-access" }
+    func bearer(for authorization: AuthorizedPlayback, refresh: Bool) async throws -> String? {
+        if !current { throw APIError.staleResponse }; if refresh { refreshes += 1 }
+        await Task.detached { [bearerDelay] in try? await Task.sleep(for: bearerDelay) }.value
+        return refresh ? "new-access" : "old-access"
+    }
     func revoke() { current = false }
 }
 @MainActor final class NativeMusicTests: XCTestCase {
@@ -94,6 +98,18 @@ private actor GrantStub: PlaybackAuthorizing {
         let clock = ContinuousClock(), start = ContinuousClock.now
         do { _ = try await channel.size(); XCTFail() } catch {}
         XCTAssertLessThan(start.duration(to: clock.now), .seconds(6))
+    }
+    func testLateCredentialRefreshCannotStartMediaAfterCancellationExpiryOrLogout() async throws {
+        for mode in 0...2 {
+            let a = authorization(), source = GrantStub(a, bearerDelay: .milliseconds(300)), transport = RangeTransport()
+            let channel = AuthorizedMediaChannel(authorization: a, authorizer: source, transport: transport, lifetime: mode == 0 ? 0.1 : 90)
+            let request = Task { try await channel.size() }
+            try await Task.sleep(for: .milliseconds(50))
+            if mode == 1 { request.cancel() }; if mode == 2 { await source.revoke() }
+            do { _ = try await request.value; XCTFail("Late credential crossed playback boundary") } catch {}
+            try await Task.sleep(for: .milliseconds(350))
+            let count = await transport.requests.count; XCTAssertEqual(count, 0)
+        }
     }
     func testLyricsPreviewOffsetAndGaps() {
         let lyrics = MusicLyrics(kind: "timed", text: "", lines: [.init(startSeconds: 12, text: "one"), .init(startSeconds: 16, text: "two")], audioVersion: 1)

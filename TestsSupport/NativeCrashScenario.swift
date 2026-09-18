@@ -4,6 +4,25 @@ import Darwin
 @testable import StationCatMusic
 #endif
 
+// Test-only durable evidence. No credential values are written here.
+enum ProbeReporter {
+    static func emit(_ line: String) throws {
+        if let runID = ProcessInfo.processInfo.environment["M2_PROBE_RUN_ID"] {
+            guard UUID(uuidString: runID) != nil else { throw APIError.invalidRequest }
+            let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let path = directory.appendingPathComponent("M2-" + runID + ".log")
+            let prior = FileManager.default.fileExists(atPath: path.path) ? try Data(contentsOf: path) : Data()
+            guard prior.count < 8192 else { throw APIError.invalidPayload }
+            var bytes = prior; bytes.append(Data((line + "\n").utf8))
+            try bytes.write(to: path, options: .atomic)
+            let file = try FileHandle(forWritingTo: path)
+            defer { try? file.close() }; try file.synchronize()
+        }
+        print(line); fflush(nil)
+    }
+}
+
 enum ProbeFailure: Error { case failed(String) }
 func probeUnwrap<T>(_ value: T?) throws -> T {
     guard let value else { throw ProbeFailure.failed("Missing probe value") }; return value
@@ -74,7 +93,7 @@ private func exitAtBoundary(_ config: CrashProbeConfiguration, store: KeychainSt
           (config.stage == "A13" ? record.generation == 1 && record.pending == nil : record.generation == 0 && record.pending != nil),
           try await store.read("expected-request") != nil,
           try await store.read("expected-receipt") != nil else { throw APIError.invalidPayload }
-    print("M2_BOUNDARY_REACHED:\(config.stage):durable-state-verified:pid=\(getpid())")
+    try ProbeReporter.emit("M2_BOUNDARY_REACHED:\(config.stage):durable-state-verified:pid=\(getpid())")
     fflush(nil)
     _exit(73)
 }
@@ -178,7 +197,7 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
         try probeEqual(receipt?.receipt, expectedReceipt); try probeNotNil(expectedReceipt)
         let action = try await deletion.recoveryAction()
         try probeEqual(action, .queryStatus(try probeUnwrap(receipt).deletionRequestID))
-        print("M2_BOUNDARY_RECOVERED:\(config.stage):generation=\(after.generation):operations=\(evidence.operations.count):same-family:receipt-preserved:pid=\(getpid())")
+        try ProbeReporter.emit("M2_BOUNDARY_RECOVERED:\(config.stage):generation=\(after.generation):operations=\(evidence.operations.count):same-family:receipt-preserved:pid=\(getpid())")
         for key in ["auth.development", "deletion.development", "expected-request", "expected-receipt"] { try await base.remove(key) }
     }
 }

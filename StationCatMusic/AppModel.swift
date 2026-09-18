@@ -65,6 +65,7 @@ import Observation
             phase = .unavailable; featuredPhase = .unavailable
         }
     }
+    var favoriteTracks: [Track] { tracks.filter { favorites.contains($0.id) } }
     var results: [Track] {
         query.isEmpty ? (activeCollection?.tracks ?? tracks) : (activeCollection?.tracks ?? tracks).filter { ($0.title + " " + $0.artist).localizedCaseInsensitiveContains(query) }
     }
@@ -80,7 +81,7 @@ import Observation
         guard self.scope == scope else { return }; favorites = updated
     }
     func select(_ track: Track, from list: [Track]? = nil) {
-        let list = list ?? results
+        let list = list ?? [track]
         if let index = list.firstIndex(of: track) { playback.setQueue(list, startingAt: index, play: false) }
         else { playback.select(track) }
         showPlayer = true

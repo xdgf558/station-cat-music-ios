@@ -44,6 +44,16 @@ Now Playing 显示公开标题、艺名、展示封面、实际变体时长、�
 
 最终常规 Swift 套件 85 项中 **70 通过、15 项专用探针按设计跳过**，UI **2/2** 通过；Mock / Development / Staging / Production 四配置构建及 plist 断言全部通过。全部网络开关仍为 NO、认证及公开分享 origin 为空，没有 ATS 例外，仅声明 audio 后台模式。配套网站 fixture 为 `4d51e1a5b9f9f41945a918e21cf1f8ff9aab1fa8`，没有改产品服务端实现。原始日志为忽略跟踪的 `evidence/M3-media-integration.log`、`evidence/M4-links-integration.log` 及本机临时构建日志；不提交可用凭据。
 
+## PR #6 复审修复（2026-09-18）
+
+收藏区用同一份 `favoriteTracks` 快照渲染按钮并建立队列，与曲库搜索/专辑筛选无关。没有明确传入列表的选曲只建立单曲队列。回归覆盖只有 B 被收藏、无关专辑和搜索存在、多首收藏及选曲后收藏列表变化。
+
+新增独立 `ArtworkLoader` actor，承担 URLSession 有界下载、逐字节消费和 ImageIO 缩略图解码。MainActor 只在返回后复核任务取消、当前 URL 和适配器状态，并更新系统媒体信息。仍拒绝重定向、关闭 Cookie/缓存、限制五秒和 2 MiB，要求原始 Content-Type 为图片；每次请求在成功、失败或超限后关闭自己的会话。
+
+新增本地 URLProtocol 合成 PNG 测试，连续三次读取每张 2,097,136 字节并生成 256px 缩略图；主线程每 10ms 心跳，最终专项运行最大间隔约 17.4ms（断言上限 100ms）。另测无 Content-Length 的超限流和错误类型。临时改回 MainActor 的反向验证出现超时/取消失败；测试后已恢复 actor，没有保留变异代码。
+
+本地完整回归 88 项：73 通过、15 项专用探针按设计跳过，UI 2/2。收紧心跳断言后最终专项 16/16 通过。契约、源码边界和 diff 检查通过。本次未改授权播放器或网站 fixture，长音频与 A11–A13 由新 head 的远端 CI 重新执行；旧 head 的 CI 通过不能代替修复提交的验证。
+
 ## 发布前仍需完成
 
 - 固定 Xcode 26.4.1 远端 CI；本机使用 Xcode 27 beta 6，二者不可混称。
@@ -69,4 +79,4 @@ bash scripts/verify_configurations.sh
 python3 scripts/check_source.py
 ```
 
-只有本机 beta 工具链使用 `DEVELOPER_DIR` 与 `M1_ALLOW_LOCAL_TOOLCHAIN=1`；CI 仍固定稳定版本。先推送配套网站 fixture，再推送 iOS 分支，确保 CI 可取到固定提交；本轮未授权推送或开 PR。
+只有本机 beta 工具链使用 `DEVELOPER_DIR` 与 `M1_ALLOW_LOCAL_TOOLCHAIN=1`；CI 仍固定稳定版本。先推送配套网站 fixture，再推送 iOS 分支，确保 CI 可取到固定提交；本批通过 iOS PR #6 与网站 PR #176 审查；提交 PR 不代表部署或生产开关授权。

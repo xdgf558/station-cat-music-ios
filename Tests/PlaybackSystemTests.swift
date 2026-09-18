@@ -33,6 +33,26 @@ private actor HeldContextAuthorizer: PlaybackAuthorizing {
 }
 @MainActor final class PlaybackSystemTests: XCTestCase {
     private func track(_ id: String, access: AccessPolicy = .free) -> Track { Track(id: id, title: id, artist: "Fixture", durationSeconds: 180, audioVersion: 1, access: access) }
+    func testFavoriteEntryUsesOnlyFavoritesDespiteCatalogFilters() {
+        let model = AppModel(client: APIClient(environment: .mock, transport: MockTransport(data: Data())))
+        let a = track("a"), b = track("b"), c = track("c")
+        model.tracks = [a, b, c]; model.favorites = ["b"]
+        for filtered in [false, true] {
+            if filtered {
+                model.activeCollection = MusicCollection(id: "unrelated", slug: "unrelated", title: "Other", description: "", version: 1, tracks: [a, c], nextCursor: nil)
+                model.query = "c"
+            }
+            let visible = model.favoriteTracks
+            XCTAssertEqual(visible, [b]); model.select(b, from: visible)
+            XCTAssertEqual(model.playback.queue.entries.map(\.track), [b])
+        }
+        model.favorites = ["b", "c"]
+        let visible = model.favoriteTracks; model.select(b, from: visible)
+        model.favorites = []; model.tracks = []
+        XCTAssertEqual(model.playback.queue.entries.map(\.track), [b, c], "Queue keeps the displayed favorites snapshot")
+        model.select(b)
+        XCTAssertEqual(model.playback.queue.entries.map(\.track), [b], "Unspecified list must not inherit unrelated catalog state")
+    }
     func testPauseDuringContextCheckCannotActivateAudioSession() async throws {
         let source = HeldContextAuthorizer(), player = PlaybackService(), system = SystemSpy()
         player.attachSystem(system); player.configure(authorizer: source); player.select(track("a")); player.requestPlay()

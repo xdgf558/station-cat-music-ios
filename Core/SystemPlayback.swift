@@ -2,7 +2,6 @@ import Foundation
 import AVFoundation
 import MediaPlayer
 import UIKit
-import ImageIO
 
 /// Only attached when the separately gated native music client exists.
 /// No audio URL or bearer is ever handed to Now Playing or a remote receiver.
@@ -19,6 +18,7 @@ import ImageIO
     private var artwork: MPMediaItemArtwork?
     private var artworkTask: Task<Void, Never>?
     private var artworkURL: URL?
+    private let artworkLoader = ArtworkLoader()
     private let artworkHost: String
     init(playback: PlaybackService, artworkHost: String) {
         self.playback = playback; self.artworkHost = artworkHost
@@ -84,20 +84,10 @@ import ImageIO
             if let url, url.scheme == "https", url.host == artworkHost, url.user == nil, url.password == nil,
                url.port == nil || url.port == 443 {
                 artworkTask = Task { [weak self] in
-                    let config = URLSessionConfiguration.ephemeral
-                    config.httpShouldSetCookies = false; config.httpCookieStorage = nil; config.urlCache = nil
-                    config.timeoutIntervalForRequest = 5; config.timeoutIntervalForResource = 5
-                    let network = URLSession(configuration: config, delegate: RejectRedirects(), delegateQueue: nil)
-                    defer { network.invalidateAndCancel() }
                     do {
-                        let (bytes, response) = try await network.bytes(from: url)
-                        guard let response = response as? HTTPURLResponse, response.statusCode == 200,
-                              response.mimeType?.hasPrefix("image/") == true, response.expectedContentLength <= 2_097_152 else { return }
-                        var data = Data()
-                        for try await byte in bytes { try Task.checkCancellation(); guard data.count < 2_097_152 else { return }; data.append(byte) }
-                        guard !Task.isCancelled, let self, self.active, self.artworkURL == url,
-                              let source = CGImageSourceCreateWithData(data as CFData, nil),
-                              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: 256, kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary) else { return }
+                        guard let loader = self?.artworkLoader,
+                              let image = try await loader.load(url),
+                              !Task.isCancelled, let self, self.active, self.artworkURL == url else { return }
                         let thumbnail = UIImage(cgImage: image)
                         self.artwork = MPMediaItemArtwork(boundsSize: thumbnail.size) { _ in thumbnail }; self.writeInfo()
                     } catch { /* Artwork never gates or retries audio. */ }

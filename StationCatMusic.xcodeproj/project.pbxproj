@@ -6,6 +6,12 @@
 	};
 	"objectVersion" = "56";
 	"objects" = {
+		"CDBB2816DC4B8595E1CF3135" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/ArtworkLoader.swift";
+			"sourceTree" = "<group>";
+		};
 		"415379D191FB660C6C2D3F77" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -112,6 +118,12 @@
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
 			"path" = "StationCatMusic/SystemAuthenticationBrowser.swift";
+			"sourceTree" = "<group>";
+		};
+		"8C07FAE0326A22E22C8B0484" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/ArtworkLoaderTests.swift";
 			"sourceTree" = "<group>";
 		};
 		"E32A2A45BB038541E015BE31" = {
@@ -365,6 +377,10 @@
 			"defaultConfigurationIsVisible" = "0";
 			"defaultConfigurationName" = "Mock";
 		};
+		"F38E04C87E426B85CBF70D76" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "CDBB2816DC4B8595E1CF3135";
+		};
 		"82359E116D53BA4D4799089D" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "415379D191FB660C6C2D3F77";
@@ -441,6 +457,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"F38E04C87E426B85CBF70D76",
 				"82359E116D53BA4D4799089D",
 				"F105539AB7256D83D042EE1A",
 				"41841BB389543407BB96116F",
@@ -632,6 +649,10 @@
 			"defaultConfigurationIsVisible" = "0";
 			"defaultConfigurationName" = "Mock";
 		};
+		"B5F09A933726F62F86F6F4E3" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "8C07FAE0326A22E22C8B0484";
+		};
 		"28BAF51E9597A5CACECF6086" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "E32A2A45BB038541E015BE31";
@@ -680,6 +701,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"B5F09A933726F62F86F6F4E3",
 				"28BAF51E9597A5CACECF6086",
 				"6BDFB84444C8753ACD55E201",
 				"C8127867318C593F65556E8F",
@@ -906,6 +928,7 @@
 		"64292B1C2B2E13EAD8788FC8" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"CDBB2816DC4B8595E1CF3135",
 				"415379D191FB660C6C2D3F77",
 				"FAF578F210B6D7731C51072B",
 				"04BCE6B8F94B0F1F3C99A88A",
@@ -924,6 +947,7 @@
 				"A72639049DB3D571A6157C0E",
 				"050D4392E412B57D5B554FF4",
 				"3506F43EB69CBD32B254C87A",
+				"8C07FAE0326A22E22C8B0484",
 				"E32A2A45BB038541E015BE31",
 				"C5FB5E13D9629C32D8870547",
 				"14425DF16ACD5873ACD09D56",

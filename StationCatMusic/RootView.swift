@@ -137,7 +137,8 @@ struct RootView: View {
             }
             Section(model.t("favorites")) {
                 if model.favorites.isEmpty { Text(model.t("noFavorites")).foregroundStyle(Palette.muted) }
-                ForEach(model.tracks.filter { model.favorites.contains($0.id) }) { track in Button(track.title) { model.select(track) }.frame(minHeight: 44) }
+                let favoriteTracks = model.favoriteTracks
+                ForEach(favoriteTracks) { track in Button(track.title) { model.select(track, from: favoriteTracks) }.frame(minHeight: 44) }
                 Text(model.t("localSession")).font(.caption).foregroundStyle(Palette.muted)
             }
             Section(model.t("settings")) {

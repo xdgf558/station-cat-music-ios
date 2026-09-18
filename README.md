@@ -20,7 +20,7 @@
 
 打开 `StationCatMusic.xcodeproj`，选择 `StationCatMusic` scheme 和 iPhone 模拟器运行。默认配置为 Mock，不需要 Apple 开发者团队，也不需要网站凭据。此开发 Bundle ID 是 `org.stationcat.music.dev`，没有注册正式 App ID。
 
-稳定 CI 固定 Xcode **26.4.1**；本机仅安装 Xcode **27 beta 6**，本轮使用该版本验证。M1/M2 和 M3 首批合并版本已有稳定 CI 通过记录；本轮 M4 改动尚未推送，仍须按新提交运行稳定 CI，beta 模拟器结果不能视为真机/上架验收。
+稳定 CI 固定 Xcode **26.4.1**；本机仅安装 Xcode **27 beta 6**，本轮使用该版本验证。M1/M2 和 M3 首批合并版本已有稳定 CI 通过记录；本轮 M4 已提交 PR #6，仍须按最终审查提交运行稳定 CI，beta 模拟器结果不能视为真机/上架验收。
 
 ```sh
 python3 -m venv .venv

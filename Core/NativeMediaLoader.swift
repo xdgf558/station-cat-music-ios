@@ -55,8 +55,14 @@ actor AuthorizedMediaChannel {
     private func perform(method: String, start: Int64?, length: Int?) async throws -> MediaHTTPResult {
         for attempt in 0...1 {
             try Task.checkCancellation()
-            guard ContinuousClock().now < deadline, await authorizer.isCurrent(authorization) else { throw APIError.staleResponse }
+            guard await authorizer.isCurrent(authorization), ContinuousClock().now < deadline else { throw APIError.staleResponse }
+            try Task.checkCancellation()
             let bearer = try await authorizer.bearer(for: authorization, refresh: attempt == 1)
+            // Credential refresh can outlive the caller or the old grant deadline.
+            // Do not start a late network request after either boundary changed.
+            try Task.checkCancellation()
+            guard await authorizer.isCurrent(authorization), ContinuousClock().now < deadline else { throw APIError.staleResponse }
+            try Task.checkCancellation()
             var request = URLRequest(url: authorization.grant.playbackUrl); request.httpMethod = method; request.timeoutInterval = 5
             if authorization.grant.authMode == .sessionBearer {
                 guard let bearer else { throw APIError.requiresAuthentication }
@@ -65,7 +71,8 @@ actor AuthorizedMediaChannel {
             if let start, let length { request.setValue("bytes=\(start)-\(start + Int64(length) - 1)", forHTTPHeaderField: "Range") }
             let result = try await transport.send(request)
             try Task.checkCancellation()
-            guard ContinuousClock().now < deadline, await authorizer.isCurrent(authorization) else { throw APIError.staleResponse }
+            guard await authorizer.isCurrent(authorization), ContinuousClock().now < deadline else { throw APIError.staleResponse }
+            try Task.checkCancellation()
             if result.status == 401, attempt == 0, authorization.grant.authMode == .sessionBearer { continue }
             guard result.status == (method == "HEAD" ? 200 : 206), result.header("content-type") == "audio/mpeg",
                   let etag = result.header("etag"), !etag.isEmpty else { throw APIError.rejected(result.status) }

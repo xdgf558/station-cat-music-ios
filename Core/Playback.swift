@@ -41,6 +41,8 @@ nonisolated struct PlaybackBoundary: Sendable {
     private(set) var duration: Double = 0
     private(set) var previewOffset: Double = 0
     private var activeVariant = "full"
+    @ObservationIgnored private var seekSerial = 0
+    @ObservationIgnored private var isSeeking = false
     private var authorizer: (any PlaybackAuthorizing)?
     @ObservationIgnored private var nativeLoader: NativeMediaLoader?
     @ObservationIgnored private var authorizationTask: Task<Void, Never>?
@@ -56,9 +58,9 @@ nonisolated struct PlaybackBoundary: Sendable {
     init(clock: any PlaybackClock = ContinuousPlaybackClock(), loader: any MediaLoading = UnavailableMediaLoader(), transport: any MediaHTTPTransport = NativeMediaTransport()) { self.clock = clock; self.loader = loader; self.transport = transport }
     var hasAudioSource: Bool { player.currentItem != nil }
     var isPlaying: Bool { player.rate > 0 }
-    func select(_ track: Track) { boundary.deny(); stop(); selectedTrack = track; position = 0; duration = track.durationSeconds; previewOffset = 0; state = .selected }
+    func select(_ track: Track) { boundary.deny(); stop(); selectedTrack = track; position = 0; duration = track.durationSeconds; previewOffset = 0; activeVariant = "full"; state = .selected }
     func configure(authorizer: any PlaybackAuthorizing) { deny(); self.authorizer = authorizer }
-    func requestPlay(variant: String = "full") { begin(variant: variant, renewal: false) }
+    func requestPlay(variant: String? = nil) { begin(variant: variant ?? ((state == .paused || state == .completed) ? activeVariant : "full"), renewal: false) }
     private func begin(variant: String, renewal: Bool) {
         guard let track = selectedTrack, let authorizer else { state = .verificationRequired; return }
         // Every explicit resume obtains a fresh URL and a fresh hard deadline.
@@ -83,6 +85,7 @@ nonisolated struct PlaybackBoundary: Sendable {
                 }
                 self.nativeLoader?.cancelAll(); self.progressTask?.cancel(); self.renewalTask?.cancel()
                 self.nativeLoader = loader
+                if renewal { self.capturePosition() }
                 self.activeVariant = grant.variant; self.duration = grant.durationSeconds; self.previewOffset = grant.previewSourceStartSeconds ?? 0; self.position = min(renewal ? self.position : resumePosition, grant.durationSeconds)
                 self.removeEndObserver()
                 let item = AVPlayerItem(asset: loader.asset())
@@ -94,8 +97,8 @@ nonisolated struct PlaybackBoundary: Sendable {
                     }
                 }
                 self.boundary.userResumed(); self.state = .playing
-                if self.position > 0 { self.player.seek(to: CMTime(seconds: self.position, preferredTimescale: 600), completionHandler: { _ in }) }
-                self.player.play()
+                if self.position > 0 { self.seekCurrentItem(to: self.position) }
+                else { self.isSeeking = false; self.player.play() }
                 let renewAfter = grant.revalidateAt.timeIntervalSince(authorization.serverNow) - (received - sent) - 2
                 if renewAfter > 1 && self.clock.now + renewAfter < deadline {
                     self.renewalTask = Task { [weak self] in
@@ -109,8 +112,7 @@ nonisolated struct PlaybackBoundary: Sendable {
                         do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
                         guard let self, self.boundary.sequence == sequence else { return }
                         self.checkDeadline()
-                        let seconds = self.player.currentTime().seconds
-                        if seconds.isFinite { self.position = max(0, min(self.duration, seconds)) }
+                        self.capturePosition()
                         if self.player.currentItem?.status == .failed { self.deny(); return }
                     }
                 }
@@ -125,11 +127,30 @@ nonisolated struct PlaybackBoundary: Sendable {
     private func completeNaturally() {
         boundary.deny(); stop(); position = 0; state = .completed
     }
-    func pause() { boundary.deny(); stop(); state = .paused }
+    private func capturePosition() {
+        guard !isSeeking, player.currentItem != nil else { return }
+        let seconds = player.currentTime().seconds
+        if seconds.isFinite { position = max(0, min(duration, seconds)) }
+    }
+    func pause() { capturePosition(); boundary.deny(); stop(); state = .paused }
     func seek(to seconds: Double) {
         checkDeadline()
         guard state == .playing, boundary.deadline != nil, seconds.isFinite else { return }
-        player.seek(to: CMTime(seconds: max(0, min(duration, seconds)), preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+        seekCurrentItem(to: max(0, min(duration, seconds)))
+    }
+    private func seekCurrentItem(to seconds: Double) {
+        guard let item = player.currentItem else { return }
+        seekSerial += 1; let ticket = seekSerial, sequence = boundary.sequence
+        position = seconds; isSeeking = true; player.pause()
+        player.seek(to: CMTime(seconds: seconds, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self, weak item] finished in
+            Task { @MainActor in
+                guard let self, let item, self.player.currentItem === item, self.seekSerial == ticket, self.boundary.sequence == sequence else { return }
+                self.isSeeking = false; self.checkDeadline()
+                guard self.state == .playing, self.boundary.deadline != nil else { return }
+                guard finished else { self.deny(); return }
+                self.player.play()
+            }
+        }
     }
     func installBoundary(serverNow: Double, validUntil: Double, sent: Double, received: Double, sequence: Int) throws {
         try boundary.install(serverNow: serverNow, validUntil: validUntil, sent: sent, received: received, sequence: sequence)
@@ -143,5 +164,5 @@ nonisolated struct PlaybackBoundary: Sendable {
     }
     func checkDeadline() { if boundary.expire(at: clock.now) { stop(); state = .verificationRequired } }
     func deny() { boundary.deny(); stop(); state = .verificationRequired }
-    func stop() { removeEndObserver(); renewalTask?.cancel(); renewalTask = nil; authorizationTask?.cancel(); authorizationTask = nil; progressTask?.cancel(); progressTask = nil; nativeLoader?.cancelAll(); nativeLoader = nil; player.pause(); loader.cancelAll(); player.replaceCurrentItem(with: nil); autoAdvance = false; deadlineTask?.cancel(); deadlineTask = nil }
+    func stop() { seekSerial += 1; isSeeking = false; removeEndObserver(); renewalTask?.cancel(); renewalTask = nil; authorizationTask?.cancel(); authorizationTask = nil; progressTask?.cancel(); progressTask = nil; nativeLoader?.cancelAll(); nativeLoader = nil; player.pause(); loader.cancelAll(); player.replaceCurrentItem(with: nil); autoAdvance = false; deadlineTask?.cancel(); deadlineTask = nil }
 }

@@ -138,6 +138,12 @@
 			"path" = "Tests/NativeMusicTests.swift";
 			"sourceTree" = "<group>";
 		};
+		"130E5AA169095C631F85CE49" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/PlaybackStabilityTests.swift";
+			"sourceTree" = "<group>";
+		};
 		"88C3AD6BA91A898123D82801" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -609,6 +615,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "1311E44CD44F6997A494E669";
 		};
+		"7472ED539B3C608927F67B42" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "130E5AA169095C631F85CE49";
+		};
 		"0A858BA7F459D32678B526A1" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "88C3AD6BA91A898123D82801";
@@ -624,6 +634,7 @@
 				"4A22CFA8C3115A5F38F78755",
 				"97895D81D305048789CB0DAD",
 				"2CB8F95E06CC32C069B40E47",
+				"7472ED539B3C608927F67B42",
 				"0A858BA7F459D32678B526A1"
 			);
 			"runOnlyForDeploymentPostprocessing" = "0";
@@ -862,6 +873,7 @@
 				"ED6F07DBDF712496F2F77B8F",
 				"6434CC8A1DA4A7E4B0B49280",
 				"1311E44CD44F6997A494E669",
+				"130E5AA169095C631F85CE49",
 				"88C3AD6BA91A898123D82801",
 				"AC2AB77181D707D00C92E57A",
 				"F6224FDB070D5ADADE4EE7C3",

@@ -1,11 +1,11 @@
 {
   "repository": "xdgf558/caption-ai-landing-site",
-  "commit": "0ed8e6ae86adf7ac846a4df1588430563521910e",
+  "commit": "4d51e1a5b9f9f41945a918e21cf1f8ff9aab1fa8",
   "sha256": {
     "package.json": "b2afd6845787cd0a7ccd70d0beb5c6f8e2d8fdc8439dec129ac29c23c9afdd86",
     "package-lock.json": "b81e63fc2580e6e768dcfe5d799eb5944e95bf1fb51a056b8697ece1e6c9d4b0",
-    "scripts/helpers/mobile-music-service.mjs": "bcbefe8dd4f7d0aa2bed226802753343d1f823c089160a93e24a3d0169ef68cb",
-    "scripts/helpers/mobile-music-fixture.mjs": "8b4541773aace9bbbb00443c99db9d73a51c2b8dff2285e8a694fbb198ba668e",
+    "scripts/helpers/mobile-music-service.mjs": "188a4beb8cdd5cc29655efffedeab9abcb5f007896704778b9d1ed1d17e273c0",
+    "scripts/helpers/mobile-music-fixture.mjs": "dd036c22d485cc131964f7ae8ea04500536b80ed7ed9a3b8014afc057c53e7b2",
     "scripts/helpers/mobile-music-worker.js": "bcc04d25353e5572fd4b0113389a3e7996bd908a3335800a638f2177be40550e",
     "src/mobile/music.js": "ce4b1fc9ff68ce72b03f443927ca2f79af437de5792ecabb25325d177910d38b",
     "src/mobile/musicEntitlements.js": "528fb94e61c9f73ad470be19a399633a64c9282492abc2e40a2e47278e84c1d7",

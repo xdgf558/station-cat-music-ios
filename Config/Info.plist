@@ -43,5 +43,11 @@
 	</array>
 	<key>StationNativeMusicEnabled</key>
 	<string>$(STATION_NATIVE_MUSIC_ENABLED)</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>StationMusicWebOrigin</key>
+	<string>$(STATION_MUSIC_WEB_ORIGIN)</string>
 </dict>
 </plist>

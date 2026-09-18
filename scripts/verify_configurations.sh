@@ -17,7 +17,10 @@ assert info['MinimumOSVersion']=='18.0'
 assert info['StationNativeAuthEnabled']=='NO'
 assert info['StationNativeMusicEnabled']=='NO'
 assert not info.get('StationNativeAuthOrigin')
+assert not info.get('StationMusicWebOrigin')
 assert 'NSAppTransportSecurity' not in info
-print(config+': environment embedded, iOS18 minimum, no HTTP exception')
+assert info.get('UIBackgroundModes') == ['audio']
+assert 'NSAppleMusicUsageDescription' not in info
+print(config+': environment embedded, iOS18 minimum, no HTTP exception; audio background mode only')
 PY
 done

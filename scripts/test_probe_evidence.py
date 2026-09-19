@@ -7,7 +7,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import Mock
 from urllib.error import HTTPError, URLError
-from probe_evidence import MAX_BYTES, read_probe_evidence, validate_evidence
+from probe_evidence import MAX_BYTES, read_probe_evidence, validate_evidence, read_failure_evidence
 
 CONNECTION = {'port': 12345, 'key': 'FIXTURE_ONLY'}
 
@@ -161,6 +161,33 @@ class EvidenceTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError): validate_evidence(value, 'A12')
         value = fixture('A13'); value['requests'][1]['requestId'] = value['requests'][0]['requestId']
         with self.assertRaises(ValueError): validate_evidence(value, 'A13')
+
+
+class FailureEvidenceTests(unittest.TestCase):
+    def test_failure_snapshot_is_readonly_bounded_and_redacted(self):
+        value = fixture(); value['requests'] = value['requests'][:1]
+        value['secret'] = 'SENSITIVE'; value['requests'][0]['body'] = 'SENSITIVE'
+        value['session']['token'] = 'SENSITIVE'
+        opener = Mock(return_value=io.BytesIO(json.dumps(value).encode()))
+        result = read_failure_evidence(CONNECTION, 'A12', opener=opener)
+        self.assertTrue(result['diagnosticOnly']); self.assertEqual(result['requestCount'], 1)
+        self.assertNotIn('SENSITIVE', json.dumps(result)); self.assertNotIn('requestId', json.dumps(result))
+        opener.assert_called_once(); args, kwargs = opener.call_args
+        self.assertEqual(args[0].get_method(), 'GET'); self.assertEqual(kwargs['timeout'], 5)
+
+    def test_failure_snapshot_never_retries_or_returns_error_details(self):
+        for error in [TimeoutError('SENSITIVE'), URLError('SENSITIVE')]:
+            opener = Mock(side_effect=error)
+            result = read_failure_evidence(CONNECTION, 'A12', opener=opener)
+            self.assertEqual(result['readStatus'], 'transport_unavailable')
+            self.assertNotIn('SENSITIVE', json.dumps(result)); opener.assert_called_once()
+
+    def test_failure_snapshot_rejects_mismatched_and_untyped_payloads(self):
+        value = fixture(); value['session']['generation'] = 'SENSITIVE'
+        for payload in [value, fixture('A13'), {'stage': 'SENSITIVE'}, ['SENSITIVE']]:
+            result = read_failure_evidence(CONNECTION, 'A12', opener=Mock(return_value=io.BytesIO(json.dumps(payload).encode())))
+            self.assertEqual(result['readStatus'], 'invalid_evidence')
+            self.assertNotIn('SENSITIVE', json.dumps(result))
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

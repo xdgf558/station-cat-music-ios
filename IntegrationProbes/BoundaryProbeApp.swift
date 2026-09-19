@@ -21,7 +21,7 @@ import Darwin
                 _exit(0)
             } catch {
                 // Error details must not serialize request bodies or credentials into artifacts.
-                try? ProbeReporter.emit("M2_PROBE_FAILED:pid=\(getpid())")
+                try? ProbeReporter.failure(error)
                 _exit(1)
             }
         }

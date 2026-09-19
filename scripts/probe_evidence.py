@@ -141,3 +141,38 @@ def read_probe_evidence(connection, stage, *, total_timeout=20, request_timeout=
             sleep(min(.25 * attempts, remaining))
     raise RuntimeError('Post-recovery evidence collection exhausted after ' + str(attempts)
                        + ' attempts; recovery was not rerun')
+
+
+def read_failure_evidence(connection, stage, *, opener=deadline_open):
+    """One bounded read after an already-failed probe; diagnostic, never acceptance.
+
+    Keep only typed counts/statuses. Do not archive payloads, error text, IDs,
+    fingerprints, response headers, URL errors or future unknown fixture fields.
+    """
+    result = {'diagnosticOnly': True, 'stage': stage}
+    request = Request('http://127.0.0.1:' + str(connection['port']) + '/fixture/evidence',
+                      headers={'X-Probe-Key': connection['key']}, method='GET')
+    try:
+        with opener(request, timeout=5) as response:
+            payload = response.read(MAX_BYTES + 1)
+            if len(payload) > MAX_BYTES: raise ValueError()
+            value = json.loads(payload)
+        if not isinstance(value, dict) or value.get('stage') != stage: raise ValueError()
+        requests, session, operations = value.get('requests'), value.get('session'), value.get('operations')
+        if not isinstance(requests, list) or len(requests) > 10 or not isinstance(session, dict) or not isinstance(operations, list): raise ValueError()
+        def number(record, key):
+            v = record.get(key)
+            if type(v) is not int or not -10000 <= v <= 10000: raise ValueError()
+            return v
+        rows = [{key: number(row, key) for key in ('generation', 'status', 'resultGeneration') if key in row} for row in requests if isinstance(row, dict)]
+        if len(rows) != len(requests) or type(value.get('held')) is not bool: raise ValueError()
+        result.update(readStatus='available', held=value['held'], requestCount=len(requests), requests=rows,
+                      session={key: number(session, key) for key in ('generation', 'revoked')}, operationCount=len(operations))
+    except HTTPError as error:
+        result.update(readStatus='http_error', status=error.code)
+        if error.fp is not None: error.close()
+    except (TimeoutError, socket.timeout, URLError, ConnectionError, OSError, http.client.HTTPException):
+        result['readStatus'] = 'transport_unavailable'
+    except (ValueError, TypeError):
+        result['readStatus'] = 'invalid_evidence'
+    return result

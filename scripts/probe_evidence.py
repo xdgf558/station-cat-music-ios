@@ -1,4 +1,7 @@
 """Bounded, read-only post-recovery evidence collection; never replays a mutation."""
+import io
+import http.client
+import threading
 import json
 import math
 import re
@@ -6,7 +9,8 @@ import socket
 import time
 import uuid
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
+from urllib.parse import urlsplit
 
 MAX_BYTES = 262_144
 
@@ -63,8 +67,48 @@ def validate_evidence(value, stage):
             'session': {'generation': generation, 'revoked': 0}, 'operations': expected_operations}
 
 
+def deadline_open(request, timeout):
+    """Loopback-only GET with one deadline across connect, headers and body.
+
+    The timer shuts down the socket, waking the blocked reader; no background
+    reader survives a timeout. HTTPConnection redirects/proxies are not used.
+    """
+    url = urlsplit(request.full_url)
+    if url.scheme != 'http' or url.hostname != '127.0.0.1' or url.path != '/fixture/evidence' or url.query or url.fragment or request.get_method() != 'GET':
+        raise ValueError('Invalid evidence endpoint')
+    deadline = time.monotonic() + timeout
+    connection = http.client.HTTPConnection(url.hostname, url.port, timeout=timeout)
+    expired = threading.Event()
+    timer = None
+    try:
+        connection.connect()
+        sock = connection.sock
+        def interrupt():
+            expired.set()
+            try: sock.shutdown(socket.SHUT_RDWR)
+            except OSError: pass
+        timer = threading.Timer(max(0, deadline - time.monotonic()), interrupt)
+        timer.start()
+        connection.request('GET', url.path, headers=dict(request.header_items()))
+        response = connection.getresponse()
+        payload = response.read(MAX_BYTES + 1)
+        if expired.is_set() or time.monotonic() >= deadline:
+            raise TimeoutError('Evidence request deadline exceeded')
+        if response.status != 200:
+            raise HTTPError(request.full_url, response.status, 'Evidence request failed', response.headers, io.BytesIO(payload))
+        return io.BytesIO(payload)
+    except (OSError, http.client.HTTPException):
+        if expired.is_set() or time.monotonic() >= deadline:
+            raise TimeoutError('Evidence request deadline exceeded') from None
+        raise
+    finally:
+        if timer is not None:
+            timer.cancel(); timer.join()
+        connection.close()
+
+
 def read_probe_evidence(connection, stage, *, total_timeout=20, request_timeout=5,
-                        max_attempts=4, opener=urlopen, clock=time.monotonic, sleep=time.sleep):
+                        max_attempts=4, opener=deadline_open, clock=time.monotonic, sleep=time.sleep):
     """Retry transient GET failures only, after the recovered process has exited.
 
     This deadline bounds collection retries, not authentication or the server's

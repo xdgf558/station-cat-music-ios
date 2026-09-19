@@ -65,6 +65,34 @@ class EvidenceTests(unittest.TestCase):
         finally:
             server.shutdown(); server.server_close(); thread.join()
 
+    def test_absolute_deadline_covers_headers_and_slow_body(self):
+        for mode in ['headers_then_body', 'drip']:
+            closed = threading.Event()
+            class Handler(BaseHTTPRequestHandler):
+                def do_GET(self):
+                    try:
+                        if mode == 'headers_then_body': time.sleep(.14)
+                        body = json.dumps(fixture()).encode()
+                        self.send_response(200); self.send_header('Content-Length', str(len(body))); self.end_headers()
+                        if mode == 'headers_then_body':
+                            time.sleep(.14); self.wfile.write(body)
+                        else:
+                            for byte in body:
+                                self.wfile.write(bytes([byte])); self.wfile.flush(); time.sleep(.07)
+                    except (BrokenPipeError, ConnectionResetError): closed.set()
+                def log_message(self, *args): pass
+            server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+            try:
+                started = time.monotonic()
+                with self.assertRaisesRegex(RuntimeError, 'exhausted'):
+                    read_probe_evidence({'port': server.server_port, 'key': 'FIXTURE_ONLY'}, 'A12',
+                                        request_timeout=.2, total_timeout=.23, max_attempts=1)
+                self.assertLess(time.monotonic() - started, .5)
+                if mode == 'drip': self.assertTrue(closed.wait(1), 'underlying socket must close')
+            finally:
+                server.shutdown(); server.server_close(); thread.join()
+
     def test_total_budget_exhaustion_caps_each_timeout(self):
         clock = Clock()
         def timeout(request, timeout): clock.advance(timeout); raise TimeoutError()

@@ -3,9 +3,9 @@
 No production configuration, ATS exception, fake clock, or extended replay deadline.
 """
 from pathlib import Path
-from crash_probe_runner import run_crash,wait_ready
-import hashlib,json,os,plistlib,platform,re,shutil,subprocess,tempfile,time
-from urllib.request import Request,urlopen
+from crash_probe_runner import run_file_probe,wait_ready
+import hashlib,json,os,plistlib,platform,shutil,subprocess,tempfile,time,uuid
+from probe_evidence import read_probe_evidence
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
 backend=Path(os.environ['M2_BACKEND_PATH']).resolve()
@@ -43,6 +43,7 @@ assert run(['codesign','--force','--sign','-',str(app)],'M2-boundaries-sign.log'
 run(['xcrun','simctl','boot',simulator],'M2-boundaries-boot.log')
 assert run(['xcrun','simctl','bootstatus',simulator,'-b'],'M2-boundaries-bootstatus.log')==0, 'Simulator unavailable'
 assert run(['xcrun','simctl','install',simulator,str(app)],'M2-boundaries-install.log')==0, 'Probe install failed'
+container=Path(subprocess.check_output(['xcrun','simctl','get_app_container',simulator,bundle,'data'],text=True).strip())
 summary=[]
 with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
     log=(output/'M2-boundaries-service.log').open('w')
@@ -53,26 +54,31 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
         for stage in ['A11','A12','A13']:
             started=time.monotonic()
             for mode in ['CRASH','RECOVER']:
+                run_id=str(uuid.uuid4())
+                resultfile=container/'Documents'/('M2-'+run_id+'.log')
                 env=os.environ.copy()
-                env.update({'SIMCTL_CHILD_'+key:value for key,value in {'M2_BOUNDARY_STAGE':stage,'M2_BOUNDARY_MODE':mode,'M2_PROBE_PORT':str(connection['port']),'M2_PROBE_KEY':connection['key']}.items()})
+                env.update({'SIMCTL_CHILD_'+key:value for key,value in {'M2_PROBE_RUN_ID':run_id,'M2_BOUNDARY_STAGE':stage,'M2_BOUNDARY_MODE':mode,'M2_PROBE_PORT':str(connection['port']),'M2_PROBE_KEY':connection['key']}.items()})
                 name='M2-boundary-'+stage+'-'+mode+'.log'
-                args=['xcrun','simctl','launch','--console',simulator,bundle]
+                args=['xcrun','simctl','launch',simulator,bundle]
+                try:
+                    result=run_file_probe(args,output/name,resultfile,stage,mode,env=env)
+                finally:
+                    if resultfile.exists():
+                        shutil.copyfile(resultfile,output/('M2-boundary-'+stage+'-'+mode+'-durable.log'))
+                        resultfile.unlink()
                 if mode=='CRASH':
-                    crash_evidence=run_crash(args,output/name,stage,env=env)
+                    crash_evidence={'hostExitConfirmed':True,'crashedHostPID':result['hostPID'],
+                                    'evidenceTransport':result['evidenceTransport'],'hostExitAfterMarkerSeconds':result['hostExitAfterMarkerSeconds']}
                     print(stage+': probe host exit confirmed; launching new process directly',flush=True)
                 else:
-                    code=run(args,name,300,env=env)
-                    content=(output/name).read_text()
-                    match=re.search(r'M2_BOUNDARY_RECOVERED:'+stage+r':[^\n]*:pid=(\d+)',content)
-                    assert code==0 and match and 'M2_PROBE_FAILED' not in content, 'Recovery failed: '+stage
-                    assert int(match.group(1))!=crash_evidence['crashedHostPID'], 'Recovery must use a new process'
-            request=Request('http://127.0.0.1:'+str(connection['port'])+'/fixture/evidence',headers={'X-Probe-Key':connection['key']})
-            with urlopen(request,timeout=5) as response:
-                evidence=json.load(response)
+                    assert result['hostPID']!=crash_evidence['crashedHostPID'], 'Recovery must use a new process'
+                    crash_evidence['recoveredHostPID']=result['hostPID']
+            evidence,read_stats=read_probe_evidence(connection,stage)
+            (output/('M2-boundary-'+stage+'-server-evidence.json')).write_text(json.dumps(evidence,indent=2)+'\n')
             requests=evidence['requests']
             interval=(requests[1]['committedAt']-requests[0]['committedAt'])/1000
             print(stage+': server request interval '+str(round(interval,3))+' seconds',flush=True)
-            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,**crash_evidence,'serverRequestIntervalSeconds':round(interval,3),'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
+            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,**crash_evidence,'serverRequestIntervalSeconds':round(interval,3),'evidenceRead':read_stats,'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
             (output/'M2-boundaries-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
             print(stage+': process termination and recovery passed',flush=True)
     finally:

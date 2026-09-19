@@ -21,6 +21,8 @@ struct RootView: View {
             NavigationStack { library.safeAreaInset(edge: .bottom) { miniPlayer } }.tabItem { Label(model.t("library"), systemImage: "person.crop.circle") }.tag(2)
         }
         .tint(Palette.gold)
+        .onOpenURL { url in Task { await model.openMusicLink(url) } }
+        .alert(model.t("linkUnavailable"), isPresented: $model.linkUnavailable) { Button(model.t("close"), role: .cancel) {} }
         .sheet(isPresented: $model.showPlayer) { player }
         .task { await model.load(); await model.account.restore() }
         .onChange(of: model.playback.state) { _, state in
@@ -29,13 +31,13 @@ struct RootView: View {
         .onChange(of: model.locale) { _, _ in if model.nativeMusic != nil { Task { await model.load() } } }
         .onChange(of: model.account.scope) { _, scope in Task { await model.changeScope(scope); await model.load() } }
         .sheet(isPresented: $showDeletion) { deletionSheet }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { model.playback.checkDeadline() } }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { model.playback.becameActive() } }
         .environment(\.locale, Locale(identifier: model.locale))
     }
     @ViewBuilder private var miniPlayer: some View {
             if let track = model.playback.selectedTrack {
                 Button { model.showPlayer = true } label: {
-                    HStack { Image(systemName: "music.note"); VStack(alignment: .leading) { Text(track.title).font(.headline); Text(model.t("notPlaying")).font(.caption).foregroundStyle(Palette.muted) }; Spacer(); Image(systemName: "chevron.up") }
+                    HStack { Image(systemName: "music.note"); VStack(alignment: .leading) { Text(track.title).font(.headline); Text(model.t(model.playback.state == .playing ? "playing" : "notPlaying")).font(.caption).foregroundStyle(Palette.muted) }; Spacer(); Image(systemName: "chevron.up") }
                     .padding().background(Palette.panel, in: RoundedRectangle(cornerRadius: 18)).padding(.horizontal)
                 }.buttonStyle(.plain).accessibilityIdentifier("miniPlayer")
             }
@@ -77,6 +79,7 @@ struct RootView: View {
                     ForEach(model.collections) { collection in Button(collection.title) { Task { await model.selectCollection(collection) } } }
                 } label: { Label(model.activeCollection?.title ?? model.t("albums"), systemImage: "square.stack").frame(minHeight: 44) }
             }
+            if let url = model.collectionShareURL { ShareLink(item: url) { Label(model.t("shareMusic"), systemImage: "square.and.arrow.up").frame(minHeight: 44) } }
             stateContent
         }.padding(20) }.background(Palette.background)
         .accessibilityIdentifier("catalogScreen")
@@ -94,12 +97,12 @@ struct RootView: View {
                 if search { ContentUnavailableView.search(text: model.query) }
                 else { ContentUnavailableView(model.t("empty"), systemImage: "music.note") }
             }
-            ForEach(tracks) { track in trackRow(track) }
+            ForEach(tracks) { track in trackRow(track, list: tracks) }
         }
     }
-    private func trackRow(_ track: Track) -> some View {
+    private func trackRow(_ track: Track, list: [Track]) -> some View {
         HStack(spacing: 14) {
-            Button { model.select(track) } label: {
+            Button { model.select(track, from: list) } label: {
                 HStack(spacing: 14) {
                     if let url = track.coverUrl, url.scheme == "https", url.host == model.nativeMusic?.configuration.origin.host {
                         AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: { Image(systemName: "music.note") }.frame(width: 52, height: 60).clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityHidden(true)
@@ -134,7 +137,8 @@ struct RootView: View {
             }
             Section(model.t("favorites")) {
                 if model.favorites.isEmpty { Text(model.t("noFavorites")).foregroundStyle(Palette.muted) }
-                ForEach(model.tracks.filter { model.favorites.contains($0.id) }) { track in Button(track.title) { model.select(track) }.frame(minHeight: 44) }
+                let favoriteTracks = model.favoriteTracks
+                ForEach(favoriteTracks) { track in Button(track.title) { model.select(track, from: favoriteTracks) }.frame(minHeight: 44) }
                 Text(model.t("localSession")).font(.caption).foregroundStyle(Palette.muted)
             }
             Section(model.t("settings")) {
@@ -189,12 +193,35 @@ struct RootView: View {
                     HStack(spacing: 20) {
                         Button { model.adjacent(-1) } label: { Image(systemName: "backward.end.fill").frame(width: 44, height: 44) }.accessibilityLabel(model.t("previous"))
                         Button {
-                            if model.playback.state == .playing { model.playback.pause() } else { model.playback.requestPlay() }
+                            model.playback.handle(.toggle)
                         } label: { Label(model.t(model.playback.state == .playing ? "pause" : "play"), systemImage: model.playback.state == .playing ? "pause.fill" : "play.fill").padding(12) }.buttonStyle(.borderedProminent).foregroundStyle(Palette.background)
                         Button { model.adjacent(1) } label: { Image(systemName: "forward.end.fill").frame(width: 44, height: 44) }.accessibilityLabel(model.t("next"))
                     }
+                    if let url = model.trackShareURL { ShareLink(item: url) { Label(model.t("shareMusic"), systemImage: "square.and.arrow.up").frame(minHeight: 44) } }
+                    if let key = model.playback.noticeKey { Text(model.t(key)).font(.footnote).foregroundStyle(Palette.gold) }
+                    let optionsLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading)) : AnyLayout(HStackLayout())
+                    optionsLayout {
+                        Button { model.playback.setShuffle(!model.playback.queue.shuffled) } label: { Image(systemName: "shuffle").frame(minWidth: 44, minHeight: 44) }.accessibilityLabel(model.t("shuffle")).accessibilityValue(model.t(model.playback.queue.shuffled ? "on" : "off"))
+                        Picker(model.t("repeat"), selection: Binding(get: { model.playback.queue.repeatMode }, set: { model.playback.setRepeat($0) })) {
+                            ForEach(PlaybackQueue.RepeatMode.allCases, id: \.self) { Text(model.t("repeat." + $0.rawValue)).tag($0) }
+                        }.pickerStyle(.menu)
+                        Menu {
+                            ForEach([15, 30, 60], id: \.self) { minutes in Button("\(minutes) " + model.t("minutes")) { model.playback.setSleepTimer(seconds: Double(minutes * 60)) } }
+                            Button(model.t("off")) { model.playback.setSleepTimer(seconds: nil) }
+                        } label: { Label(model.t("sleepTimer"), systemImage: model.playback.sleepDeadline == nil ? "moon" : "moon.fill").frame(minHeight: 44) }
+                    }
+                    DisclosureGroup(model.t("queue")) {
+                        ForEach(model.playback.queue.orderedEntries) { entry in
+                            HStack {
+                                Button { model.playback.chooseQueueEntry(entry.id) } label: { Label(entry.track.title, systemImage: entry.id == model.playback.queue.currentID ? "speaker.wave.2" : "music.note").frame(minHeight: 44) }
+                                Spacer()
+                                if entry.id != model.playback.queue.currentID { Button { model.playback.removeQueueEntry(entry.id) } label: { Image(systemName: "minus.circle").frame(minWidth: 44, minHeight: 44) }.accessibilityLabel(model.t("remove") + " " + entry.track.title) }
+                            }
+                        }
+                        Button(model.t("clearQueue")) { model.playback.clear() }.frame(minHeight: 44)
+                    }
                     if model.detail?.previewAvailable == true { Button(model.t("preview")) { model.playback.requestPlay(variant: "preview") }.frame(minHeight: 44) }
-                    Slider(value: Binding(get: { model.playback.position }, set: { model.playback.seek(to: $0) }), in: 0...max(1, model.playback.duration)).disabled(model.playback.state != .playing).accessibilityLabel(model.t("seek"))
+                    Slider(value: Binding(get: { model.playback.position }, set: { model.playback.seek(to: $0) }), in: 0...max(1, model.playback.duration)).disabled(![.playing, .paused, .completed].contains(model.playback.state)).accessibilityLabel(model.t("seek"))
                     if let lyrics = model.detail?.lyrics, lyrics.kind != "none" {
                         if lyrics.kind == "timed" {
                             ScrollViewReader { reader in

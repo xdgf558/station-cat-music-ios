@@ -14,7 +14,12 @@ import SwiftUI
            let origin = URL(string: raw),
            let configuration = try? NativeAuthConfiguration(environment: environment, origin: origin, explicitlyEnabled: account.enabled),
            let native = try? NativeMusicAPI(configuration: configuration, explicitlyEnabled: true, transport: URLSessionTransport(), auth: account.auth) { client = native }
-        _model = State(initialValue: AppModel(client: client, account: account))
+        let webOrigin = (Bundle.main.object(forInfoDictionaryKey: "StationMusicWebOrigin") as? String).flatMap(URL.init(string:))
+        let model = AppModel(client: client, account: account, musicWebOrigin: webOrigin)
+        if let native = client as? NativeMusicAPI, let host = native.configuration.origin.host {
+            model.playback.attachSystem(SystemPlayback(playback: model.playback, artworkHost: host))
+        }
+        _model = State(initialValue: model)
     }
     var body: some Scene { WindowGroup { RootView(model: model).preferredColorScheme(.dark) } }
 }

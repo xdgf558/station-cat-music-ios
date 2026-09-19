@@ -8,3 +8,6 @@ STATION_NATIVE_AUTH_ORIGIN =
 
 // M3 isolated music activation is separate and remains disabled.
 STATION_NATIVE_MUSIC_ENABLED = NO
+
+// Public share/link origin is configured separately from the authentication API.
+STATION_MUSIC_WEB_ORIGIN =

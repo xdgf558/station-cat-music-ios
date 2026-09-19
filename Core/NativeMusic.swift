@@ -22,9 +22,17 @@ nonisolated struct AuthorizedPlayback: Sendable {
     let scope: AccountScope
 }
 nonisolated protocol PlaybackAuthorizing: Sendable {
+    func preferredVariant(for track: Track) async throws -> String
     func authorize(track: Track, variant: String) async throws -> AuthorizedPlayback
     func isCurrent(_ authorization: AuthorizedPlayback) async -> Bool
     func bearer(for authorization: AuthorizedPlayback, refresh: Bool) async throws -> String?
+}
+extension PlaybackAuthorizing {
+    func preferredVariant(for track: Track) async throws -> String { track.access == .preview ? "preview" : "full" }
+}
+private struct PlaybackEntitlements: Decodable, Sendable {
+    struct Music: Decodable, Sendable { let canPlayVipFull: Bool }
+    let music: Music
 }
 actor NativeMusicAPI: CatalogProviding, PlaybackAuthorizing {
     let configuration: NativeAuthConfiguration
@@ -37,7 +45,7 @@ actor NativeMusicAPI: CatalogProviding, PlaybackAuthorizing {
         self.configuration = configuration; self.transport = transport; self.auth = auth
     }
     private func request<T: Decodable & Sendable>(_ path: String, query: [URLQueryItem] = [], body: Data? = nil, context: NativeAuthContext? = nil, as: T.Type) async throws -> NativeResponse<T> {
-        guard path.hasPrefix("/music/"), !path.contains(".."), !path.contains("?"), !path.contains("#") else { throw APIError.invalidRequest }
+        guard (path.hasPrefix("/music/") || path == "/me/entitlements"), !path.contains(".."), !path.contains("?"), !path.contains("#") else { throw APIError.invalidRequest }
         var components = URLComponents(url: configuration.origin.appending(path: "api/mobile/v1" + path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { components.queryItems = query }
         var request = URLRequest(url: components.url!); request.httpMethod = body == nil ? "GET" : "POST"; request.timeoutInterval = 5
@@ -80,7 +88,31 @@ actor NativeMusicAPI: CatalogProviding, PlaybackAuthorizing {
         } while cursor != nil
         return MusicCollection(id: current.id, slug: current.slug, title: current.title, description: current.description, version: current.version, tracks: tracks, nextCursor: nil)
     }
+    func resolveTrack(_ id: String) async throws -> TrackDetail {
+        guard UUID(uuidString: id) != nil else { throw APIError.invalidRequest }
+        let result = try await request("/music/tracks/" + id, query: [.init(name: "locale", value: locale)], as: TrackDetail.self).data
+        guard result.track.id == id, result.lyrics.audioVersion == result.track.audioVersion else { throw APIError.staleResponse }
+        return result
+    }
+    func resolveCollection(_ slug: String) async throws -> MusicCollection {
+        guard slug.range(of: "^[a-z0-9-]{1,100}$", options: .regularExpression) != nil else { throw APIError.invalidRequest }
+        let result = try await request("/music/collections/" + slug, query: [.init(name: "limit", value: "100"), .init(name: "locale", value: locale)], as: MusicCollection.self).data
+        guard result.slug == slug else { throw APIError.staleResponse }
+        return try await collection(result)
+    }
     func featured() async throws -> FeaturedMusic { try await request("/music/featured", query: [.init(name: "locale", value: locale)], as: FeaturedMusic.self).data }
+    func preferredVariant(for track: Track) async throws -> String {
+        guard track.access == .preview else { return "full" }
+        guard let auth else { return "preview" }
+        switch await auth.state() {
+        case .guest: return "preview"
+        case .unavailable: throw APIError.requiresAuthentication
+        case .authenticated:
+            let context = try await auth.requestContext(minimumValidity: 65)
+            let result = try await request("/me/entitlements", context: context, as: PlaybackEntitlements.self)
+            return result.data.music.canPlayVipFull ? "full" : "preview"
+        }
+    }
     func authorize(track: Track, variant: String) async throws -> AuthorizedPlayback {
         guard UUID(uuidString: track.id) != nil, ["full", "preview"].contains(variant) else { throw APIError.invalidRequest }
         let before = await auth?.state()

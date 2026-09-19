@@ -1,7 +1,27 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''discover|Discover|发现|發現|見つける
+rows='''shareMusic|Share link|分享链接|分享連結|リンクを共有
+linkUnavailable|This music link is unavailable.|此音乐链接暂不可用。|此音樂連結暫不可用。|この音楽リンクは利用できません。
+playing|Playing|正在播放|正在播放|再生中
+queue|Play queue|播放队列|播放佇列|再生キュー
+shuffle|Shuffle|随机播放|隨機播放|シャッフル
+repeat|Repeat|循环|循環|リピート
+repeat.off|In order|顺序播放|順序播放|順番に再生
+repeat.all|Repeat all|列表循环|列表循環|すべてリピート
+repeat.one|Repeat one|单曲循环|單曲循環|1 曲リピート
+sleepTimer|Sleep timer|睡眠定时|睡眠定時|スリープタイマー
+minutes|min|分钟|分鐘|分
+on|On|开启|開啟|オン
+off|Off|关闭|關閉|オフ
+remove|Remove|移除|移除|削除
+clearQueue|Clear and stop|清空并停止|清空並停止|消去して停止
+queueSkipped|An unavailable track was skipped.|已跳过不可用的歌曲。|已跳過無法播放的歌曲。|再生できない曲をスキップしました。
+queueUnavailable|No playable tracks remain. Choose another track.|队列中没有可播放歌曲，请选择其他歌曲。|佇列中沒有可播放歌曲，請選擇其他歌曲。|再生できる曲がありません。別の曲を選んでください。
+headphonesDisconnected|Headphones disconnected. Playback paused.|耳机已断开，播放已暂停。|耳機已斷開，播放已暫停。|イヤホンが切断され、再生を一時停止しました。
+mediaReset|Audio service restarted. Tap play to continue.|音频服务已重启，点击播放继续。|音訊服務已重新啟動，點選播放繼續。|音声サービスが再起動しました。再生ボタンで再開してください。
+sleepFinished|Sleep timer ended. Playback paused.|睡眠定时结束，已暂停播放。|睡眠定時結束，已暫停播放。|タイマーが終了し、再生を一時停止しました。
+discover|Discover|发现|發現|見つける
 catalog|Library|曲库|曲庫|ライブラリ
 library|You|我的|我的|マイページ
 mockBadge|M1 · Preview|M1 · 本地预览|M1 · 本機預覽|M1 · プレビュー

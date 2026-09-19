@@ -21,6 +21,7 @@
   "Tests/NativeCrashBoundaryTests.swift": "03a76433926b8b59e74c0059a89b7a34ba56dc3dacf5a13e235e86bcba7ae82a",
   "Tests/PersonalLibraryIntegrationTests.swift": "3495a196141c5fb268f833acdf04ae91b327606307145b48c91e1d72438ece9f",
   "Tests/PersonalLibraryTests.swift": "c9ae5a426d1875d67410778b17604fc85e987c4ec6250d0f3f462f2ac07fde6c",
+  "Tests/PlaybackSystemIntegrationTests.swift": "a30512497ebb470f423f829061ab62d20d94327a9138b82473eed4d52f632bbe",
   "TestsSupport/NativeCrashScenario.swift": "1c35db50be8455a07bf7b579b8e47a498c707c3b92b9c97288bc75ea3b4f5e3d",
   "UITests/NavigationTests.swift": "82560813c034e6eb8691f2b0e5343c641fb56f56ef14cf7c5d1cc42b65c831ad",
   "contracts/backend-library-fixture.json": "93c8ccd77dec0d4c1c64b3e868f35c4829bda7cc9a205af37a2540b2a6fbc0c5",
@@ -33,5 +34,6 @@
   "scripts/validate_contract.py": "eadd5a94f82baf23b8c3b539fc60c9478d8a09a9dfe3ce499858eb860206db62",
   "scripts/verify_configurations.sh": "98232b2a5fbfc0dee86c9be86345249a0ee57bf9207531f0b2284873563a66a6",
   "scripts/verify_native_crash_boundaries.py": "09aebe812797ead9bba9af0bef0a9f689b13948a6fb9abf7bbb87243f0cfbf3e",
-  "scripts/verify_native_library.py": "b3cbe8fe9b8268509d24679d6917da4a2adf9518184bf36e2a86b8ed9c84a354"
+  "scripts/verify_native_library.py": "b3cbe8fe9b8268509d24679d6917da4a2adf9518184bf36e2a86b8ed9c84a354",
+  "scripts/verify_native_media.py": "7570261f43029e7fee0c72b3ab6dfe889c70e6a29916703d1cce1236b2b08c54"
 }

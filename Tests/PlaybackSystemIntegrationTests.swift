@@ -9,6 +9,32 @@ private struct SystemFixture: Decodable { let vip: ProbeIdentity; let free: Prob
 private struct NoBrowser: AuthenticationBrowser {
     @MainActor func authorize(url: URL, callback: URL) throws -> URL { throw APIError.networkDisabled }
 }
+// Test-only gate: hold the second authorization so the transitional UI state is deterministic.
+private actor PreviewRepeatProbe: PlaybackAuthorizing {
+    let base: NativeMusicAPI
+    private(set) var requested: [String] = []
+    private(set) var granted: [String] = []
+    private(set) var holding = false
+    private var released = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    init(base: NativeMusicAPI) { self.base = base }
+    func preferredVariant(for track: Track) async throws -> String { try await base.preferredVariant(for: track) }
+    func authorize(track: Track, variant: String) async throws -> AuthorizedPlayback {
+        requested.append(variant)
+        if requested.count == 2 && !released {
+            holding = true
+            await withCheckedContinuation { continuation = $0 }
+            holding = false
+        }
+        try Task.checkCancellation()
+        let result = try await base.authorize(track: track, variant: variant)
+        granted.append(result.grant.variant)
+        return result
+    }
+    func release() { released = true; continuation?.resume(); continuation = nil }
+    func isCurrent(_ value: AuthorizedPlayback) async -> Bool { await base.isCurrent(value) }
+    func bearer(for value: AuthorizedPlayback, refresh: Bool) async throws -> String? { try await base.bearer(for: value, refresh: refresh) }
+}
 @MainActor final class PlaybackSystemIntegrationTests: XCTestCase {
     private func bridge() throws -> MusicProbeBridge {
         let env = ProcessInfo.processInfo.environment
@@ -94,6 +120,42 @@ private struct NoBrowser: AuthenticationBrowser {
         model.playback.shutdown()
         print("M4_LINKS_PASSED: configured-origin track/album resolution; no authorization or autoplay")
     }
+    private func verifyPreviewRepeat(player: PlaybackService, native: NativeMusicAPI, track: Track) async throws {
+        let probe = PreviewRepeatProbe(base: native)
+        defer { Task { await probe.release() } }
+        player.configure(authorizer: probe)
+        player.select(track); player.setRepeat(.one); player.requestPlay(variant: "preview")
+        try await wait { player.isPlaying && player.duration < 2 }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(8))
+        while !(await probe.holding), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(50)) }
+        let holding = await probe.holding, requests = await probe.requested
+        XCTAssertTrue(holding); XCTAssertEqual(requests, ["preview", "preview"])
+        XCTAssertEqual(player.state, .authorizing); XCTAssertFalse(player.hasAudioSource)
+        // Catalog metadata while waiting is not an issued grant; keep it only as diagnostic evidence.
+        let pendingDuration = player.duration
+        await probe.release()
+        try await wait { player.isPlaying && player.duration < 2 }
+        let grants = await probe.granted, allRequests = await probe.requested
+        XCTAssertGreaterThanOrEqual(grants.count, 2)
+        XCTAssertTrue(grants.allSatisfy { $0 == "preview" }); XCTAssertTrue(allRequests.allSatisfy { $0 == "preview" })
+        XCTAssertLessThan(player.duration, 2, "The actually playing repeated item must remain a preview")
+        player.pause()
+        print("M4_PREVIEW_REPEAT_GUARDED: pendingDuration=\(pendingDuration); held repeat has no audio source; requested/granted preview; resumed preview duration verified")
+    }
+    func testExplicitPreviewRepeatAcrossHeldAuthorization() async throws {
+        let bridge = try bridge(), raw = try await bridge.fixture("rotation", as: RotationRaw.self)
+        let fixture = try NativeJSON.decoder().decode(RotationFixture.self, from: JSONEncoder().encode(raw))
+        let config = try NativeAuthConfiguration(environment: .development, origin: URL(string: "https://native.local.test")!, explicitlyEnabled: true)
+        let journal = AuthJournal(store: MemorySecureStore(), environment: .development)
+        try await journal.install(fixture.credential)
+        let auth = NativeAuthenticationService(configuration: config, api: NativeAuthAPI(configuration: config, transport: bridge), journal: journal, browser: NoBrowser())
+        try await auth.restore()
+        let native = try NativeMusicAPI(configuration: config, explicitlyEnabled: true, transport: bridge, auth: auth)
+        let track = Track(id: fixture.trackId, title: "Repeat timing fixture", artist: "Fixture", durationSeconds: fixture.durationSeconds, audioVersion: 1, access: .preview)
+        let player = PlaybackService(transport: bridge); defer { player.shutdown() }
+        try await verifyPreviewRepeat(player: player, native: native, track: track)
+        try await auth.signOut()
+    }
     func testZRealAuthenticationRotationOverFiveMinutes() async throws {
         let bridge = try bridge(), raw = try await bridge.fixture("rotation", as: RotationRaw.self)
         // Decode dates with the production ISO8601 decoder, while fixture transport stays test-only.
@@ -108,11 +170,9 @@ private struct NoBrowser: AuthenticationBrowser {
         let native = try NativeMusicAPI(configuration: configuration, explicitlyEnabled: true, transport: bridge, auth: auth)
         let track = Track(id: fixture.trackId, title: "Real token rotation", artist: "Local fixture", durationSeconds: fixture.durationSeconds, audioVersion: 1, access: .preview)
         let player = PlaybackService(transport: bridge); defer { player.shutdown() }
+        try await verifyPreviewRepeat(player: player, native: native, track: track)
         player.configure(authorizer: native)
-        player.select(track); player.setRepeat(.one); player.requestPlay(variant: "preview")
-        try await wait { player.isPlaying && player.duration < 2 }
-        try await Task.sleep(for: .seconds(2.4)); XCTAssertLessThan(player.duration, 2, "Explicit preview repeat must not upgrade to full")
-        player.pause(); player.setQueue([track], startingAt: 0, play: false); player.setRepeat(.one); player.requestPlay()
+        player.setQueue([track], startingAt: 0, play: false); player.setRepeat(.one); player.requestPlay()
         try await wait { player.isPlaying && player.position > 0.1 }
         XCTAssertEqual(player.duration, fixture.durationSeconds, accuracy: 0.001) // VIP full despite public catalog advertising preview.
         let started = ContinuousClock.now

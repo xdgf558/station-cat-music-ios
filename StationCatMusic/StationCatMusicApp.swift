@@ -15,7 +15,12 @@ import SwiftUI
            let configuration = try? NativeAuthConfiguration(environment: environment, origin: origin, explicitlyEnabled: account.enabled),
            let native = try? NativeMusicAPI(configuration: configuration, explicitlyEnabled: true, transport: URLSessionTransport(), auth: account.auth) { client = native }
         let webOrigin = (Bundle.main.object(forInfoDictionaryKey: "StationMusicWebOrigin") as? String).flatMap(URL.init(string:))
-        let model = AppModel(client: client, account: account, musicWebOrigin: webOrigin)
+        let directory = URL.applicationSupportDirectory.appending(path: "PersonalMusic")
+        var libraryRemote: NativeLibraryAPI?
+        if Bundle.main.object(forInfoDictionaryKey: "StationPersonalSyncEnabled") as? String == "YES", let native = client as? NativeMusicAPI, let auth = account.auth {
+            libraryRemote = try? NativeLibraryAPI(configuration: native.configuration, explicitlyEnabled: true, auth: auth, transport: URLSessionTransport())
+        }
+        let model = AppModel(client: client, library: ScopedLibrary(directory: directory), account: account, musicWebOrigin: webOrigin, libraryRemote: libraryRemote, environment: environment)
         if let native = client as? NativeMusicAPI, let host = native.configuration.origin.host {
             model.playback.attachSystem(SystemPlayback(playback: model.playback, artworkHost: host))
         }

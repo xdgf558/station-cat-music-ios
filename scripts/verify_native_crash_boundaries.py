@@ -5,7 +5,7 @@ No production configuration, ATS exception, fake clock, or extended replay deadl
 from pathlib import Path
 from crash_probe_runner import run_file_probe,wait_ready
 import hashlib,json,os,plistlib,platform,shutil,subprocess,tempfile,time,uuid
-from probe_evidence import read_probe_evidence
+from probe_evidence import read_probe_evidence, read_failure_evidence
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
 backend=Path(os.environ['M2_BACKEND_PATH']).resolve()
@@ -62,6 +62,11 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
                 args=['xcrun','simctl','launch',simulator,bundle]
                 try:
                     result=run_file_probe(args,output/name,resultfile,stage,mode,env=env)
+                except Exception:
+                    # Retain the original failure. This single GET cannot turn a failed probe green.
+                    diagnostic=read_failure_evidence(connection,stage)
+                    (output/('M2-boundary-'+stage+'-'+mode+'-failure-state.json')).write_text(json.dumps(diagnostic,indent=2)+'\n')
+                    raise
                 finally:
                     if resultfile.exists():
                         shutil.copyfile(resultfile,output/('M2-boundary-'+stage+'-'+mode+'-durable.log'))

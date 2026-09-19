@@ -201,8 +201,9 @@
     "variant": "full",
     "eventId": "fixture-only",
     "historyEpoch": 0,
-    "audibleSeconds": 0,
-    "positionSeconds": 0
+    "audibleSeconds": 5,
+    "positionSeconds": 0,
+    "occurredAt": "2026-09-16T00:00:00Z"
   },
   "ClearHistoryRequest": {
     "confirmed": true,

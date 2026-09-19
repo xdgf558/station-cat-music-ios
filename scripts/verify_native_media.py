@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='station-m3-media-') as directory:
             run(['xcodebuild','-destination','platform=iOS Simulator,id='+sim,'-parallel-testing-enabled','NO','-xctestrun',str(path),'-only-testing:StationCatMusicTests/NativeMediaIntegrationTests','-only-testing:StationCatMusicTests/PlaybackStabilityTests','-only-testing:StationCatMusicTests/PlaybackSystemIntegrationTests','test-without-building'],'M3-media-integration.log')
             assert 'M3_NATIVE_MEDIA_PASSED' in (output/'M3-media-integration.log').read_text()
             assert 'M3_FEATURED_PASSED' in (output/'M3-media-integration.log').read_text()
-            for marker in ['M3_LONG_RENEWAL_PASSED','M3_RENEWAL_FAILURE_PASSED','M3_LATE_RENEWAL_PASSED','M3_OFFLINE_SEEK_PASSED','M3_POLICY_EXPIRY_PASSED','M4_SYSTEM_PASSED','M4_QUEUE_SLEEP_PASSED','M4_AUTH_ROTATION_PASSED','M4_LINKS_PASSED']:
+            for marker in ['M3_LONG_RENEWAL_PASSED','M3_RENEWAL_FAILURE_PASSED','M3_LATE_RENEWAL_PASSED','M3_OFFLINE_SEEK_PASSED','M3_POLICY_EXPIRY_PASSED','M4_SYSTEM_PASSED','M4_PREVIEW_REPEAT_GUARDED','M4_QUEUE_SLEEP_PASSED','M4_AUTH_ROTATION_PASSED','M4_LINKS_PASSED']:
                 assert marker in (output/'M3-media-integration.log').read_text(), 'Missing stability evidence: '+marker
             print('Actual native AVPlayer / HTTP HEAD / Range / revocation / hard-stop passed against isolated workerd. HTTPS/AASA and physical iPhone remain unverified.')
         finally:

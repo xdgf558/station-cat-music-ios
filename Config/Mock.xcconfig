@@ -11,3 +11,6 @@ STATION_NATIVE_MUSIC_ENABLED = NO
 
 // Public share/link origin is configured separately from the authentication API.
 STATION_MUSIC_WEB_ORIGIN =
+
+// M5 isolated personal sync remains opt-in.
+STATION_PERSONAL_SYNC_ENABLED = NO

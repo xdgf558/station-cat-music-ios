@@ -24,10 +24,18 @@
 	<true/>
 	<key>StationEnvironment</key>
 	<string>$(STATION_ENVIRONMENT)</string>
+	<key>StationLegalOrigin</key>
+	<string>https://wwwstationcat.org</string>
+	<key>StationMusicWebOrigin</key>
+	<string>$(STATION_MUSIC_WEB_ORIGIN)</string>
 	<key>StationNativeAuthEnabled</key>
 	<string>$(STATION_NATIVE_AUTH_ENABLED)</string>
 	<key>StationNativeAuthOrigin</key>
 	<string>$(STATION_NATIVE_AUTH_ORIGIN)</string>
+	<key>StationNativeMusicEnabled</key>
+	<string>$(STATION_NATIVE_MUSIC_ENABLED)</string>
+	<key>StationPersonalSyncEnabled</key>
+	<string>$(STATION_PERSONAL_SYNC_ENABLED)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -35,19 +43,15 @@
 		<key>UISceneConfigurations</key>
 		<dict/>
 	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
-	<key>StationNativeMusicEnabled</key>
-	<string>$(STATION_NATIVE_MUSIC_ENABLED)</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>audio</string>
-	</array>
-	<key>StationMusicWebOrigin</key>
-	<string>$(STATION_MUSIC_WEB_ORIGIN)</string>
 </dict>
 </plist>

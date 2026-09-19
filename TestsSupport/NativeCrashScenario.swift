@@ -4,9 +4,63 @@ import Darwin
 @testable import StationCatMusic
 #endif
 
+// Only compile-time phases and error categories enter artifacts; never Error descriptions/userInfo.
+enum ProbePhase: String, Sendable {
+    case configuration, cleanup, seedRequest, seedDecode, sessionInstall, deletionPrepare, receiptWrite
+    case authRestore, refreshRequest, evidenceRequest, evidenceDecode, heldPolling, boundaryValidation
+    case journalRead, journalWrite, expectedRequestWrite, recoveryRead, recoveryEvidence, recoveryAssertions, recoveryCleanup
+}
+struct ProbeDiagnostic: Error, Sendable {
+    let phase: ProbePhase
+    let category: String
+    let code: Int?
+    static func capture(_ error: Error, phase: ProbePhase) -> Self {
+        if let diagnostic = error as? Self { return diagnostic }
+        let category: String; var code: Int?
+        if let failure = error as? SecureStoreError {
+            switch failure {
+            case .osStatus(let status): category = "keychain_status"; code = Int(status)
+            case .protectedDataUnavailable: category = "keychain_locked"
+            case .corrupt: category = "keychain_corrupt"
+            }
+        } else if let failure = error as? APIError {
+            switch failure {
+            case .rejected(let status): category = "http_rejected"; code = status
+            case .invalidRequest: category = "invalid_request"
+            case .invalidPayload: category = "invalid_payload"
+            case .staleResponse: category = "stale_response"
+            case .storageUnavailable: category = "storage_unavailable"
+            case .requiresAuthentication: category = "authentication_required"
+            case .networkDisabled: category = "network_disabled"
+            case .unavailable: category = "unavailable"
+            }
+        } else if let failure = error as? NativeFailure {
+            // Server code is intentionally not interpolated: even a malformed code may contain secrets.
+            category = "native_rejected"; code = failure.status
+        } else if error is DecodingError { category = "decode_failed"
+        } else if error is ProbeFailure { category = "assertion_failed"
+        } else if error is CancellationError { category = "cancelled"
+        } else {
+            let ns = error as NSError
+            if ns.domain == NSURLErrorDomain { category = "url_error"; code = ns.code }
+            else if ns.domain == NSCocoaErrorDomain { category = "file_error"; code = ns.code }
+            else { category = "unknown" }
+        }
+        return Self(phase: phase, category: category, code: code)
+    }
+    var fields: String { "step=\(phase.rawValue):category=\(category)" + (code.map { ":code=\($0)" } ?? "") }
+}
+
 // Test-only durable evidence. No credential values are written here.
 enum ProbeReporter {
+    private static let lock = NSLock()
+    static func phase(_ phase: ProbePhase) throws { try emit("M2_PROBE_STEP:\(phase.rawValue):pid=\(getpid())") }
+    static func failure(_ error: Error) throws {
+        let diagnostic = ProbeDiagnostic.capture(error, phase: .configuration)
+        try emit("M2_PROBE_FAILED:\(diagnostic.fields):pid=\(getpid())")
+    }
     static func emit(_ line: String) throws {
+        lock.lock(); defer { lock.unlock() }
         if let runID = ProcessInfo.processInfo.environment["M2_PROBE_RUN_ID"] {
             guard UUID(uuidString: runID) != nil else { throw APIError.invalidRequest }
             let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -78,17 +132,26 @@ private struct LoopbackProbe: Sendable {
         r.httpMethod = method; r.httpBody = body
         r.setValue(configuration.key, forHTTPHeaderField: "X-Probe-Key")
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let (data, response) = try await session.data(for: r)
-        guard let response = response as? HTTPURLResponse, data.count < 262_144 else { throw APIError.invalidPayload }
-        return HTTPResult(status: response.statusCode, data: data)
+        do {
+            let (data, response) = try await session.data(for: r)
+            guard let response = response as? HTTPURLResponse, data.count < 262_144 else { throw APIError.invalidPayload }
+            return HTTPResult(status: response.statusCode, data: data)
+        } catch {
+            let phase: ProbePhase = path == "/fixture/seed" ? .seedRequest : path == "/fixture/evidence" ? .evidenceRequest : .refreshRequest
+            throw ProbeDiagnostic.capture(error, phase: phase)
+        }
     }
     func evidence() async throws -> ProbeEvidence {
         let r = try await request("/fixture/evidence")
-        guard r.status == 200 else { throw APIError.rejected(r.status) }
-        return try JSONDecoder().decode(ProbeEvidence.self, from: r.data)
+        do {
+            guard r.status == 200 else { throw APIError.rejected(r.status) }
+            return try JSONDecoder().decode(ProbeEvidence.self, from: r.data)
+        } catch { throw ProbeDiagnostic.capture(error, phase: .evidenceDecode) }
     }
 }
 private func exitAtBoundary(_ config: CrashProbeConfiguration, store: KeychainStore) async throws -> Never {
+    try ProbeReporter.phase(.boundaryValidation)
+    do {
     guard let record = try await AuthJournal(store: store, environment: .development).read(),
           (config.stage == "A13" ? record.generation == 1 && record.pending == nil : record.generation == 0 && record.pending != nil),
           try await store.read("expected-request") != nil,
@@ -96,20 +159,30 @@ private func exitAtBoundary(_ config: CrashProbeConfiguration, store: KeychainSt
     try ProbeReporter.emit("M2_BOUNDARY_REACHED:\(config.stage):durable-state-verified:pid=\(getpid())")
     fflush(nil)
     _exit(73)
+    } catch { throw ProbeDiagnostic.capture(error, phase: .boundaryValidation) }
 }
 private actor BoundaryStore: SecureStore {
     let base: KeychainStore
     let config: CrashProbeConfiguration
     init(base: KeychainStore, config: CrashProbeConfiguration) { self.base = base; self.config = config }
-    func read(_ key: String) async throws -> Data? { try await base.read(key) }
+    func read(_ key: String) async throws -> Data? {
+        do { return try await base.read(key) }
+        catch { throw ProbeDiagnostic.capture(error, phase: .journalRead) }
+    }
     func remove(_ key: String) async throws { try await base.remove(key) }
     func write(_ data: Data, key: String) async throws {
+        var phase = ProbePhase.journalWrite
+        do {
         let envelope = key == "auth.development" ? try JSONDecoder().decode(CredentialEnvelope.self, from: data) : nil
         let replacing = config.mode == "CRASH" && envelope?.generation == 1 && envelope?.pending == nil
         if replacing && config.stage == "A12" { try await exitAtBoundary(config, store: base) }
         try await base.write(data, key: key)
-        if let request = envelope?.pending?.requestID { try await base.write(Data(request.utf8), key: "expected-request") }
+        if let request = envelope?.pending?.requestID {
+            phase = .expectedRequestWrite
+            try await base.write(Data(request.utf8), key: "expected-request")
+        }
         if replacing && config.stage == "A13" { try await exitAtBoundary(config, store: base) }
+        } catch { throw ProbeDiagnostic.capture(error, phase: phase) }
     }
 }
 private actor BoundaryTransport: HTTPTransport {
@@ -119,15 +192,17 @@ private actor BoundaryTransport: HTTPTransport {
     func send(_ request: URLRequest) async throws -> HTTPResult {
         guard request.url?.host == "native.local.test", request.url?.path == "/api/mobile/v1/auth/refresh", request.httpMethod == "POST" else { throw APIError.invalidRequest }
         let probe = self.probe, store = self.store
+        try ProbeReporter.phase(.refreshRequest)
         return try await withThrowingTaskGroup(of: HTTPResult.self) { group in
             group.addTask { try await probe.request("/api/mobile/v1/auth/refresh", method: "POST", body: request.httpBody) }
             if probe.configuration.stage == "A11" && probe.configuration.mode == "CRASH" {
                 group.addTask {
+                    try ProbeReporter.phase(.heldPolling)
                     for _ in 0..<200 {
                         if try await probe.evidence().held { try await exitAtBoundary(probe.configuration, store: store) }
                         try await Task.sleep(for: .milliseconds(50))
                     }
-                    throw APIError.unavailable
+                    throw ProbeDiagnostic.capture(APIError.unavailable, phase: .heldPolling)
                 }
             }
             guard let value = try await group.next() else { throw APIError.unavailable }
@@ -148,22 +223,35 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
     func testCrashAtRefreshBoundary() async throws {
         let config = try CrashProbeConfiguration.load()
         guard config.mode == "CRASH" else { throw APIError.invalidRequest }
+        var phase = ProbePhase.cleanup
+        do {
+        try ProbeReporter.phase(phase)
         let base = KeychainStore(service: config.service)
         for key in ["auth.development", "deletion.development", "expected-request", "expected-receipt"] { try await base.remove(key) }
+        phase = .seedRequest; try ProbeReporter.phase(phase)
         let result = try await LoopbackProbe(configuration: config).request("/fixture/seed", method: "POST", body: JSONSerialization.data(withJSONObject: ["stage": config.stage]))
-        try probeEqual(result.status, 200)
+        guard result.status == 200 else { throw APIError.rejected(result.status) }
+        phase = .seedDecode; try ProbeReporter.phase(phase)
         let seed = try NativeJSON.decoder().decode(NativeResponse<NativeTokens>.self, from: result.data)
         let journal = AuthJournal(store: base, environment: .development)
+        phase = .sessionInstall; try ProbeReporter.phase(phase)
         try await journal.install(seed.data.credential(environment: .development, serverNow: seed.serverNow))
+        phase = .deletionPrepare; try ProbeReporter.phase(phase)
         let receipt = try await DeletionJournal(store: base, environment: .development).prepare(accountID: seed.data.accountId)
+        phase = .receiptWrite; try ProbeReporter.phase(phase)
         try await base.write(receipt.receipt, key: "expected-receipt")
         let auth = try service(config, store: BoundaryStore(base: base, config: config), base: base)
+        phase = .authRestore; try ProbeReporter.phase(phase)
         try await auth.restore()
         throw ProbeFailure.failed("Expected process termination before publishing refresh success")
+        } catch { throw ProbeDiagnostic.capture(error, phase: phase) }
     }
     func testRecoverOriginalOperation() async throws {
         let config = try CrashProbeConfiguration.load()
         guard config.mode == "RECOVER" else { throw APIError.invalidRequest }
+        var phase = ProbePhase.recoveryRead
+        do {
+        try ProbeReporter.phase(phase)
         let base = KeychainStore(service: config.service), journal = AuthJournal(store: base, environment: .development)
         let beforeRecord = try await journal.read()
         let before = try probeUnwrap(beforeRecord)
@@ -171,11 +259,14 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
         let requestID = try probeUnwrap(requestData.flatMap { String(data: $0, encoding: .utf8) })
         try probeEqual(before.generation, config.stage == "A13" ? 1 : 0)
         if config.stage == "A13" { try probeNil(before.pending) } else { try probeEqual(before.pending?.requestID, requestID) }
+        phase = .recoveryEvidence; try ProbeReporter.phase(phase)
         let probe = LoopbackProbe(configuration: config), committed = try await probe.evidence()
         try probeEqual(committed.session.generation, 1); try probeEqual(committed.operations.count, 1)
         try probeEqual(committed.operations.first?.request_id, requestID)
         let auth = try service(config, store: base, base: base)
+        phase = .authRestore; try ProbeReporter.phase(phase)
         try await auth.restore()
+        phase = .recoveryAssertions; try ProbeReporter.phase(phase)
         let afterRecord = try await journal.read()
         let after = try probeUnwrap(afterRecord), evidence = try await probe.evidence()
         try probeEqual(after.scope, before.scope); try probeEqual(after.familyID, before.familyID)
@@ -198,6 +289,8 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
         let action = try await deletion.recoveryAction()
         try probeEqual(action, .queryStatus(try probeUnwrap(receipt).deletionRequestID))
         try ProbeReporter.emit("M2_BOUNDARY_RECOVERED:\(config.stage):generation=\(after.generation):operations=\(evidence.operations.count):same-family:receipt-preserved:pid=\(getpid())")
+        phase = .recoveryCleanup; try ProbeReporter.phase(phase)
         for key in ["auth.development", "deletion.development", "expected-request", "expected-receipt"] { try await base.remove(key) }
+        } catch { throw ProbeDiagnostic.capture(error, phase: phase) }
     }
 }

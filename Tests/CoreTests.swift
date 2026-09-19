@@ -70,15 +70,15 @@ import XCTest
         let work = Task { try await client.catalog() }; work.cancel()
         do { _ = try await work.value; XCTFail("Cancelled request returned data") } catch { XCTAssertTrue(error is CancellationError) }
     }
-    func testScopeCachesNeverImplicitlyMerge() async {
+    func testScopeCachesNeverImplicitlyMerge() async throws {
         let library = ScopedLibrary(); let a = envelope().scope
         let b = AccountScope(environment: .mock, accountID: "fixture-B")
-        await library.setFavorite("song", value: true, scope: .guest)
-        let emptyA = await library.favorites(in: a); XCTAssertTrue(emptyA.isEmpty)
-        await library.setFavorite("private", value: true, scope: a)
-        await library.clear(scope: a)
-        let emptyB = await library.favorites(in: b); XCTAssertTrue(emptyB.isEmpty)
-        let guest = await library.favorites(in: .guest); XCTAssertEqual(guest, ["song"])
+        try await library.setFavorite("song", value: true, scope: .guest)
+        let emptyA = try await library.favorites(in: a); XCTAssertTrue(emptyA.isEmpty)
+        try await library.setFavorite("private", value: true, scope: a)
+        try await library.clear(scope: a)
+        let emptyB = try await library.favorites(in: b); XCTAssertTrue(emptyB.isEmpty)
+        let guest = try await library.favorites(in: .guest); XCTAssertEqual(guest, ["song"])
     }
     func testLateCatalogCannotOverwriteNewAccount() async throws {
         let model = AppModel(client: APIClient(environment: .mock, transport: MockTransport(data: try data(), delay: .milliseconds(100))))

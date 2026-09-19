@@ -42,6 +42,9 @@ nonisolated struct PlaybackBoundary: Sendable {
     private(set) var sleepDeadline: Double?
     @ObservationIgnored private var sleepTask: Task<Void, Never>?
     @ObservationIgnored private var system: (any PlaybackSystem)?
+    @ObservationIgnored var onListen: ((Track, String, Double, Double, String) -> Void)?
+    private var listenMeter = AudibleListenMeter()
+    private var listenID = UUID().uuidString
     @ObservationIgnored var onSelection: ((Track?) -> Void)?
     private var interrupted = false
     private var interruptionResumeDeadline: Double?
@@ -78,6 +81,7 @@ nonisolated struct PlaybackBoundary: Sendable {
     private func selectItem(_ track: Track) {
         boundary.deny(); stop(); selectedTrack = track; position = 0; duration = track.durationSeconds
         previewOffset = 0; activeVariant = "automatic"; state = .selected
+        listenMeter = AudibleListenMeter(); listenID = UUID().uuidString
         onSelection?(track); publish()
     }
     func select(_ track: Track) { cancelInterruptionIntent(); queue.replace([track], startingAt: 0); queueAttempts = []; selectItem(track) }
@@ -126,6 +130,7 @@ nonisolated struct PlaybackBoundary: Sendable {
             if track.access == .unavailable { skipUnavailable(); return }
         }
         // Every explicit resume obtains a fresh URL and a fresh hard deadline.
+        if state == .completed { listenMeter = AudibleListenMeter(); listenID = UUID().uuidString }
         let resumePosition = (renewal || state == .paused) && activeVariant == variant ? position : 0
         if renewal {
             guard state == .playing, boundary.deadline != nil else { return }
@@ -179,7 +184,12 @@ nonisolated struct PlaybackBoundary: Sendable {
                         do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
                         guard let self, self.boundary.sequence == sequence else { return }
                         self.checkDeadline()
-                        self.capturePosition(); self.checkSleepTimer(); self.publish()
+                        self.capturePosition()
+                        if self.listenMeter.sample(wall: self.clock.now, media: self.position,
+                            playing: self.state == .playing && !self.isSeeking && self.player.timeControlStatus == .playing && !self.player.isMuted && self.player.volume > 0), let track = self.selectedTrack {
+                            self.onListen?(track, self.activeVariant, self.listenMeter.seconds, self.position, self.listenID)
+                        }
+                        self.checkSleepTimer(); self.publish()
                         if self.player.currentItem?.status == .failed { self.deny(); return }
                     }
                 }
@@ -213,6 +223,7 @@ nonisolated struct PlaybackBoundary: Sendable {
     func pause() { cancelInterruptionIntent(); pauseForSystem() }
     private func pauseForSystem() { capturePosition(); boundary.deny(); stop(); state = .paused; publish() }
     func seek(to seconds: Double) {
+        listenMeter.resetProgress()
         cancelInterruptionIntent(); checkDeadline()
         guard seconds.isFinite else { return }
         if state == .paused || state == .completed { position = max(0, min(duration, seconds)); state = .paused; publish(); return }

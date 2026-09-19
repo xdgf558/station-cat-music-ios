@@ -7,7 +7,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import Mock
 from urllib.error import HTTPError, URLError
-from probe_evidence import MAX_BYTES, read_probe_evidence, validate_evidence
+from probe_evidence import MAX_BYTES, read_probe_evidence, validate_evidence, read_failure_evidence
 
 CONNECTION = {'port': 12345, 'key': 'FIXTURE_ONLY'}
 
@@ -64,6 +64,34 @@ class EvidenceTests(unittest.TestCase):
             self.assertEqual(requests, [('GET', '/fixture/evidence')] * 2)
         finally:
             server.shutdown(); server.server_close(); thread.join()
+
+    def test_absolute_deadline_covers_headers_and_slow_body(self):
+        for mode in ['headers_then_body', 'drip']:
+            closed = threading.Event()
+            class Handler(BaseHTTPRequestHandler):
+                def do_GET(self):
+                    try:
+                        if mode == 'headers_then_body': time.sleep(.14)
+                        body = json.dumps(fixture()).encode()
+                        self.send_response(200); self.send_header('Content-Length', str(len(body))); self.end_headers()
+                        if mode == 'headers_then_body':
+                            time.sleep(.14); self.wfile.write(body)
+                        else:
+                            for byte in body:
+                                self.wfile.write(bytes([byte])); self.wfile.flush(); time.sleep(.07)
+                    except (BrokenPipeError, ConnectionResetError): closed.set()
+                def log_message(self, *args): pass
+            server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+            try:
+                started = time.monotonic()
+                with self.assertRaisesRegex(RuntimeError, 'exhausted'):
+                    read_probe_evidence({'port': server.server_port, 'key': 'FIXTURE_ONLY'}, 'A12',
+                                        request_timeout=.2, total_timeout=.23, max_attempts=1)
+                self.assertLess(time.monotonic() - started, .5)
+                if mode == 'drip': self.assertTrue(closed.wait(1), 'underlying socket must close')
+            finally:
+                server.shutdown(); server.server_close(); thread.join()
 
     def test_total_budget_exhaustion_caps_each_timeout(self):
         clock = Clock()
@@ -133,6 +161,33 @@ class EvidenceTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError): validate_evidence(value, 'A12')
         value = fixture('A13'); value['requests'][1]['requestId'] = value['requests'][0]['requestId']
         with self.assertRaises(ValueError): validate_evidence(value, 'A13')
+
+
+class FailureEvidenceTests(unittest.TestCase):
+    def test_failure_snapshot_is_readonly_bounded_and_redacted(self):
+        value = fixture(); value['requests'] = value['requests'][:1]
+        value['secret'] = 'SENSITIVE'; value['requests'][0]['body'] = 'SENSITIVE'
+        value['session']['token'] = 'SENSITIVE'
+        opener = Mock(return_value=io.BytesIO(json.dumps(value).encode()))
+        result = read_failure_evidence(CONNECTION, 'A12', opener=opener)
+        self.assertTrue(result['diagnosticOnly']); self.assertEqual(result['requestCount'], 1)
+        self.assertNotIn('SENSITIVE', json.dumps(result)); self.assertNotIn('requestId', json.dumps(result))
+        opener.assert_called_once(); args, kwargs = opener.call_args
+        self.assertEqual(args[0].get_method(), 'GET'); self.assertEqual(kwargs['timeout'], 5)
+
+    def test_failure_snapshot_never_retries_or_returns_error_details(self):
+        for error in [TimeoutError('SENSITIVE'), URLError('SENSITIVE')]:
+            opener = Mock(side_effect=error)
+            result = read_failure_evidence(CONNECTION, 'A12', opener=opener)
+            self.assertEqual(result['readStatus'], 'transport_unavailable')
+            self.assertNotIn('SENSITIVE', json.dumps(result)); opener.assert_called_once()
+
+    def test_failure_snapshot_rejects_mismatched_and_untyped_payloads(self):
+        value = fixture(); value['session']['generation'] = 'SENSITIVE'
+        for payload in [value, fixture('A13'), {'stage': 'SENSITIVE'}, ['SENSITIVE']]:
+            result = read_failure_evidence(CONNECTION, 'A12', opener=Mock(return_value=io.BytesIO(json.dumps(payload).encode())))
+            self.assertEqual(result['readStatus'], 'invalid_evidence')
+            self.assertNotIn('SENSITIVE', json.dumps(result))
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

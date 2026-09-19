@@ -77,6 +77,22 @@ jobs:
         env:
           M3_BACKEND_PATH: ${{ github.workspace }}/.backend-m3
         run: python3 scripts/verify_native_media.py
+      - name: Read isolated personal library fixture revision
+        id: library
+        run: python3 -c "import json,os; f=open(os.environ['GITHUB_OUTPUT'],'a'); f.write('revision='+json.load(open('contracts/backend-library-fixture.json'))['commit']+'\n')"
+      - uses: actions/checkout@v4
+        with:
+          repository: xdgf558/caption-ai-landing-site
+          ref: ${{ steps.library.outputs.revision }}
+          path: .backend-m5
+          persist-credentials: false
+      - name: Install isolated personal library dependencies
+        working-directory: .backend-m5
+        run: npm ci
+      - name: Verify two-session native library and history isolation
+        env:
+          M5_BACKEND_PATH: ${{ github.workspace }}/.backend-m5
+        run: python3 scripts/verify_native_library.py
       - run: bash scripts/verify_configurations.sh
       - run: bash scripts/test_ios.sh
       - run: bash scripts/verify_keychain_relaunch.sh

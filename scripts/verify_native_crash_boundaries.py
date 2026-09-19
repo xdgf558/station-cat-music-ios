@@ -5,7 +5,7 @@ No production configuration, ATS exception, fake clock, or extended replay deadl
 from pathlib import Path
 from crash_probe_runner import run_file_probe,wait_ready
 import hashlib,json,os,plistlib,platform,shutil,subprocess,tempfile,time,uuid
-from urllib.request import Request,urlopen
+from probe_evidence import read_probe_evidence
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
 backend=Path(os.environ['M2_BACKEND_PATH']).resolve()
@@ -73,13 +73,12 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
                 else:
                     assert result['hostPID']!=crash_evidence['crashedHostPID'], 'Recovery must use a new process'
                     crash_evidence['recoveredHostPID']=result['hostPID']
-            request=Request('http://127.0.0.1:'+str(connection['port'])+'/fixture/evidence',headers={'X-Probe-Key':connection['key']})
-            with urlopen(request,timeout=5) as response:
-                evidence=json.load(response)
+            evidence,read_stats=read_probe_evidence(connection,stage)
+            (output/('M2-boundary-'+stage+'-server-evidence.json')).write_text(json.dumps(evidence,indent=2)+'\n')
             requests=evidence['requests']
             interval=(requests[1]['committedAt']-requests[0]['committedAt'])/1000
             print(stage+': server request interval '+str(round(interval,3))+' seconds',flush=True)
-            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,**crash_evidence,'serverRequestIntervalSeconds':round(interval,3),'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
+            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,**crash_evidence,'serverRequestIntervalSeconds':round(interval,3),'evidenceRead':read_stats,'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
             (output/'M2-boundaries-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
             print(stage+': process termination and recovery passed',flush=True)
     finally:

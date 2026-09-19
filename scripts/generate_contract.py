@@ -41,7 +41,7 @@ s['RecentItem']=obj({'trackId':ID,'lastPlayedAt':D,'positionSeconds':{'type':'nu
 s['Recent']=obj({'items':arr(ref('RecentItem')),'nextCursor':cursor,'historyEpoch':N})
 s['Preferences']=obj({'historyEnabled':B,'historyEpoch':N,'version':N})
 s['PreferenceRequest']=obj({'historyEnabled':B,'expectedVersion':N,'mutationId':ID},closed=True)
-s['ListenRequest']=obj({'trackId':ID,'audioVersion':{'type':'integer','minimum':1},'variant':enum('full','preview'),'eventId':ID,'historyEpoch':N,'audibleSeconds':{'type':'number','minimum':0},'positionSeconds':{'type':'number','minimum':0}},closed=True)
+s['ListenRequest']=obj({'trackId':ID,'audioVersion':{'type':'integer','minimum':1},'variant':enum('full','preview'),'eventId':ID,'historyEpoch':N,'audibleSeconds':{'type':'number','minimum':5,'maximum':86400},'positionSeconds':{'type':'number','minimum':0,'maximum':86400},'occurredAt':{**D,'pattern':r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$','description':'UTC event time, at most 30 days old or 5 minutes ahead; small future skew is clamped to server receipt time. Older/equal events do not replace a newer same-track record.'}},closed=True)
 s['ClearHistoryRequest']=obj({'confirmed':{'const':True},'historyEpoch':N,'mutationId':ID},closed=True)
 s['Acknowledged']=obj({'accepted':B})
 s['DeletePrepareRequest']=obj({'deletionRequestId':ID,'deletionReceiptHash':{'type':'string','pattern':'^[a-f0-9]{64}$','description':'SHA-256 of decoded 32 random bytes, never of base64url text.'},'scopeVersion':{'const':'station-account-v1'}},closed=True)

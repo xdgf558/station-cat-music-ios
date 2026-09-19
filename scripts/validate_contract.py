@@ -20,6 +20,9 @@ bad=deepcopy(fixtures['PlaybackGrant']);bad.update(authMode='session_bearer',acc
 bad=deepcopy(fixtures['DeletePrepared']);bad['accountId']='leaked';negative.append(('DeletePrepared',bad))
 bad=deepcopy(fixtures['GrantRequest']);bad['authMode']='public';negative.append(('GrantRequest',bad))
 bad=deepcopy(fixtures['PlaybackGrant']);bad['playbackUrl']+='?accessToken=fixture';negative.append(('PlaybackGrant',bad))
+bad=deepcopy(fixtures['ListenRequest']);bad.pop('occurredAt');negative.append(('ListenRequest',bad))
+bad=deepcopy(fixtures['ListenRequest']);bad['occurredAt']='not-a-date';negative.append(('ListenRequest',bad))
+bad=deepcopy(fixtures['ListenRequest']);bad['audibleSeconds']=4.9;negative.append(('ListenRequest',bad))
 for name,value in negative:
  try:check(name,value)
  except Exception:pass

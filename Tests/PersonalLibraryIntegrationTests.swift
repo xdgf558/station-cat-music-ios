@@ -1,6 +1,6 @@
 import XCTest
 @testable import StationCatMusic
-private struct LibraryFixture: Decodable { let first: CredentialEnvelope; let second: CredentialEnvelope; let other: CredentialEnvelope; let trackId: String; let durationSeconds: Double }
+private struct LibraryFixture: Decodable { let first: CredentialEnvelope; let second: CredentialEnvelope; let other: CredentialEnvelope; let trackId: String; let anotherTrackId: String; let durationSeconds: Double }
 private struct LibraryBrowser: AuthenticationBrowser {
     @MainActor func authorize(url: URL, callback: URL) throws -> URL { throw APIError.networkDisabled }
 }
@@ -29,6 +29,22 @@ private struct LibraryBrowser: AuthenticationBrowser {
         try await one.setFavorite(track.id, value: false, scope: scope); try await one.synchronize(scope: scope, remote: first)
         try await two.setFavorite(track.id, value: true, scope: scope); try await two.synchronize(scope: scope, remote: second)
         let conflicted = try await two.view(in: scope); XCTAssertTrue(conflicted.conflict); XCTAssertTrue(conflicted.favorites.isEmpty)
+        // Separate songs on two native sessions must survive account-level transaction contention.
+        try await one.setFavorite(track.id, value: true, scope: scope)
+        try await two.setFavorite(fixture.anotherTrackId, value: true, scope: scope)
+        async let left: Void = one.synchronize(scope: scope, remote: first)
+        async let right: Void = two.synchronize(scope: scope, remote: second)
+        _ = try await (left, right)
+        let concurrent = try await first.snapshot(scope: scope)
+        XCTAssertEqual(Set(concurrent.favorites.filter(\.favorite).map(\.trackId)), [track.id, fixture.anotherTrackId])
+        // An older offline event arriving second must not replace the newer event's position.
+        let occurred = Date().addingTimeInterval(-3600)
+        let newerEvent = LibraryOperation(id: UUID().uuidString, created: occurred, kind: .listen, trackID: track.id, epoch: 0, audioVersion: 1, variant: "full", audibleSeconds: 5, position: 40)
+        let olderEvent = LibraryOperation(id: UUID().uuidString, created: occurred.addingTimeInterval(-86400), kind: .listen, trackID: track.id, epoch: 0, audioVersion: 1, variant: "full", audibleSeconds: 5, position: 5)
+        try await first.apply(newerEvent, scope: scope); try await second.apply(olderEvent, scope: scope)
+        let merged = try await first.snapshot(scope: scope)
+        XCTAssertEqual(merged.recent.first?.positionSeconds, 40)
+        XCTAssertEqual(try XCTUnwrap(merged.recent.first?.lastPlayedAt).timeIntervalSince1970, occurred.timeIntervalSince1970, accuracy: 0.002)
         let music = try NativeMusicAPI(configuration: config, explicitlyEnabled: true, transport: bridge, auth: auth)
         let player = PlaybackService(transport: bridge); defer { player.shutdown() }
         var heard: (Double, Double, String)?
@@ -51,6 +67,6 @@ private struct LibraryBrowser: AuthenticationBrowser {
         let disabled = try await two.view(in: scope); XCTAssertFalse(disabled.historyEnabled)
         try await auth.signOut()
         do { _ = try await first.snapshot(scope: scope); XCTFail("Signed-out account sent personal request") } catch {}
-        print("M5_LIBRARY_PASSED: two native sessions, shared favorites, conflict, real audible threshold, history epoch, disabled history, logout isolation")
+        print("M5_LIBRARY_PASSED: two native sessions, shared favorites, independent concurrent favorites, late offline ordering, conflict, real audible threshold, history epoch, disabled history, logout isolation")
     }
 }

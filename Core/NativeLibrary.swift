@@ -65,7 +65,8 @@ actor NativeLibraryAPI: LibraryRemote {
         case .listen:
             guard let id = op.trackID, let version = op.audioVersion, let epoch = op.epoch, let variant = op.variant, let audible = op.audibleSeconds, let position = op.position else { throw APIError.invalidRequest }
             struct Accepted: Decodable, Sendable { let accepted: Bool }
-            let _: Accepted = try await request("listens", method: "POST", body: ["trackId": id, "audioVersion": version, "eventId": op.id, "historyEpoch": epoch, "variant": variant, "audibleSeconds": audible, "positionSeconds": position], scope: scope, as: Accepted.self)
+            let date = ISO8601DateFormatter(); date.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let _: Accepted = try await request("listens", method: "POST", body: ["trackId": id, "audioVersion": version, "eventId": op.id, "historyEpoch": epoch, "variant": variant, "audibleSeconds": audible, "positionSeconds": position, "occurredAt": date.string(from: op.created)], scope: scope, as: Accepted.self)
         }
     }
 }

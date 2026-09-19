@@ -97,15 +97,25 @@ actor ScopedLibrary {
         if scope.accountID != nil { stored.operations.append(.init(id: UUID().uuidString, created: Date(), kind: .clear, epoch: epoch)) }
         try save(stored)
     }
+    private func mergedRecent(_ rows: [LibraryRecent], now: Date = Date()) -> [LibraryRecent] {
+        let cutoff = now.addingTimeInterval(-90 * 86400)
+        var latest: [String: LibraryRecent] = [:]
+        for row in rows where row.lastPlayedAt > cutoff {
+            if let old = latest[row.trackId], old.lastPlayedAt >= row.lastPlayedAt { continue }
+            latest[row.trackId] = row
+        }
+        return Array(latest.values.sorted {
+            $0.lastPlayedAt == $1.lastPlayedAt ? $0.trackId < $1.trackId : $0.lastPlayedAt > $1.lastPlayedAt
+        }.prefix(1000))
+    }
     func record(_ track: Track, variant: String, audible: Double, position: Double, eventID: String, scope: AccountScope) throws {
         var stored = try state(scope)
         guard !stored.historyBlockedLocally, stored.preferences.historyEnabled, audible.isFinite, audible >= 5, position.isFinite, position >= 0 else { return }
         guard stored.operations.count < 5000 else { throw APIError.storageUnavailable }
         if stored.operations.contains(where: { $0.id == eventID }) { return }
-        stored.recent.removeAll { $0.trackId == track.id || $0.lastPlayedAt <= Date().addingTimeInterval(-90 * 86400) }
-        stored.recent.insert(.init(trackId: track.id, lastPlayedAt: Date(), positionSeconds: position), at: 0)
-        stored.recent = Array(stored.recent.prefix(1000))
-        if scope.accountID != nil { stored.operations.append(.init(id: eventID, created: Date(), kind: .listen, trackID: track.id, epoch: stored.preferences.historyEpoch, audioVersion: track.audioVersion, variant: variant, audibleSeconds: audible, position: position)) }
+        let occurred = Date()
+        stored.recent = mergedRecent(stored.recent + [.init(trackId: track.id, lastPlayedAt: occurred, positionSeconds: position)])
+        if scope.accountID != nil { stored.operations.append(.init(id: eventID, created: occurred, kind: .listen, trackID: track.id, epoch: stored.preferences.historyEpoch, audioVersion: track.audioVersion, variant: variant, audibleSeconds: audible, position: position)) }
         try save(stored)
     }
     func synchronize(scope: AccountScope, remote: any LibraryRemote) async throws {
@@ -124,9 +134,15 @@ actor ScopedLibrary {
                 var current = try state(scope); current.operations.removeAll { $0.id == operation.id }; try save(current)
             } catch APIError.rejected(let code) where [400, 404, 409].contains(code) {
                 var current = try state(scope)
-                current.operations.removeAll { $0.id == operation.id || (operation.kind == .favorite && $0.kind == .favorite && $0.trackID == operation.trackID) || (operation.kind != .favorite && $0.kind != .favorite) }
+                // A clear/toggle can remove an in-flight listen. Its late error no longer owns
+                // any queue entry and must not discard a newer privacy action.
+                guard current.operations.contains(where: { $0.id == operation.id }) else { continue }
+                current.operations.removeAll {
+                    $0.id == operation.id || (operation.kind == .favorite && $0.kind == .favorite &&
+                        $0.trackID == operation.trackID && ($0.version ?? -1) > (operation.version ?? -1))
+                }
                 current.conflict = true; try save(current)
-                break // Refresh authoritative state, never silently overwrite a conflict.
+                break // Preserve unrelated events/privacy actions; refresh authoritative state.
             }
         }
         let snapshot = try await remote.snapshot(scope: scope)
@@ -140,10 +156,12 @@ actor ScopedLibrary {
         if !current.operations.contains(where: { $0.kind == .preference || $0.kind == .clear }) {
             current.preferences = snapshot.preferences
             current.operations.removeAll { $0.kind == .listen && ($0.epoch != snapshot.preferences.historyEpoch || !snapshot.preferences.historyEnabled || current.historyBlockedLocally) }
-            current.recent = snapshot.recent
-            for op in current.operations where op.kind == .listen {
-                if let id = op.trackID, !current.recent.contains(where: { $0.trackId == id }) { current.recent.append(.init(trackId: id, lastPlayedAt: op.created, positionSeconds: op.position ?? 0)) }
+            let local: [LibraryRecent] = current.operations.compactMap { op in
+                guard op.kind == .listen, let id = op.trackID else { return nil }
+                return .init(trackId: id, lastPlayedAt: op.created, positionSeconds: op.position ?? 0)
             }
+            // Presentation bounds never trim the durable upload journal.
+            current.recent = mergedRecent(snapshot.recent + local)
         }
         try save(current)
     }

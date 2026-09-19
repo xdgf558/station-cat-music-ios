@@ -159,3 +159,82 @@ private actor LibraryServer: LibraryRemote {
         let value = try await library.view(in: .guest); XCTAssertTrue(value.recent.isEmpty)
     }
 }
+
+private actor HeldLibraryServer: LibraryRemote {
+    enum Mode { case listen, snapshot }
+    let mode: Mode
+    var value: LibrarySnapshot
+    var calls: [LibraryOperation.Kind] = []
+    private var held = false
+    private var used = false
+    private var started: [CheckedContinuation<Void, Never>] = []
+    private var release: CheckedContinuation<Void, Error>?
+    init(mode: Mode, recent: [LibraryRecent]) { self.mode = mode; value = .init(favorites: [], recent: recent, preferences: .init()) }
+    func waitUntilHeld() async { if held { return }; await withCheckedContinuation { started.append($0) } }
+    private func hold() async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            release = continuation; held = true; started.forEach { $0.resume() }; started = []
+        }
+    }
+    func finish(code: Int? = nil) { if let code { release?.resume(throwing: APIError.rejected(code)) } else { release?.resume() }; release = nil }
+    func apply(_ op: LibraryOperation, scope: AccountScope) async throws {
+        calls.append(op.kind)
+        if mode == .listen && !used { used = true; try await hold() }
+        if op.kind == .clear { value.recent = []; value.preferences.historyEpoch += 1; value.preferences.version += 1 }
+        if op.kind == .preference { value.preferences.historyEnabled = op.value!; value.preferences.historyEpoch += 1; value.preferences.version += 1 }
+    }
+    func snapshot(scope: AccountScope) async throws -> LibrarySnapshot {
+        let captured = value
+        if mode == .snapshot && !used { used = true; try await hold() }
+        return captured
+    }
+}
+
+extension PersonalLibraryTests {
+    func testLateRejectedListenCannotEatNewClearOrDisable() async throws {
+        for code in [404, 409] {
+            for clear in [true, false] {
+                let old = LibraryRecent(trackId: track.id, lastPlayedAt: Date().addingTimeInterval(-60), positionSeconds: 40)
+                let remote = HeldLibraryServer(mode: .listen, recent: [old]), library = ScopedLibrary()
+                try await library.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: a)
+                let work = Task { try await library.synchronize(scope: a, remote: remote) }
+                await remote.waitUntilHeld()
+                if clear { try await library.clearHistory(scope: a) } else { try await library.setHistory(false, scope: a) }
+                let before = try await library.view(in: a); XCTAssertEqual(before.pending, 1)
+                await remote.finish(code: code); try await work.value
+                let after = try await library.view(in: a), calls = await remote.calls, server = await remote.value
+                XCTAssertEqual(calls, [.listen, clear ? .clear : .preference]); XCTAssertEqual(after.pending, 0)
+                if clear { XCTAssertTrue(after.recent.isEmpty); XCTAssertTrue(server.recent.isEmpty) }
+                else { XCTAssertFalse(after.historyEnabled); XCTAssertFalse(server.preferences.historyEnabled) }
+            }
+        }
+    }
+    func testSnapshotMergeKeepsNewerLocalPositionAndSortsAndCapsWithoutDroppingUploads() async throws {
+        let old = Date().addingTimeInterval(-60)
+        var rows = (1...999).map { LibraryRecent(trackId: "old-\($0)", lastPlayedAt: old.addingTimeInterval(-Double($0)), positionSeconds: 5) }
+        rows.append(.init(trackId: track.id, lastPlayedAt: old, positionSeconds: 5))
+        let library = ScopedLibrary(), remote = HeldLibraryServer(mode: .snapshot, recent: rows)
+        let work = Task { try await library.synchronize(scope: a, remote: remote) }
+        await remote.waitUntilHeld()
+        try await library.record(track, variant: "full", audible: 40, position: 40, eventID: UUID().uuidString, scope: a)
+        let newer = Track(id: "new", title: "New", artist: "Test", durationSeconds: 60, audioVersion: 1, access: .free)
+        try await library.record(newer, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: a)
+        await remote.finish(); try await work.value
+        let after = try await library.view(in: a)
+        XCTAssertEqual(after.recent.count, 1000); XCTAssertEqual(after.pending, 2)
+        XCTAssertEqual(after.recent.first?.trackId, newer.id)
+        XCTAssertEqual(after.recent.first(where: { $0.trackId == track.id })?.positionSeconds, 40)
+        XCTAssertGreaterThan(try XCTUnwrap(after.recent.first(where: { $0.trackId == track.id })?.lastPlayedAt), old)
+        XCTAssertFalse(after.recent.contains(where: { $0.trackId == "old-999" }))
+    }
+    func testTransientContentionKeepsDurableFavoriteForRetry() async throws {
+        struct Busy: LibraryRemote {
+            func apply(_ op: LibraryOperation, scope: AccountScope) throws { throw APIError.rejected(503) }
+            func snapshot(scope: AccountScope) throws -> LibrarySnapshot { throw APIError.unavailable }
+        }
+        let library = ScopedLibrary(); try await library.setFavorite(track.id, value: true, scope: a)
+        do { try await library.synchronize(scope: a, remote: Busy()); XCTFail() } catch {}
+        let after = try await library.view(in: a)
+        XCTAssertEqual(after.pending, 1); XCTAssertEqual(after.favorites, [track.id]); XCTAssertFalse(after.conflict)
+    }
+}

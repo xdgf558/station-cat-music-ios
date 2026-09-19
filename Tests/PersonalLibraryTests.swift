@@ -10,7 +10,7 @@ private actor LibraryServer: LibraryRemote {
     var delay: Duration = .zero
     func configure(failAfterCommit: Bool = false, conflict: Bool = false, delay: Duration = .zero) { self.failAfterCommit = failAfterCommit; self.conflict = conflict; self.delay = delay }
     func snapshot(scope: AccountScope) async throws -> LibrarySnapshot { try await Task.sleep(for: delay); return values[scope] ?? .init(favorites: [], recent: [], preferences: .init()) }
-    func apply(_ op: LibraryOperation, scope: AccountScope) async throws {
+    func apply(_ op: LibraryOperation, scope: AccountScope) async throws -> LibraryPreferences? {
         calls.append(op); try await Task.sleep(for: delay)
         if conflict { throw APIError.rejected(409) }
         if seen.insert(op.id).inserted {
@@ -26,6 +26,7 @@ private actor LibraryServer: LibraryRemote {
             values[scope] = value
         }
         if failAfterCommit { failAfterCommit = false; throw APIError.unavailable }
+        return op.kind == .preference || op.kind == .clear ? values[scope]?.preferences : nil
     }
 }
 @MainActor final class PersonalLibraryTests: XCTestCase {
@@ -63,15 +64,17 @@ private actor LibraryServer: LibraryRemote {
     }
     func testDisableOfflineCancelsListensAndStaysLocallyOffOnConflict() async throws {
         let library = ScopedLibrary(), remote = LibraryServer(); await remote.configure(conflict: true)
+        try await library.synchronize(scope: a, remote: LibraryServer())
         try await library.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: a)
         try await library.setHistory(false, scope: a)
         try await library.synchronize(scope: a, remote: remote)
         try await library.record(track, variant: "full", audible: 6, position: 6, eventID: UUID().uuidString, scope: a)
         let calls = await remote.calls, value = try await library.view(in: a)
-        XCTAssertEqual(calls.map(\.kind), [.preference]); XCTAssertFalse(value.historyEnabled); XCTAssertEqual(value.pending, 0)
+        XCTAssertEqual(calls.map(\.kind), [.preference]); XCTAssertFalse(value.historyEnabled); XCTAssertEqual(value.pending, 1)
     }
     func testClearHistoryDoesNotUploadQueuedOldListen() async throws {
         let library = ScopedLibrary(), remote = LibraryServer()
+        try await library.synchronize(scope: a, remote: LibraryServer())
         try await library.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: a)
         try await library.clearHistory(scope: a)
         try await library.synchronize(scope: a, remote: remote)
@@ -95,6 +98,7 @@ private actor LibraryServer: LibraryRemote {
     }
     func testEditsArrivingDuringSnapshotArePreserved() async throws {
         let library = ScopedLibrary(), remote = LibraryServer(); await remote.configure(delay: .milliseconds(50))
+        try await library.synchronize(scope: a, remote: LibraryServer())
         let work = Task { try await library.synchronize(scope: a, remote: remote) }
         try await Task.sleep(for: .milliseconds(10)); try await library.setFavorite(track.id, value: true, scope: a)
         try await work.value
@@ -177,11 +181,12 @@ private actor HeldLibraryServer: LibraryRemote {
         }
     }
     func finish(code: Int? = nil) { if let code { release?.resume(throwing: APIError.rejected(code)) } else { release?.resume() }; release = nil }
-    func apply(_ op: LibraryOperation, scope: AccountScope) async throws {
+    func apply(_ op: LibraryOperation, scope: AccountScope) async throws -> LibraryPreferences? {
         calls.append(op.kind)
         if mode == .listen && !used { used = true; try await hold() }
         if op.kind == .clear { value.recent = []; value.preferences.historyEpoch += 1; value.preferences.version += 1 }
         if op.kind == .preference { value.preferences.historyEnabled = op.value!; value.preferences.historyEpoch += 1; value.preferences.version += 1 }
+        return op.kind == .preference || op.kind == .clear ? value.preferences : nil
     }
     func snapshot(scope: AccountScope) async throws -> LibrarySnapshot {
         let captured = value
@@ -196,6 +201,7 @@ extension PersonalLibraryTests {
             for clear in [true, false] {
                 let old = LibraryRecent(trackId: track.id, lastPlayedAt: Date().addingTimeInterval(-60), positionSeconds: 40)
                 let remote = HeldLibraryServer(mode: .listen, recent: [old]), library = ScopedLibrary()
+                try await library.synchronize(scope: a, remote: LibraryServer())
                 try await library.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: a)
                 let work = Task { try await library.synchronize(scope: a, remote: remote) }
                 await remote.waitUntilHeld()
@@ -214,6 +220,7 @@ extension PersonalLibraryTests {
         var rows = (1...999).map { LibraryRecent(trackId: "old-\($0)", lastPlayedAt: old.addingTimeInterval(-Double($0)), positionSeconds: 5) }
         rows.append(.init(trackId: track.id, lastPlayedAt: old, positionSeconds: 5))
         let library = ScopedLibrary(), remote = HeldLibraryServer(mode: .snapshot, recent: rows)
+        try await library.synchronize(scope: a, remote: LibraryServer())
         let work = Task { try await library.synchronize(scope: a, remote: remote) }
         await remote.waitUntilHeld()
         try await library.record(track, variant: "full", audible: 40, position: 40, eventID: UUID().uuidString, scope: a)
@@ -229,12 +236,136 @@ extension PersonalLibraryTests {
     }
     func testTransientContentionKeepsDurableFavoriteForRetry() async throws {
         struct Busy: LibraryRemote {
-            func apply(_ op: LibraryOperation, scope: AccountScope) throws { throw APIError.rejected(503) }
+            func apply(_ op: LibraryOperation, scope: AccountScope) throws -> LibraryPreferences? { throw APIError.rejected(503) }
             func snapshot(scope: AccountScope) throws -> LibrarySnapshot { throw APIError.unavailable }
         }
         let library = ScopedLibrary(); try await library.setFavorite(track.id, value: true, scope: a)
         do { try await library.synchronize(scope: a, remote: Busy()); XCTFail() } catch {}
         let after = try await library.view(in: a)
         XCTAssertEqual(after.pending, 1); XCTAssertEqual(after.favorites, [track.id]); XCTAssertFalse(after.conflict)
+    }
+}
+
+// Matches the server's CAS, epoch, and immutable idempotent privacy receipts.
+private actor PrivacyCASServer: LibraryRemote {
+    var prefs = LibraryPreferences()
+    var recent: [LibraryRecent] = []
+    var calls: [LibraryOperation] = []
+    var receipts: [String: LibraryPreferences] = [:]
+    var loseNextReceipt = false
+    var failAfterConflict = false
+    private var snapshotFailure = false
+    func loseReceipt() { loseNextReceipt = true }
+    func failConflictSnapshot() { failAfterConflict = true }
+    func otherDeviceClears() { prefs.version += 1; prefs.historyEpoch += 1; recent = [] }
+    func snapshot(scope: AccountScope) throws -> LibrarySnapshot {
+        if snapshotFailure { snapshotFailure = false; throw APIError.unavailable }
+        return .init(favorites: [], recent: recent, preferences: prefs)
+    }
+    func apply(_ op: LibraryOperation, scope: AccountScope) throws -> LibraryPreferences? {
+        calls.append(op)
+        if let receipt = receipts[op.id] { return receipt }
+        if op.kind == .preference || op.kind == .clear {
+            guard op.kind == .clear ? op.epoch == prefs.historyEpoch : op.version == prefs.version else {
+                snapshotFailure = failAfterConflict; throw APIError.rejected(409)
+            }
+            if op.kind == .clear { recent = [] } else { prefs.historyEnabled = op.value! }
+            prefs.version += 1; prefs.historyEpoch += 1; receipts[op.id] = prefs
+            if loseNextReceipt { loseNextReceipt = false; throw APIError.unavailable }
+            return prefs
+        }
+        if op.kind == .listen {
+            guard prefs.historyEnabled, op.epoch == prefs.historyEpoch else { throw APIError.rejected(409) }
+            recent = [.init(trackId: op.trackID!, lastPlayedAt: op.created, positionSeconds: op.position!)]
+        }
+        return nil
+    }
+}
+
+extension PersonalLibraryTests {
+    func testPrivacyConflictCannotResurrectEventsAcrossReopenEvenWhenSnapshotFails() async throws {
+        for restart in [false, true] {
+            for snapshotFailure in [false, true] {
+                let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+                let remote = PrivacyCASServer(), library = ScopedLibrary(directory: dir)
+                try await library.synchronize(scope: a, remote: remote)
+                try await library.setHistory(false, scope: a); try await library.setHistory(true, scope: a)
+                try await library.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: a)
+                let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil).first)
+                let queued = try JSONDecoder().decode(LibraryFile.self, from: Data(contentsOf: file))
+                XCTAssertEqual(queued.confirmedPreferences?.historyEpoch, 0)
+                XCTAssertEqual(queued.operations.count, 3)
+                XCTAssertNil(queued.operations[1].version); XCTAssertNil(queued.operations[2].epoch)
+                XCTAssertEqual(queued.operations[1].privacyDependency, queued.operations[0].id)
+                XCTAssertEqual(queued.operations[2].privacyDependency, queued.operations[1].id)
+                await remote.otherDeviceClears()
+                if snapshotFailure { await remote.failConflictSnapshot() }
+                do { try await library.synchronize(scope: a, remote: remote); XCTAssertFalse(snapshotFailure) }
+                catch { XCTAssertTrue(snapshotFailure) }
+                let persisted = try JSONDecoder().decode(LibraryFile.self, from: Data(contentsOf: file))
+                XCTAssertFalse(persisted.operations.contains { $0.kind == .listen || ($0.kind == .preference && $0.value == true) })
+                XCTAssertEqual(persisted.operations.count, 1) // Restrictive intent remains, with a new ID.
+                XCTAssertNotEqual(persisted.operations[0].id, queued.operations[0].id)
+                let resumed = restart ? ScopedLibrary(directory: dir) : library
+                try await resumed.synchronize(scope: a, remote: remote)
+                let calls = await remote.calls, rows = await remote.recent, value = try await resumed.view(in: a)
+                XCTAssertTrue(rows.isEmpty); XCTAssertTrue(value.recent.isEmpty); XCTAssertEqual(value.pending, 0)
+                XCTAssertFalse(calls.contains { $0.kind == .listen || ($0.kind == .preference && $0.value == true) })
+                XCTAssertFalse(value.historyEnabled)
+            }
+        }
+    }
+    func testAcknowledgedPrivacyChainReplaysSamePayloadAfterLostReceiptAndReopen() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let remote = PrivacyCASServer(), library = ScopedLibrary(directory: dir)
+        try await library.synchronize(scope: a, remote: remote)
+        try await library.setHistory(false, scope: a); try await library.setHistory(true, scope: a)
+        try await library.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: a)
+        await remote.loseReceipt()
+        do { try await library.synchronize(scope: a, remote: remote); XCTFail() } catch {}
+        let reopened = ScopedLibrary(directory: dir); try await reopened.synchronize(scope: a, remote: remote)
+        let calls = await remote.calls, rows = await remote.recent
+        XCTAssertEqual(calls.count, 4); XCTAssertEqual(calls[0], calls[1])
+        XCTAssertEqual(calls[2].version, 1); XCTAssertNil(calls[2].privacyDependency)
+        XCTAssertEqual(calls[3].epoch, 2); XCTAssertNil(calls[3].privacyDependency)
+        XCTAssertEqual(rows.count, 1)
+    }
+    func testLaterRestrictiveCommandsSurviveFailedPrivacyAncestor() async throws {
+        let remote = PrivacyCASServer(), library = ScopedLibrary()
+        try await library.synchronize(scope: a, remote: remote)
+        try await library.setHistory(false, scope: a); try await library.setHistory(true, scope: a)
+        try await library.clearHistory(scope: a); try await library.setHistory(false, scope: a)
+        await remote.otherDeviceClears()
+        try await library.synchronize(scope: a, remote: remote)
+        let first = try await library.view(in: a); XCTAssertEqual(first.pending, 3)
+        try await library.synchronize(scope: a, remote: remote)
+        let calls = await remote.calls, prefs = await remote.prefs
+        XCTAssertEqual(calls.map(\.kind), [.preference, .preference, .clear, .preference])
+        XCTAssertFalse(calls.contains { $0.value == true }); XCTAssertFalse(prefs.historyEnabled)
+    }
+    func testLegacyJournalCannotReplayUnprovenPrivacyLineage() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let library = ScopedLibrary(directory: dir); try await library.setFavorite(track.id, value: true, scope: a)
+        let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil).first)
+        var legacy = try JSONDecoder().decode(LibraryFile.self, from: Data(contentsOf: file))
+        legacy.schema = 1; legacy.preferences.historyEpoch = 2; legacy.preferences.version = 2
+        legacy.operations = [
+            .init(id: UUID().uuidString, created: Date(), kind: .preference, value: true, version: 1),
+            .init(id: UUID().uuidString, created: Date(), kind: .listen, trackID: track.id, epoch: 2, audioVersion: 1, variant: "full", audibleSeconds: 5, position: 5),
+            .init(id: UUID().uuidString, created: Date(), kind: .clear, epoch: 2)]
+        try JSONEncoder().encode(legacy).write(to: file, options: .atomic)
+        let reopened = ScopedLibrary(directory: dir), remote = PrivacyCASServer()
+        await remote.otherDeviceClears(); await remote.otherDeviceClears()
+        try await reopened.synchronize(scope: a, remote: remote)
+        let calls = await remote.calls, migrated = try JSONDecoder().decode(LibraryFile.self, from: Data(contentsOf: file))
+        XCTAssertEqual(calls.map(\.kind), [.clear]); XCTAssertEqual(migrated.schema, 2)
+        XCTAssertTrue(migrated.historyBlockedLocally)
+        XCTAssertNotEqual(calls.first?.id, legacy.operations.last?.id)
+    }
+    func testNoAccountHistoryUploadsBeforeConfirmedBaseline() async throws {
+        let library = ScopedLibrary()
+        try await library.setHistory(false, scope: a); try await library.setHistory(true, scope: a)
+        try await library.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: a)
+        let value = try await library.view(in: a); XCTAssertEqual(value.pending, 2); XCTAssertTrue(value.recent.isEmpty)
     }
 }

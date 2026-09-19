@@ -6,9 +6,9 @@
   "Config/Mock.xcconfig": "996b562ad959c36c667ee334e42dafc990f8732afdca84d95466502a1d96d9b8",
   "Config/Production.xcconfig": "552670b071d5787da97b12fa0983354cf4d533b68465c81011d2ad2298ce24ed",
   "Config/Staging.xcconfig": "fd0e1cdfe782da59a1f147a47ffa979dd0ae56ee0fec243f098aba3e1bb46d5a",
-  "Core/NativeLibrary.swift": "a9ae3a97af9b1e5c917abbfa959f0cb7080aa2959106929eb115e7cffd2c16b4",
+  "Core/NativeLibrary.swift": "34cba561c70316c54c40214c579e8f8dd82094fe1d12a0ea8e12f210d2deb98d",
   "Core/Networking.swift": "af257e0185c8ee1d1b7a3ee22071608ad1617632baead221a40eb3d44e866ccc",
-  "Core/PersonalLibrary.swift": "83705e5c5df5250ee5548c6971be8630dfcc4e39dbee844c890e7acb0533ade0",
+  "Core/PersonalLibrary.swift": "8ac64d2791b0897832a7a76b584475c2ce3922f0dbfae97d3175f71299fdf6ee",
   "Core/Playback.swift": "5c37cc0cb5e17cce2b91d746ca8a249f0ce64df9abfc8a5429283bd6a856d27d",
   "README.md": "cf0bf4f1bbc9a62ed802d7111a90759c987b9c55f6f663ab09aadd7dc90f2fe9",
   "Resources/Localizations.json": "c2b0ae090d9f57d1a53aa92fe409e5aa7e80e3583c1cb1d2000d7552ce8d2313",
@@ -17,8 +17,8 @@
   "StationCatMusic/RootView.swift": "13e5dd4230ddef429debbd07b48a0ebe24f307f187e180746763b168fa3e10cc",
   "StationCatMusic/StationCatMusicApp.swift": "bf67fe18d5968bbe5b698ee73e595cb29b1d851ef62c71f9d91ec17a3fca9413",
   "Tests/CoreTests.swift": "770db31edd0130d1afcdfa74be9fd993aa5a5d4f93787491d2af470c4bd2423c",
-  "Tests/PersonalLibraryIntegrationTests.swift": "ebf975eeebcfe8d962467660a5230430badbc598a05a4cc786e305018a20a0c7",
-  "Tests/PersonalLibraryTests.swift": "b68cddabc9aea50a257b6629f542c9e789ce634b8435a048a95aaa60d76c8687",
+  "Tests/PersonalLibraryIntegrationTests.swift": "3495a196141c5fb268f833acdf04ae91b327606307145b48c91e1d72438ece9f",
+  "Tests/PersonalLibraryTests.swift": "c9ae5a426d1875d67410778b17604fc85e987c4ec6250d0f3f462f2ac07fde6c",
   "UITests/NavigationTests.swift": "82560813c034e6eb8691f2b0e5343c641fb56f56ef14cf7c5d1cc42b65c831ad",
   "contracts/backend-library-fixture.json": "93c8ccd77dec0d4c1c64b3e868f35c4829bda7cc9a205af37a2540b2a6fbc0c5",
   "contracts/fixtures/schema-examples.json": "6cb399565a8b681e7775a8e34f23c09705fa74b3940170b7087b673d035eaff9",
@@ -27,5 +27,5 @@
   "scripts/seed_resources.py": "000254bf1a28228acadda6c57da94dbc3e4d66fb16e1017238b81a9afdd5bcc9",
   "scripts/validate_contract.py": "eadd5a94f82baf23b8c3b539fc60c9478d8a09a9dfe3ce499858eb860206db62",
   "scripts/verify_configurations.sh": "98232b2a5fbfc0dee86c9be86345249a0ee57bf9207531f0b2284873563a66a6",
-  "scripts/verify_native_library.py": "0308e1ac476eefcc409d501abf82c9b5ee4d3a93efbcf7f56eac98020844295a"
+  "scripts/verify_native_library.py": "b3cbe8fe9b8268509d24679d6917da4a2adf9518184bf36e2a86b8ed9c84a354"
 }

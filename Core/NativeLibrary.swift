@@ -51,22 +51,23 @@ actor NativeLibraryAPI: LibraryRemote {
               recent.allSatisfy({ UUID(uuidString: $0.trackId) != nil && $0.positionSeconds.isFinite && $0.positionSeconds >= 0 }) else { throw APIError.invalidPayload }
         return .init(favorites: favorites, recent: recent, preferences: after)
     }
-    func apply(_ op: LibraryOperation, scope: AccountScope) async throws {
+    @discardableResult func apply(_ op: LibraryOperation, scope: AccountScope) async throws -> LibraryPreferences? {
         switch op.kind {
         case .favorite:
             guard let id = op.trackID, UUID(uuidString: id) != nil, let value = op.value, let version = op.version else { throw APIError.invalidRequest }
             let _: LibraryFavorite = try await request("favorites/" + id, method: "PUT", body: ["favorite": value, "expectedVersion": version, "mutationId": op.id], scope: scope, as: LibraryFavorite.self)
         case .preference:
             guard let value = op.value, let version = op.version else { throw APIError.invalidRequest }
-            let _: LibraryPreferences = try await request("preferences", method: "PATCH", body: ["historyEnabled": value, "expectedVersion": version, "mutationId": op.id], scope: scope, as: LibraryPreferences.self)
+            return try await request("preferences", method: "PATCH", body: ["historyEnabled": value, "expectedVersion": version, "mutationId": op.id], scope: scope, as: LibraryPreferences.self)
         case .clear:
             guard let epoch = op.epoch else { throw APIError.invalidRequest }
-            let _: LibraryPreferences = try await request("recent", method: "DELETE", body: ["confirmed": true, "historyEpoch": epoch, "mutationId": op.id], scope: scope, as: LibraryPreferences.self)
+            return try await request("recent", method: "DELETE", body: ["confirmed": true, "historyEpoch": epoch, "mutationId": op.id], scope: scope, as: LibraryPreferences.self)
         case .listen:
             guard let id = op.trackID, let version = op.audioVersion, let epoch = op.epoch, let variant = op.variant, let audible = op.audibleSeconds, let position = op.position else { throw APIError.invalidRequest }
             struct Accepted: Decodable, Sendable { let accepted: Bool }
             let date = ISO8601DateFormatter(); date.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             let _: Accepted = try await request("listens", method: "POST", body: ["trackId": id, "audioVersion": version, "eventId": op.id, "historyEpoch": epoch, "variant": variant, "audibleSeconds": audible, "positionSeconds": position, "occurredAt": date.string(from: op.created)], scope: scope, as: Accepted.self)
         }
+        return nil
     }
 }

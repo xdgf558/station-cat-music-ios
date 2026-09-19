@@ -62,12 +62,3 @@ actor APIClient {
     }
     func mutate() throws { throw APIError.networkDisabled }
 }
-actor ScopedLibrary {
-    private var scopes: [AccountScope: Set<String>] = [:]
-    func favorites(in scope: AccountScope) -> Set<String> { scopes[scope, default: []] }
-    func setFavorite(_ track: String, value: Bool, scope: AccountScope) {
-        if value { scopes[scope, default: []].insert(track) } else { scopes[scope]?.remove(track) }
-    }
-    func clear(scope: AccountScope) { scopes.removeValue(forKey: scope) }
-    // No implicit guest -> account merge. Persistence/cloud sync belongs to M5.
-}

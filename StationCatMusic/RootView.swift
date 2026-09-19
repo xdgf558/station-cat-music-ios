@@ -7,9 +7,11 @@ private enum Palette {
     static let muted = Color(red: 0.68, green: 0.74, blue: 0.75)
 }
 struct RootView: View {
+    private let legalOrigin = URL(string: Bundle.main.object(forInfoDictionaryKey: "StationLegalOrigin") as? String ?? "https://example.invalid")!
     @Bindable var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var confirmHistoryClear = false
     @State private var showDeletion = false
     @State private var confirmDeletion = false
     @State private var deletionPassword = ""
@@ -24,14 +26,15 @@ struct RootView: View {
         .onOpenURL { url in Task { await model.openMusicLink(url) } }
         .alert(model.t("linkUnavailable"), isPresented: $model.linkUnavailable) { Button(model.t("close"), role: .cancel) {} }
         .sheet(isPresented: $model.showPlayer) { player }
-        .task { await model.load(); await model.account.restore() }
+        .task { await model.refreshLibrary(); await model.load(); await model.account.restore() }
         .onChange(of: model.playback.state) { _, state in
             if state == .verificationRequired && model.nativeMusic != nil { Task { await model.load() } }
         }
         .onChange(of: model.locale) { _, _ in if model.nativeMusic != nil { Task { await model.load() } } }
         .onChange(of: model.account.scope) { _, scope in Task { await model.changeScope(scope); await model.load() } }
+        .alert(model.t("clearHistoryConfirm"), isPresented: $confirmHistoryClear) { Button(model.t("clearHistory"), role: .destructive) { Task { await model.clearHistory() } }; Button(model.t("cancel"), role: .cancel) {} }
         .sheet(isPresented: $showDeletion) { deletionSheet }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { model.playback.becameActive() } }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { model.playback.becameActive(); model.syncLibrary() } }
         .environment(\.locale, Locale(identifier: model.locale))
     }
     @ViewBuilder private var miniPlayer: some View {
@@ -139,9 +142,21 @@ struct RootView: View {
                 if model.favorites.isEmpty { Text(model.t("noFavorites")).foregroundStyle(Palette.muted) }
                 let favoriteTracks = model.favoriteTracks
                 ForEach(favoriteTracks) { track in Button(track.title) { model.select(track, from: favoriteTracks) }.frame(minHeight: 44) }
-                Text(model.t("localSession")).font(.caption).foregroundStyle(Palette.muted)
+                Text(model.t(model.libraryStatus)).font(.caption).foregroundStyle(Palette.muted)
+            }
+            Section(model.t("recent")) {
+                let recentTracks = model.recentTracks
+                ForEach(recentTracks) { track in Button(track.title) { model.select(track, from: recentTracks) }.frame(minHeight: 44) }
+                if recentTracks.isEmpty { Text(model.t("noRecent")).foregroundStyle(Palette.muted) }
             }
             Section(model.t("settings")) {
+                Toggle(model.t("historyEnabled"), isOn: Binding(get: { model.historyEnabled }, set: { value in Task { await model.setHistory(value) } }))
+                Button(model.t("clearHistory"), role: .destructive) { confirmHistoryClear = true }
+                Button(model.t("clearCache")) { Task { await model.clearCache() } }
+                if model.libraryRemote != nil && model.scope.accountID != nil { Button(model.t("syncNow")) { model.syncLibrary() }.disabled(model.libraryBusy) }
+                Link(model.t("privacy"), destination: URL(string: "/music/#music-privacy", relativeTo: legalOrigin)!)
+                Link(model.t("terms"), destination: URL(string: "/music/#music-listening", relativeTo: legalOrigin)!)
+                Link(model.t("support"), destination: URL(string: "mailto:brodstem@protonmail.com")!)
                 Picker(model.t("language"), selection: $model.locale) { Text("简体中文").tag("zh-Hans"); Text("繁體中文").tag("zh-Hant"); Text("English").tag("en"); Text("日本語").tag("ja") }
                 Text(model.t("mockExplanation")).font(.footnote)
             }

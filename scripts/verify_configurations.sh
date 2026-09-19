@@ -16,6 +16,8 @@ assert info['StationEnvironment']==config.lower(), info.get('StationEnvironment'
 assert info['MinimumOSVersion']=='18.0'
 assert info['StationNativeAuthEnabled']=='NO'
 assert info['StationNativeMusicEnabled']=='NO'
+assert info['StationPersonalSyncEnabled']=='NO'
+assert info['StationLegalOrigin']=='https://wwwstationcat.org'
 assert not info.get('StationNativeAuthOrigin')
 assert not info.get('StationMusicWebOrigin')
 assert 'NSAppTransportSecurity' not in info

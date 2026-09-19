@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Station Cat Music Native — proposed v1.0 contract",
-    "version": "0.3.0",
-    "description": "M2 authentication/deletion requests and M3 catalog/playback are implemented only in isolated local development; personal sync and physical deletion execution remain proposed. Default application is Mock with networking disabled. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract."
+    "version": "0.5.0",
+    "description": "M2 authentication/deletion requests and M3 catalog/playback are implemented only in isolated local development; M5 personal sync is implemented only behind a separate isolated opt-in; physical deletion execution remains proposed. Default application is Mock with networking disabled. UTF-8 JSON; ISO8601 UTC timestamps; positions/durations seconds. Unknown capabilities and authorization modes fail closed. Personal pagination default50/max100. No StoreKit v1.1 paths in this contract."
   },
   "servers": [
     {
@@ -946,7 +946,7 @@
             "Bearer": []
           }
         ],
-        "description": "Planned API. Not implemented or deployed by M1.",
+        "description": "M5 isolated opt-in only. Native Bearer, account isolation. Writes use durable operation IDs and version/epoch checks; conflict requires refresh, never silent overwrite. Favorites max5000 active. History max1000/90days; at least5 audible seconds, not entitlement or reward evidence. Cursor contains snapshot revision and expires on mutation.",
         "parameters": [
           {
             "name": "limit",
@@ -972,7 +972,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "description": "Isolated native library result; no production activation.",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -1011,7 +1011,7 @@
             "Bearer": []
           }
         ],
-        "description": "Planned API. Not implemented or deployed by M1.",
+        "description": "M5 isolated opt-in only. Native Bearer, account isolation. Writes use durable operation IDs and version/epoch checks; conflict requires refresh, never silent overwrite. Favorites max5000 active. History max1000/90days; at least5 audible seconds, not entitlement or reward evidence. Cursor contains snapshot revision and expires on mutation.",
         "parameters": [
           {
             "name": "id",
@@ -1026,7 +1026,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "description": "Isolated native library result; no production activation.",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -1075,7 +1075,7 @@
             "Bearer": []
           }
         ],
-        "description": "Planned API. Not implemented or deployed by M1.",
+        "description": "M5 isolated opt-in only. Native Bearer, account isolation. Writes use durable operation IDs and version/epoch checks; conflict requires refresh, never silent overwrite. Favorites max5000 active. History max1000/90days; at least5 audible seconds, not entitlement or reward evidence. Cursor contains snapshot revision and expires on mutation.",
         "parameters": [
           {
             "name": "limit",
@@ -1101,7 +1101,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "description": "Isolated native library result; no production activation.",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -1138,7 +1138,7 @@
             "Bearer": []
           }
         ],
-        "description": "Planned API. Not implemented or deployed by M1.",
+        "description": "M5 isolated opt-in only. Native Bearer, account isolation. Writes use durable operation IDs and version/epoch checks; conflict requires refresh, never silent overwrite. Favorites max5000 active. History max1000/90days; at least5 audible seconds, not entitlement or reward evidence. Cursor contains snapshot revision and expires on mutation.",
         "parameters": [
           {
             "name": "limit",
@@ -1164,7 +1164,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "description": "Isolated native library result; no production activation.",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -1213,11 +1213,11 @@
             "Bearer": []
           }
         ],
-        "description": "Planned API. Not implemented or deployed by M1.",
+        "description": "M5 isolated opt-in only. Native Bearer, account isolation. Writes use durable operation IDs and version/epoch checks; conflict requires refresh, never silent overwrite. Favorites max5000 active. History max1000/90days; at least5 audible seconds, not entitlement or reward evidence. Cursor contains snapshot revision and expires on mutation.",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "description": "Isolated native library result; no production activation.",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -1254,11 +1254,11 @@
             "Bearer": []
           }
         ],
-        "description": "Planned API. Not implemented or deployed by M1.",
+        "description": "M5 isolated opt-in only. Native Bearer, account isolation. Writes use durable operation IDs and version/epoch checks; conflict requires refresh, never silent overwrite. Favorites max5000 active. History max1000/90days; at least5 audible seconds, not entitlement or reward evidence. Cursor contains snapshot revision and expires on mutation.",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "description": "Isolated native library result; no production activation.",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -1307,11 +1307,11 @@
             "Bearer": []
           }
         ],
-        "description": "Planned API. Not implemented or deployed by M1.",
+        "description": "M5 isolated opt-in only. Native Bearer, account isolation. Writes use durable operation IDs and version/epoch checks; conflict requires refresh, never silent overwrite. Favorites max5000 active. History max1000/90days; at least5 audible seconds, not entitlement or reward evidence. Cursor contains snapshot revision and expires on mutation.",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Proposed v1.0 response; M1 serves fixtures only.",
+            "description": "Isolated native library result; no production activation.",
             "headers": {
               "Cache-Control": {
                 "schema": {

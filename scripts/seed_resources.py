@@ -1,7 +1,23 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''shareMusic|Share link|分享链接|分享連結|リンクを共有
+rows='''cancel|Cancel|取消|取消|キャンセル
+recent|Recently played|最近播放|最近播放|最近再生した曲
+noRecent|No listening history yet.|暂无播放记录。|暫無播放記錄。|再生履歴はありません。
+historyEnabled|Save listening history|保存播放历史|儲存播放歷史|再生履歴を保存
+clearHistory|Clear listening history|清空播放历史|清空播放歷史|再生履歴を消去
+clearHistoryConfirm|Clear this library’s listening history?|清空此音乐库的播放历史？|清空此音樂庫的播放歷史？|このライブラリの再生履歴を消去しますか？
+clearCache|Clear temporary cache|清除临时缓存|清除暫存快取|一時キャッシュを消去
+syncNow|Sync now|立即同步|立即同步|今すぐ同期
+libraryLocal|Saved on this device.|已保存在此设备。|已儲存在此裝置。|このデバイスに保存済み。
+libraryPending|Changes awaiting sync. Retry when connected.|更改待同步，联网后可重试。|變更待同步，連線後可重試。|同期待ちです。接続後に再試行してください。
+librarySynced|Account library synced.|账号音乐库已同步。|帳號音樂庫已同步。|アカウントのライブラリを同期しました。
+libraryConflict|A sync conflict occurred. Review the current state before retrying.|同步发生冲突，请核对当前状态后重试。|同步發生衝突，請核對目前狀態後重試。|同期が競合しました。現在の状態を確認してください。
+libraryError|Could not save your library. Please retry.|音乐库保存失败，请重试。|音樂庫儲存失敗，請重試。|ライブラリを保存できませんでした。再試行してください。
+privacy|Privacy|隐私说明|隱私說明|プライバシー
+terms|Terms|服务条款|服務條款|利用規約
+support|Support|联系支持|聯絡支援|サポート
+shareMusic|Share link|分享链接|分享連結|リンクを共有
 linkUnavailable|This music link is unavailable.|此音乐链接暂不可用。|此音樂連結暫不可用。|この音楽リンクは利用できません。
 playing|Playing|正在播放|正在播放|再生中
 queue|Play queue|播放队列|播放佇列|再生キュー

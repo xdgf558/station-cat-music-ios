@@ -11,6 +11,13 @@ import Observation
     var showPlayer = false
     var linkUnavailable = false
     var favorites: Set<String> = []
+    var recent: [LibraryRecent] = []
+    var historyEnabled = true
+    var libraryStatus = "libraryLocal"
+    var libraryBusy = false
+    let libraryRemote: (any LibraryRemote)?
+    @ObservationIgnored private var syncTask: Task<Void, Never>?
+    private var libraryGeneration = 0
     private(set) var scope = AccountScope.guest
     let playback: PlaybackService
     let library: ScopedLibrary
@@ -28,10 +35,22 @@ import Observation
     @ObservationIgnored private var detailTask: Task<Void, Never>?
     private var operation = 0
     @ObservationIgnored private var catalogTask: Task<Catalog, Error>?
-    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil) { self.client = client; self.playback = playback; self.library = library; self.account = account; self.musicWebOrigin = MusicLink.webOrigin(musicWebOrigin)
+    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock) { self.libraryRemote = libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.musicWebOrigin = MusicLink.webOrigin(musicWebOrigin)
         if let native = client as? NativeMusicAPI { playback.configure(authorizer: native) }
         playback.onSelection = { [weak self] track in self?.loadDetail(track) }
-        account.onInvalidate = { [weak playback] in playback?.clear() }
+        account.onInvalidate = { [weak self] in
+            guard let self else { return }
+            self.libraryGeneration += 1; self.syncTask?.cancel(); self.libraryBusy = false
+            self.favorites = []; self.recent = []; self.playback.clear()
+        }
+        playback.onListen = { [weak self] track, variant, audible, position, eventID in
+            guard let self else { return }; let scope = self.scope, generation = self.libraryGeneration
+            Task { [weak self] in
+                guard let self, self.libraryGeneration == generation else { return }
+                do { try await self.library.record(track, variant: variant, audible: audible, position: position, eventID: eventID, scope: scope); await self.refreshLibrary(); self.syncLibrary() }
+                catch { self.libraryStatus = "libraryError" }
+            }
+        }
     }
     func t(_ key: String) -> String { L10n.text(key, locale: locale) }
     func load() async {
@@ -69,16 +88,48 @@ import Observation
     var results: [Track] {
         query.isEmpty ? (activeCollection?.tracks ?? tracks) : (activeCollection?.tracks ?? tracks).filter { ($0.title + " " + $0.artist).localizedCaseInsensitiveContains(query) }
     }
-    func changeScope(_ scope: AccountScope) async {
-        operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.clear(); tracks = []; favorites = []; self.scope = scope
-        let value = await library.favorites(in: scope)
-        guard self.scope == scope else { return }; favorites = value
+    var recentTracks: [Track] { recent.compactMap { item in tracks.first { $0.id == item.trackId } } }
+    func refreshLibrary() async {
+        let captured = scope, generation = libraryGeneration
+        do {
+            let value = try await library.view(in: captured)
+            guard scope == captured, libraryGeneration == generation else { return }
+            favorites = value.favorites; recent = value.recent; historyEnabled = value.historyEnabled
+            libraryStatus = value.conflict ? "libraryConflict" : value.pending > 0 ? "libraryPending" : captured.accountID != nil && libraryRemote != nil && value.synced ? "librarySynced" : "libraryLocal"
+        } catch { if scope == captured && libraryGeneration == generation { libraryStatus = "libraryError" } }
+    }
+    func syncLibrary() {
+        guard let libraryRemote, scope.accountID != nil, !libraryBusy else { return }
+        let captured = scope, generation = libraryGeneration
+        libraryBusy = true
+        syncTask = Task { [weak self] in
+            guard let self else { return }
+            defer { if self.libraryGeneration == generation { self.libraryBusy = false } }
+            do { try await self.library.synchronize(scope: captured, remote: libraryRemote); await self.refreshLibrary() }
+            catch { if !Task.isCancelled && self.libraryGeneration == generation { self.libraryStatus = "libraryPending" } }
+        }
+    }
+    func changeScope(_ requested: AccountScope) async {
+        let scope = AccountScope(environment: self.scope.environment, accountID: requested.accountID)
+        libraryGeneration += 1; syncTask?.cancel(); libraryBusy = false
+        operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.clear(); tracks = []; favorites = []; recent = []; self.scope = scope
+        await refreshLibrary(); syncLibrary()
     }
     func toggleFavorite(_ track: Track) async {
-        let scope = self.scope; let value = !favorites.contains(track.id)
-        await library.setFavorite(track.id, value: value, scope: scope)
-        let updated = await library.favorites(in: scope)
-        guard self.scope == scope else { return }; favorites = updated
+        do { try await library.setFavorite(track.id, value: !favorites.contains(track.id), scope: scope); await refreshLibrary(); syncLibrary() }
+        catch { libraryStatus = "libraryError" }
+    }
+    func setHistory(_ enabled: Bool) async {
+        do { try await library.setHistory(enabled, scope: scope); await refreshLibrary(); syncLibrary() }
+        catch { libraryStatus = "libraryError" }
+    }
+    func clearHistory() async {
+        do { try await library.clearHistory(scope: scope); await refreshLibrary(); syncLibrary() }
+        catch { libraryStatus = "libraryError" }
+    }
+    func clearCache() async {
+        detailTask?.cancel(); detail = nil; URLCache.shared.removeAllCachedResponses()
+        await load()
     }
     func select(_ track: Track, from list: [Track]? = nil) {
         let list = list ?? [track]

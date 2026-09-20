@@ -144,6 +144,12 @@
 			"path" = "StationCatMusic/SystemAuthenticationBrowser.swift";
 			"sourceTree" = "<group>";
 		};
+		"45457652751FE53CB23C0DC5" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/ArtworkFreshnessTests.swift";
+			"sourceTree" = "<group>";
+		};
 		"8C07FAE0326A22E22C8B0484" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -711,6 +717,10 @@
 			"defaultConfigurationIsVisible" = "0";
 			"defaultConfigurationName" = "Mock";
 		};
+		"9D0B2C667DA27538274635A0" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "45457652751FE53CB23C0DC5";
+		};
 		"B5F09A933726F62F86F6F4E3" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "8C07FAE0326A22E22C8B0484";
@@ -775,6 +785,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"9D0B2C667DA27538274635A0",
 				"B5F09A933726F62F86F6F4E3",
 				"28BAF51E9597A5CACECF6086",
 				"6BDFB84444C8753ACD55E201",
@@ -1028,6 +1039,7 @@
 				"A72639049DB3D571A6157C0E",
 				"050D4392E412B57D5B554FF4",
 				"3506F43EB69CBD32B254C87A",
+				"45457652751FE53CB23C0DC5",
 				"8C07FAE0326A22E22C8B0484",
 				"E32A2A45BB038541E015BE31",
 				"C5FB5E13D9629C32D8870547",

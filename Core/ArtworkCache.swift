@@ -47,7 +47,7 @@ nonisolated struct ArtworkCache {
         guard info.isRegularFile == true, info.isSymbolicLink != true else { return nil }
         guard (info.fileSize ?? Int.max) <= ArtworkLoader.maximumBytes + 4096,
               let entry = try? PropertyListDecoder().decode(Entry.self, from: Data(contentsOf: path)),
-              entry.version == 1, entry.expires > now, entry.expires <= now.addingTimeInterval(86400),
+              entry.version == 2, entry.expires > now, entry.expires <= now.addingTimeInterval(86400),
               entry.data.count <= ArtworkLoader.maximumBytes else {
             try FileManager.default.removeItem(at: path); return nil
         }
@@ -58,7 +58,7 @@ nonisolated struct ArtworkCache {
         guard !data.isEmpty, data.count <= ArtworkLoader.maximumBytes, expires > now, expires <= now.addingTimeInterval(86400) else { return }
         try prepare()
         let encoder = PropertyListEncoder(); encoder.outputFormat = .binary
-        let bytes = try encoder.encode(Entry(version: 1, expires: expires, data: data))
+        let bytes = try encoder.encode(Entry(version: 2, expires: expires, data: data))
         guard bytes.count <= maximumBytes, maximumFiles > 0 else { return }
         let destination = file(url)
         if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }

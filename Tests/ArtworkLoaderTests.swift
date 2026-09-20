@@ -94,7 +94,12 @@ private final class CachedArtworkProtocol: URLProtocol, @unchecked Sendable {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let path = request.url!.path; Self.state.started(path)
-        var headers = ["Content-Type": "image/png", "Cache-Control": "public, max-age=3600"]
+        let date = DateFormatter(); date.locale = Locale(identifier: "en_US_POSIX"); date.timeZone = TimeZone(secondsFromGMT: 0); date.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+        var headers = ["Content-Type": "image/png", "Cache-Control": "public, max-age=3600", "Date": date.string(from: Date())]
+        if path.contains("vary-star") { headers["Vary"] = "*" }
+        if path.contains("vary-language") { headers["Vary"] = "Accept-Language" }
+        if path.contains("old-date") { headers["Date"] = date.string(from: Date().addingTimeInterval(-7200)) }
+        if path.contains("no-date") { headers.removeValue(forKey: "Date") }
         if path.contains("no-store") { headers["Cache-Control"] = "public, max-age=3600, no-store" }
         if path.contains("private") { headers["Cache-Control"] = "private, max-age=3600" }
         if path.contains("cookie") { headers["Set-Cookie"] = "fixture=not-a-credential" }
@@ -132,7 +137,7 @@ private final class CachedArtworkProtocol: URLProtocol, @unchecked Sendable {
     func testPrivateUncacheableAndInvalidResponsesNeverPersist() async throws {
         let dir = directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: dir)
-        for kind in ["no-store", "private", "cookie", "old-age", "missing", "bad-mime", "corrupt"] {
+        for kind in ["no-store", "private", "cookie", "old-age", "missing", "bad-mime", "corrupt", "vary-star", "vary-language", "old-date", "no-date"] {
             let url = URL(string: "https://artwork.test/" + kind + UUID().uuidString)!
             _ = try await loader.load(url, allowedHost: "artwork.test")
         }

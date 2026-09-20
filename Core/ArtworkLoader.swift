@@ -28,18 +28,6 @@ actor ArtworkLoader {
             kCGImageSourceShouldCacheImmediately: true
         ] as CFDictionary)
     }
-    private func expiration(_ response: HTTPURLResponse, now: Date) -> Date? {
-        // Honor explicit server freshness only. Never persist private/no-store or cookie responses.
-        guard response.value(forHTTPHeaderField: "Set-Cookie") == nil else { return nil }
-        let fields = (response.value(forHTTPHeaderField: "Cache-Control") ?? "").lowercased().split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        guard fields.contains("public"), !fields.contains(where: { ["no-store", "no-cache", "private"].contains(String($0.split(separator: "=").first ?? "")) }),
-              let field = fields.first(where: { $0.hasPrefix("max-age=") }),
-              let seconds = Double(field.dropFirst(8)), seconds.isFinite, seconds > 0 else { return nil }
-        let age = Double(response.value(forHTTPHeaderField: "Age") ?? "0") ?? seconds
-        guard age.isFinite, age >= 0 else { return nil }
-        let remaining = min(86400, seconds - age)
-        return remaining > 0 ? now.addingTimeInterval(remaining) : nil
-    }
     func load(_ url: URL, allowedHost: String) async throws -> CGImage? {
         try Task.checkCancellation()
         guard url.scheme == "https", url.host == allowedHost, url.user == nil, url.password == nil,
@@ -53,7 +41,9 @@ actor ArtworkLoader {
         let network = URLSession(configuration: config, delegate: RejectRedirects(), delegateQueue: nil)
         defer { network.invalidateAndCancel() }
         var request = URLRequest(url: url); request.cachePolicy = .reloadIgnoringLocalCacheData
+        let requestStarted = ContinuousClock.now
         let (bytes, response) = try await network.bytes(for: request)
+        let responseReceived = ContinuousClock.now, responseTime = Date()
         guard let response = response as? HTTPURLResponse, response.statusCode == 200,
               response.mimeType?.hasPrefix("image/") == true,
               response.value(forHTTPHeaderField: "Content-Type")?.lowercased().hasPrefix("image/") == true,
@@ -67,7 +57,49 @@ actor ArtworkLoader {
         }
         try Task.checkCancellation()
         guard ticket == generation, let image = decode(data) else { return nil }
-        if let expires = expiration(response, now: Date()) { try? cache?.store(data, url: url, expires: expires, now: Date()) }
+        let storedAt = Date()
+        if let expires = ArtworkFreshness.expiration(response, responseTime: responseTime, storedAt: storedAt,
+                responseDelay: ArtworkFreshness.seconds(requestStarted.duration(to: responseReceived)),
+                residentTime: ArtworkFreshness.seconds(responseReceived.duration(to: .now))) {
+            try? cache?.store(data, url: url, expires: expires, now: storedAt)
+        }
         return image
+    }
+}
+
+/// Conservative subset of RFC 9111 §§4.1/4.2.3. URL-only keys cannot match Vary.
+nonisolated enum ArtworkFreshness {
+    static func seconds(_ value: Duration) -> Double {
+        Double(value.components.seconds) + Double(value.components.attoseconds) / 1e18
+    }
+    static func expiration(_ response: HTTPURLResponse, responseTime: Date, storedAt: Date,
+                           responseDelay: Double, residentTime: Double) -> Date? {
+        guard response.value(forHTTPHeaderField: "Set-Cookie") == nil,
+              (response.value(forHTTPHeaderField: "Vary") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              responseDelay.isFinite, responseDelay >= 0, residentTime.isFinite, residentTime >= 0,
+              storedAt >= responseTime else { return nil }
+        let fields = (response.value(forHTTPHeaderField: "Cache-Control") ?? "").lowercased().split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        let directives = fields.map { $0.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) } }
+        guard fields.contains("public"), !directives.contains(where: { ["no-store", "no-cache", "private"].contains($0.first ?? "") }) else { return nil }
+        let ages = directives.filter { $0.first == "max-age" }
+        guard ages.count == 1, ages[0].count == 2,
+              let lifetime = deltaSeconds(ages[0][1]), lifetime > 0,
+              let age = deltaSeconds(response.value(forHTTPHeaderField: "Age") ?? "0"),
+              let rawDate = response.value(forHTTPHeaderField: "Date") else { return nil }
+        let date = DateFormatter(); date.locale = Locale(identifier: "en_US_POSIX")
+        date.timeZone = TimeZone(secondsFromGMT: 0); date.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"; date.isLenient = false
+        guard let generated = date.date(from: rawDate) else { return nil }
+        let apparentAge = max(0, responseTime.timeIntervalSince(generated))
+        let correctedAge = max(apparentAge, age + responseDelay)
+        let currentAge = correctedAge + max(residentTime, storedAt.timeIntervalSince(responseTime))
+        let remaining = min(86400, lifetime - currentAge)
+        return remaining > 0 ? storedAt.addingTimeInterval(remaining) : nil
+    }
+    private static func deltaSeconds(_ raw: String) -> Double? {
+        // Ambiguous/invalid freshness is a miss, not a reason to extend a response's life.
+        let value = raw.trimmingCharacters(in: .whitespaces)
+        guard !value.isEmpty, value.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }),
+              let result = Double(value), result.isFinite else { return nil }
+        return result
     }
 }

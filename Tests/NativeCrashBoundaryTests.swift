@@ -97,3 +97,16 @@ extension NativeCrashBoundaryTests {
         } catch let error as ProbeDiagnostic { XCTAssertEqual(error.phase, .heldPolling) }
     }
 }
+
+extension NativeCrashBoundaryTests {
+    func testRecoveryEvidenceReadUsesBoundedRetriesAndReturnsTheActualSnapshot() async throws {
+        let reader = EvidenceSequence([.capture(URLError(.timedOut), phase: .evidenceRequest)])
+        let snapshot: Int = try await ProbeHeldPolling.value(timeout: .seconds(1), interval: .milliseconds(1), read: {
+            _ = try await reader.read()
+            return 73
+        }, onRetry: { _ in })
+        XCTAssertEqual(snapshot, 73)
+        let calls = await reader.calls
+        XCTAssertEqual(calls, 2)
+    }
+}

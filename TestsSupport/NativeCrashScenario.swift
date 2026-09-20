@@ -165,24 +165,24 @@ enum ProbeHeldPolling {
             [URLError.timedOut.rawValue, URLError.networkConnectionLost.rawValue,
              URLError.cannotConnectToHost.rawValue].contains(diagnostic.code ?? 0)
     }
-    static func wait(timeout: Duration = .seconds(10), interval: Duration = .milliseconds(100),
-                     read: @escaping @Sendable () async throws -> Bool,
+    static func value<Value: Sendable>(timeout: Duration = .seconds(10), phase: ProbePhase = .heldPolling, interval: Duration = .milliseconds(100),
+                     read: @escaping @Sendable () async throws -> Value?,
                      onRetry: @escaping @Sendable (ProbeDiagnostic) throws -> Void = { error in
                          try ProbeReporter.emit("M2_PROBE_EVIDENCE_RETRY:\(error.fields):pid=\(getpid())")
-                     }) async throws {
+                     }) async throws -> Value {
         let clock = ContinuousClock(), deadline = ContinuousClock.now + timeout
-        try await withThrowingTaskGroup(of: Void.self) { group in
+        return try await withThrowingTaskGroup(of: Value.self) { group in
             group.addTask {
                 try await clock.sleep(until: deadline)
-                throw ProbeDiagnostic.capture(APIError.unavailable, phase: .heldPolling)
+                throw ProbeDiagnostic.capture(APIError.unavailable, phase: phase)
             }
             group.addTask {
                 while clock.now < deadline {
                     try Task.checkCancellation()
                     do {
-                        if try await read() {
+                        if let value = try await read() {
                             guard clock.now < deadline else { break }
-                            return
+                            return value
                         }
                     } catch {
                         guard retryable(error) else { throw error }
@@ -190,12 +190,22 @@ enum ProbeHeldPolling {
                     }
                     try await clock.sleep(until: min(clock.now + interval, deadline))
                 }
-                throw ProbeDiagnostic.capture(APIError.unavailable, phase: .heldPolling)
+                throw ProbeDiagnostic.capture(APIError.unavailable, phase: phase)
             }
             defer { group.cancelAll() }
-            _ = try await group.next()
+            return try probeUnwrap(try await group.next())
         }
     }
+    static func wait(timeout: Duration = .seconds(10), interval: Duration = .milliseconds(100),
+                     read: @escaping @Sendable () async throws -> Bool,
+                     onRetry: @escaping @Sendable (ProbeDiagnostic) throws -> Void = { error in
+                         try ProbeReporter.emit("M2_PROBE_EVIDENCE_RETRY:\(error.fields):pid=\(getpid())")
+                     }) async throws {
+        let _: Bool = try await value(timeout: timeout, interval: interval, read: {
+            try await read() ? true : nil
+        }, onRetry: onRetry)
+    }
+
 }
 private func exitAtBoundary(_ config: CrashProbeConfiguration, store: KeychainStore) async throws -> Never {
     try ProbeReporter.phase(.boundaryValidation)
@@ -330,7 +340,8 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
         try probeEqual(before.generation, config.stage == "A13" ? 1 : 0)
         if config.stage == "A13" { try probeNil(before.pending) } else { try probeEqual(before.pending?.requestID, requestID) }
         phase = .recoveryEvidence; try ProbeReporter.phase(phase)
-        let probe = LoopbackProbe(configuration: config), committed = try await probe.evidence()
+        let probe = LoopbackProbe(configuration: config)
+        let committed = try await ProbeHeldPolling.value(phase: .recoveryEvidence) { try await probe.evidence() }
         try probeEqual(committed.session.generation, 1); try probeEqual(committed.operations.count, 1)
         try probeEqual(committed.operations.first?.request_id, requestID)
         let auth = try service(config, store: base, base: base)
@@ -338,7 +349,8 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
         try await auth.restore()
         phase = .recoveryAssertions; try ProbeReporter.phase(phase)
         let afterRecord = try await journal.read()
-        let after = try probeUnwrap(afterRecord), evidence = try await probe.evidence()
+        let after = try probeUnwrap(afterRecord)
+        let evidence = try await ProbeHeldPolling.value(phase: .recoveryAssertions) { try await probe.evidence() }
         try probeEqual(after.scope, before.scope); try probeEqual(after.familyID, before.familyID)
         try probeEqual(after.absoluteExpiresAt, before.absoluteExpiresAt); try probeNil(after.pending)
         try probeEqual(evidence.requests.count, 2); try probeEqual(evidence.session.revoked, 0)

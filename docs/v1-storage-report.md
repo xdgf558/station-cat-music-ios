@@ -59,3 +59,7 @@ Node preload 只订阅测试服务的 Undici transport error，记录固定错�
 网站配套测试服务（#178，08d8918）增加 fsync 的固定操作 start/done/failed 诊断，驱动停止服务后直接复制 diagnostics.jsonl 到 CI 证据目录，不依赖 HTTP。它只供诊断，不参与通过判定。网站 #178 现含测试基础设施改动，不再是纯政策文档。恢复 fixture 更新到该提交及源码哈希；该版本承接已合入的 M5 后端，产品认证模块没有本轮修改，原生认证 29/29 与网站构建通过（空小说选项仅验证）。产品 Core、配额/缓存/隐私依赖链保持 53b62d3 的哈希。
 
 本机实际 A11–A13 在新固定版本下通过，间隔 0.503 / 0.459 / 0.464 秒；诊断 JSONL 已独立归档。底层错误根因与新 head 完整远端验证仍待观察。
+
+新诊断 run 35521108860 给出了明确的新失败路径：CRASH 已有 BOUNDARY_REACHED，RECOVER 在 recoveryEvidence 的 GET 发生 URLError -1001；服务端随后正常完成 evidence_session / evidence_operations，并无异常，失败快照也可读取。998bbfc 将 2 秒资源时限应用到所有证据 GET，但只给 CRASH 轮询配了重试，恢复前后的单次 GET 因而也被缩短。这项测试链路回归现已修复：恢复前和恢复后的证据读取复用同一 10 秒绝对预算及限定错误重试，阶段分别记为 recoveryEvidence / recoveryAssertions。断言仍在读取之后，刷新/seed/宿主启动不重试，服务端 120 秒期限不变。更早的 seed/evidence 500 不因本次超时定位而被宣称已解释。
+
+新增恢复读取回归通过；最终专项 9 项中 7 通过、2 个独立进程测试按设计跳过。实际 A11–A13 再次通过（0.435 / 0.456 / 0.453 秒）。后端固定版本仍 08d8918；新 head 仍需完整远端验证。

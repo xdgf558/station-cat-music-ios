@@ -167,7 +167,9 @@ enum ProbeHeldPolling {
     }
     static func wait(timeout: Duration = .seconds(10), interval: Duration = .milliseconds(100),
                      read: @escaping @Sendable () async throws -> Bool,
-                     onRetry: @escaping @Sendable () throws -> Void = { try ProbeReporter.phase(.evidenceRetry) }) async throws {
+                     onRetry: @escaping @Sendable (ProbeDiagnostic) throws -> Void = { error in
+                         try ProbeReporter.emit("M2_PROBE_EVIDENCE_RETRY:\(error.fields):pid=\(getpid())")
+                     }) async throws {
         let clock = ContinuousClock(), deadline = ContinuousClock.now + timeout
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
@@ -184,7 +186,7 @@ enum ProbeHeldPolling {
                         }
                     } catch {
                         guard retryable(error) else { throw error }
-                        try onRetry()
+                        try onRetry(ProbeDiagnostic.capture(error, phase: .evidenceRequest))
                     }
                     try await clock.sleep(until: min(clock.now + interval, deadline))
                 }

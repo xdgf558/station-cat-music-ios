@@ -55,7 +55,7 @@ extension NativeCrashBoundaryTests {
         ])
         try await ProbeHeldPolling.wait(timeout: .seconds(1), interval: .milliseconds(1), read: {
             try await reader.read()
-        }, onRetry: {})
+        }, onRetry: { _ in })
         let calls = await reader.calls
         XCTAssertEqual(calls, 3)
     }
@@ -70,7 +70,7 @@ extension NativeCrashBoundaryTests {
         ] {
             let reader = EvidenceSequence([failure])
             do {
-                try await ProbeHeldPolling.wait(read: { try await reader.read() }, onRetry: {})
+                try await ProbeHeldPolling.wait(read: { try await reader.read() }, onRetry: { _ in })
                 XCTFail("Must fail closed")
             } catch let error as ProbeDiagnostic { XCTAssertEqual(error.fields, failure.fields) }
             let calls = await reader.calls
@@ -83,7 +83,7 @@ extension NativeCrashBoundaryTests {
             try await ProbeHeldPolling.wait(timeout: .milliseconds(50), read: {
                 try await Task.sleep(for: .seconds(5))
                 return true
-            }, onRetry: {})
+            }, onRetry: { _ in })
             XCTFail("Late evidence must be rejected")
         } catch let error as ProbeDiagnostic { XCTAssertEqual(error.phase, .heldPolling) }
         XCTAssertLessThan(started.duration(to: .now), .seconds(1))
@@ -92,7 +92,7 @@ extension NativeCrashBoundaryTests {
         do {
             try await ProbeHeldPolling.wait(timeout: .milliseconds(50), interval: .milliseconds(10), read: {
                 throw ProbeDiagnostic.capture(APIError.rejected(500), phase: .evidenceDecode)
-            }, onRetry: {})
+            }, onRetry: { _ in })
             XCTFail("Persistent failure must not pass")
         } catch let error as ProbeDiagnostic { XCTAssertEqual(error.phase, .heldPolling) }
     }

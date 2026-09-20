@@ -36,9 +36,37 @@ nonisolated struct LibraryFile: Codable {
 }
 actor ScopedLibrary {
     private let directory: URL?
+    private let maximumStorageBytes: Int
+    private let maximumScopeFiles: Int
     private var scopes: [AccountScope: LibraryFile] = [:]
     private var syncing = Set<AccountScope>()
-    init(directory: URL? = nil) { self.directory = directory }
+    init(directory: URL? = nil, maximumStorageBytes: Int = 100 * 1024 * 1024, maximumScopeFiles: Int = 64) {
+        self.directory = directory; self.maximumStorageBytes = maximumStorageBytes; self.maximumScopeFiles = maximumScopeFiles
+    }
+    /// Release decoded inactive accounts only. Never treat unsent journals or privacy intent as a cache.
+    func releaseInactiveScopes(keeping scope: AccountScope) {
+        guard directory != nil else { return }
+        scopes = scopes.filter { $0.key == scope || syncing.contains($0.key) }
+    }
+    private func prepareDirectory(_ directory: URL) throws {
+        if FileManager.default.fileExists(atPath: directory.path) {
+            let info = try directory.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard info.isDirectory == true, info.isSymbolicLink != true else { throw APIError.storageUnavailable }
+        } else { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
+    }
+    private func checkBudget(_ directory: URL, replacing url: URL, bytes: Int) throws {
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+        var total = 0, old = 0, exists = false
+        for file in files {
+            let info = try file.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+            guard info.isRegularFile == true, info.isSymbolicLink != true, let size = info.fileSize, size >= 0 else { throw APIError.storageUnavailable }
+            total += size
+            if file == url { old = size; exists = true }
+        }
+        let withinBudget = total - old + bytes <= maximumStorageBytes && files.count + (exists ? 0 : 1) <= maximumScopeFiles
+        // A pre-existing over-budget store can still shrink, but cannot silently grow.
+        guard withinBudget || (exists && bytes < old) else { throw APIError.storageUnavailable }
+    }
     private func file(_ scope: AccountScope) -> URL? {
         let identity = scope.environment.rawValue + ":" + (scope.accountID ?? "guest")
         let key = SHA256.hash(data: Data(identity.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -48,7 +76,10 @@ actor ScopedLibrary {
         if let value = scopes[scope] { return value }
         var value = LibraryFile(scope: scope)
         if let url = file(scope), FileManager.default.fileExists(atPath: url.path) {
-            let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+            if let directory { try prepareDirectory(directory) }
+            let info = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+            guard info.isRegularFile == true, info.isSymbolicLink != true else { throw APIError.storageUnavailable }
+            let size = info.fileSize ?? Int.max
             guard size <= 20 * 1024 * 1024 else { throw APIError.storageUnavailable }
             value = try JSONDecoder().decode(LibraryFile.self, from: Data(contentsOf: url))
             guard [1, 2].contains(value.schema), value.scope == scope else { throw APIError.storageUnavailable }
@@ -74,13 +105,15 @@ actor ScopedLibrary {
         let data = try JSONEncoder().encode(value)
         guard data.count <= 20 * 1024 * 1024 else { throw APIError.storageUnavailable }
         if let directory, let url = file(value.scope) {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try prepareDirectory(directory)
+            try checkBudget(directory, replacing: url, bytes: data.count)
             var protected = directory
             var resources = URLResourceValues(); resources.isExcludedFromBackup = true
             try protected.setResourceValues(resources)
             try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         }
         scopes[value.scope] = value // Publish only after durable write succeeds.
+        releaseInactiveScopes(keeping: value.scope)
     }
     func view(in scope: AccountScope) throws -> LibraryView {
         let value = try state(scope)

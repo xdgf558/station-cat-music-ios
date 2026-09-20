@@ -18,9 +18,10 @@ import UIKit
     private var artwork: MPMediaItemArtwork?
     private var artworkTask: Task<Void, Never>?
     private var artworkURL: URL?
-    private let artworkLoader = ArtworkLoader()
+    private let artworkLoader: ArtworkLoader
     private let artworkHost: String
-    init(playback: PlaybackService, artworkHost: String) {
+    init(playback: PlaybackService, artworkHost: String, artworkLoader: ArtworkLoader = ArtworkLoader()) {
+        self.artworkLoader = artworkLoader
         self.playback = playback; self.artworkHost = artworkHost
         register(commands.playCommand, .play); register(commands.pauseCommand, .pause)
         register(commands.togglePlayPauseCommand, .toggle); register(commands.nextTrackCommand, .next)
@@ -86,7 +87,7 @@ import UIKit
                 artworkTask = Task { [weak self] in
                     do {
                         guard let loader = self?.artworkLoader,
-                              let image = try await loader.load(url),
+                              let image = try await loader.load(url, allowedHost: self?.artworkHost ?? ""),
                               !Task.isCancelled, let self, self.active, self.artworkURL == url else { return }
                         let thumbnail = UIImage(cgImage: image)
                         self.artwork = MPMediaItemArtwork(boundsSize: thumbnail.size) { _ in thumbnail }; self.writeInfo()

@@ -1,0 +1,12 @@
+{
+  "Core/ArtworkCache.swift": "8febebc352ef9dc8f412588334ffe7811c7c61840b51f89dde0f79f86b9240c5",
+  "Core/ArtworkLoader.swift": "5964485a576eda9f2ffa6b2df543ede49fd3499f4f3b06380d3ad47a0fb5a198",
+  "Core/PersonalLibrary.swift": "44a34e6b3fd444ac1b9f9caab28ee4e6fbbadfa9056ed56a1dfaa9bc4e4e97f8",
+  "Core/SystemPlayback.swift": "c0f30c50e77c91e837d3d517eebc10ebfd717ec03e2330a40a55636ef714532a",
+  "StationCatMusic/AppModel.swift": "15a70046085e25a4610cd0d7a686eaf6ea5142ec39408aea23cb01c33646d612",
+  "StationCatMusic/CachedArtwork.swift": "7bcbf812dfe7153f96d7fab6df28dcfca4182c50fb4380958a1543656ae67be6",
+  "StationCatMusic/RootView.swift": "be41790d6ccf2ee1376fdd279ecb8c3ae5a0825cec96aae06ac6014936f38f87",
+  "StationCatMusic/StationCatMusicApp.swift": "ca2a28a5c9f1041bd331115b7ce1accd0060c369264fbbee2e6c3dde33c9b333",
+  "Tests/ArtworkLoaderTests.swift": "b2b18a39e266f2948e557797a3b617b6ca749268bda8be11ae586260b59e6a07",
+  "Tests/LibraryStorageBudgetTests.swift": "c2ed57f145ff425de306a6c06177e13c0641c195495c6ea78034b30d66398fb0"
+}

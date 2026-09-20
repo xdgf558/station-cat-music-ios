@@ -35,3 +35,65 @@ import XCTest
     }
 
 }
+
+private actor EvidenceSequence {
+    var calls = 0
+    let failures: [ProbeDiagnostic]
+    init(_ failures: [ProbeDiagnostic]) { self.failures = failures }
+    func read() throws -> Bool {
+        let index = calls; calls += 1
+        if index < failures.count { throw failures[index] }
+        return true
+    }
+}
+
+extension NativeCrashBoundaryTests {
+    func testHeldPollingRecoversFromEvidence500AndTimeoutWithoutRepeatingMutation() async throws {
+        let reader = EvidenceSequence([
+            .capture(APIError.rejected(500), phase: .evidenceDecode),
+            .capture(URLError(.timedOut), phase: .evidenceRequest)
+        ])
+        try await ProbeHeldPolling.wait(timeout: .seconds(1), interval: .milliseconds(1), read: {
+            try await reader.read()
+        }, onRetry: {})
+        let calls = await reader.calls
+        XCTAssertEqual(calls, 3)
+    }
+    func testHeldPollingRejectsNonTransientAndNonEvidenceFailuresImmediately() async throws {
+        for failure in [
+            ProbeDiagnostic.capture(APIError.rejected(403), phase: .evidenceDecode),
+            .capture(APIError.rejected(404), phase: .evidenceDecode),
+            .capture(APIError.invalidPayload, phase: .evidenceDecode),
+            .capture(ProbeFailure.failed("wrong stage or request count"), phase: .boundaryValidation),
+            .capture(APIError.rejected(500), phase: .seedRequest),
+            .capture(APIError.rejected(500), phase: .refreshRequest)
+        ] {
+            let reader = EvidenceSequence([failure])
+            do {
+                try await ProbeHeldPolling.wait(read: { try await reader.read() }, onRetry: {})
+                XCTFail("Must fail closed")
+            } catch let error as ProbeDiagnostic { XCTAssertEqual(error.fields, failure.fields) }
+            let calls = await reader.calls
+            XCTAssertEqual(calls, 1)
+        }
+    }
+    func testHeldPollingAbsoluteDeadlineCancelsAnInFlightRead() async throws {
+        let started = ContinuousClock.now
+        do {
+            try await ProbeHeldPolling.wait(timeout: .milliseconds(50), read: {
+                try await Task.sleep(for: .seconds(5))
+                return true
+            }, onRetry: {})
+            XCTFail("Late evidence must be rejected")
+        } catch let error as ProbeDiagnostic { XCTAssertEqual(error.phase, .heldPolling) }
+        XCTAssertLessThan(started.duration(to: .now), .seconds(1))
+    }
+    func testHeldPollingPersistent500ExhaustsDeadline() async throws {
+        do {
+            try await ProbeHeldPolling.wait(timeout: .milliseconds(50), interval: .milliseconds(10), read: {
+                throw ProbeDiagnostic.capture(APIError.rejected(500), phase: .evidenceDecode)
+            }, onRetry: {})
+            XCTFail("Persistent failure must not pass")
+        } catch let error as ProbeDiagnostic { XCTAssertEqual(error.phase, .heldPolling) }
+    }
+}

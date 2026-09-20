@@ -7,7 +7,7 @@ import Darwin
 // Only compile-time phases and error categories enter artifacts; never Error descriptions/userInfo.
 enum ProbePhase: String, Sendable {
     case configuration, cleanup, seedRequest, seedDecode, sessionInstall, deletionPrepare, receiptWrite
-    case authRestore, refreshRequest, evidenceRequest, evidenceDecode, heldPolling, boundaryValidation
+    case authRestore, refreshRequest, evidenceRequest, evidenceDecode, evidenceRetry, heldPolling, boundaryValidation
     case journalRead, journalWrite, expectedRequestWrite, recoveryRead, recoveryEvidence, recoveryAssertions, recoveryCleanup
 }
 struct ProbeDiagnostic: Error, Sendable {
@@ -125,7 +125,10 @@ private struct LoopbackProbe: Sendable {
     func request(_ path: String, method: String = "GET", body: Data? = nil) async throws -> HTTPResult {
         let settings = URLSessionConfiguration.ephemeral
         settings.httpCookieStorage = nil; settings.urlCache = nil
-        settings.timeoutIntervalForRequest = 35; settings.timeoutIntervalForResource = 40
+        // Evidence polling must not occupy the refresh replay window with a 40s GET.
+        let evidenceRead = path == "/fixture/evidence"
+        settings.timeoutIntervalForRequest = evidenceRead ? 2 : 35
+        settings.timeoutIntervalForResource = evidenceRead ? 2 : 40
         let session = URLSession(configuration: settings, delegate: RejectRedirects(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         var r = URLRequest(url: URL(string: "http://127.0.0.1:\(configuration.port)\(path)")!)
@@ -147,6 +150,49 @@ private struct LoopbackProbe: Sendable {
             guard r.status == 200 else { throw APIError.rejected(r.status) }
             return try JSONDecoder().decode(ProbeEvidence.self, from: r.data)
         } catch { throw ProbeDiagnostic.capture(error, phase: .evidenceDecode) }
+    }
+}
+
+// Only GET evidence is retried. Mutation requests and boundary assertions never enter this loop.
+enum ProbeHeldPolling {
+    static func retryable(_ error: Error) -> Bool {
+        guard let diagnostic = error as? ProbeDiagnostic,
+              [.evidenceRequest, .evidenceDecode].contains(diagnostic.phase) else { return false }
+        if diagnostic.category == "http_rejected" {
+            return [500, 502, 503, 504].contains(diagnostic.code ?? 0)
+        }
+        return diagnostic.category == "url_error" &&
+            [URLError.timedOut.rawValue, URLError.networkConnectionLost.rawValue,
+             URLError.cannotConnectToHost.rawValue].contains(diagnostic.code ?? 0)
+    }
+    static func wait(timeout: Duration = .seconds(10), interval: Duration = .milliseconds(100),
+                     read: @escaping @Sendable () async throws -> Bool,
+                     onRetry: @escaping @Sendable () throws -> Void = { try ProbeReporter.phase(.evidenceRetry) }) async throws {
+        let clock = ContinuousClock(), deadline = ContinuousClock.now + timeout
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try await clock.sleep(until: deadline)
+                throw ProbeDiagnostic.capture(APIError.unavailable, phase: .heldPolling)
+            }
+            group.addTask {
+                while clock.now < deadline {
+                    try Task.checkCancellation()
+                    do {
+                        if try await read() {
+                            guard clock.now < deadline else { break }
+                            return
+                        }
+                    } catch {
+                        guard retryable(error) else { throw error }
+                        try onRetry()
+                    }
+                    try await clock.sleep(until: min(clock.now + interval, deadline))
+                }
+                throw ProbeDiagnostic.capture(APIError.unavailable, phase: .heldPolling)
+            }
+            defer { group.cancelAll() }
+            _ = try await group.next()
+        }
     }
 }
 private func exitAtBoundary(_ config: CrashProbeConfiguration, store: KeychainStore) async throws -> Never {
@@ -198,11 +244,33 @@ private actor BoundaryTransport: HTTPTransport {
             if probe.configuration.stage == "A11" && probe.configuration.mode == "CRASH" {
                 group.addTask {
                     try ProbeReporter.phase(.heldPolling)
-                    for _ in 0..<200 {
-                        if try await probe.evidence().held { try await exitAtBoundary(probe.configuration, store: store) }
-                        try await Task.sleep(for: .milliseconds(50))
+                    try await ProbeHeldPolling.wait {
+                        let observed = try await probe.evidence()
+                        try probeEqual(observed.stage, probe.configuration.stage)
+                        guard observed.held else { return false }
+                        // The fixture reads D1 and then its in-memory held flag. A GET
+                        // racing commit can see an older D1 row with held=true. Read
+                        // again after the barrier before asserting a coherent snapshot.
+                        let evidence = try await probe.evidence()
+                        do {
+                            try probeTrue(evidence.held)
+                            try probeEqual(evidence.stage, probe.configuration.stage)
+                            try probeEqual(evidence.requests.count, 1)
+                            try probeEqual(evidence.requests.first?.status, 200)
+                            try probeEqual(evidence.requests.first?.generation, 0)
+                            try probeEqual(evidence.requests.first?.resultGeneration, 1)
+                            try probeEqual(evidence.session.generation, 1)
+                            try probeEqual(evidence.session.revoked, 0)
+                            try probeEqual(evidence.operations.count, 1)
+                            let expected = try await store.read("expected-request")
+                            let requestID = try probeUnwrap(expected.flatMap { String(data: $0, encoding: .utf8) })
+                            try probeEqual(evidence.requests.first?.requestId, requestID)
+                            try probeEqual(evidence.operations.first?.request_id, requestID)
+                            try probeEqual(evidence.operations.first?.old_generation, 0)
+                        } catch { throw ProbeDiagnostic.capture(error, phase: .boundaryValidation) }
+                        return true
                     }
-                    throw ProbeDiagnostic.capture(APIError.unavailable, phase: .heldPolling)
+                    try await exitAtBoundary(probe.configuration, store: store)
                 }
             }
             guard let value = try await group.next() else { throw APIError.unavailable }

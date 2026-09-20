@@ -47,7 +47,7 @@ container=Path(subprocess.check_output(['xcrun','simctl','get_app_container',sim
 summary=[]
 with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
     log=(output/'M2-boundaries-service.log').open('w')
-    server=subprocess.Popen([node,'scripts/helpers/mobile-crash-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT)
+    server=subprocess.Popen([node,'--import',str(root/'scripts/probe_transport_diagnostics.mjs'),'scripts/helpers/mobile-crash-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT)
     try:
         ready=Path(directory)/'ready.json'
         connection=wait_ready(ready,server)

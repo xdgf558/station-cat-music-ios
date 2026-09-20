@@ -1,6 +1,6 @@
 import SwiftUI
 
-private enum Palette {
+enum Palette {
     static let background = Color(red: 0.035, green: 0.07, blue: 0.085)
     static let panel = Color(red: 0.075, green: 0.12, blue: 0.14)
     static let gold = Color(red: 0.96, green: 0.76, blue: 0.44)
@@ -108,7 +108,7 @@ struct RootView: View {
             Button { model.select(track, from: list) } label: {
                 HStack(spacing: 14) {
                     if let url = track.coverUrl, url.scheme == "https", url.host == model.nativeMusic?.configuration.origin.host {
-                        AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: { Image(systemName: "music.note") }.frame(width: 52, height: 60).clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityHidden(true)
+                        CachedArtwork(url: url, host: model.nativeMusic?.configuration.origin.host ?? "", loader: model.artwork, fill: true).frame(width: 52, height: 60).clipShape(RoundedRectangle(cornerRadius: 12)).accessibilityHidden(true)
                     } else {
                     Image(systemName: "moon.stars").font(.title2).frame(width: 52, height: 60).background(Palette.gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 12)).foregroundStyle(Palette.gold).accessibilityHidden(true)
                     }
@@ -199,7 +199,7 @@ struct RootView: View {
                 } else {
                     if let detail = model.detail {
                         if let url = detail.coverUrl, url.scheme == "https", url.host == model.nativeMusic?.configuration.origin.host {
-                            AsyncImage(url: url) { image in image.resizable().scaledToFit() } placeholder: { ProgressView() }.frame(maxHeight: 220).clipShape(RoundedRectangle(cornerRadius: 18))
+                            CachedArtwork(url: url, host: model.nativeMusic?.configuration.origin.host ?? "", loader: model.artwork, fill: false).frame(maxHeight: 220).clipShape(RoundedRectangle(cornerRadius: 18))
                         }
                         Text(detail.summary).font(.footnote).foregroundStyle(Palette.muted)
                     }

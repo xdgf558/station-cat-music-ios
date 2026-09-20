@@ -7,7 +7,7 @@ import Darwin
 // Only compile-time phases and error categories enter artifacts; never Error descriptions/userInfo.
 enum ProbePhase: String, Sendable {
     case configuration, cleanup, seedRequest, seedDecode, sessionInstall, deletionPrepare, receiptWrite
-    case authRestore, refreshRequest, evidenceRequest, evidenceDecode, heldPolling, boundaryValidation
+    case authRestore, refreshRequest, evidenceRequest, evidenceDecode, evidenceRetry, heldPolling, boundaryValidation
     case journalRead, journalWrite, expectedRequestWrite, recoveryRead, recoveryEvidence, recoveryAssertions, recoveryCleanup
 }
 struct ProbeDiagnostic: Error, Sendable {
@@ -125,7 +125,10 @@ private struct LoopbackProbe: Sendable {
     func request(_ path: String, method: String = "GET", body: Data? = nil) async throws -> HTTPResult {
         let settings = URLSessionConfiguration.ephemeral
         settings.httpCookieStorage = nil; settings.urlCache = nil
-        settings.timeoutIntervalForRequest = 35; settings.timeoutIntervalForResource = 40
+        // Evidence polling must not occupy the refresh replay window with a 40s GET.
+        let evidenceRead = path == "/fixture/evidence"
+        settings.timeoutIntervalForRequest = evidenceRead ? 2 : 35
+        settings.timeoutIntervalForResource = evidenceRead ? 2 : 40
         let session = URLSession(configuration: settings, delegate: RejectRedirects(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         var r = URLRequest(url: URL(string: "http://127.0.0.1:\(configuration.port)\(path)")!)
@@ -148,6 +151,61 @@ private struct LoopbackProbe: Sendable {
             return try JSONDecoder().decode(ProbeEvidence.self, from: r.data)
         } catch { throw ProbeDiagnostic.capture(error, phase: .evidenceDecode) }
     }
+}
+
+// Only GET evidence is retried. Mutation requests and boundary assertions never enter this loop.
+enum ProbeHeldPolling {
+    static func retryable(_ error: Error) -> Bool {
+        guard let diagnostic = error as? ProbeDiagnostic,
+              [.evidenceRequest, .evidenceDecode].contains(diagnostic.phase) else { return false }
+        if diagnostic.category == "http_rejected" {
+            return [500, 502, 503, 504].contains(diagnostic.code ?? 0)
+        }
+        return diagnostic.category == "url_error" &&
+            [URLError.timedOut.rawValue, URLError.networkConnectionLost.rawValue,
+             URLError.cannotConnectToHost.rawValue].contains(diagnostic.code ?? 0)
+    }
+    static func value<Value: Sendable>(timeout: Duration = .seconds(10), phase: ProbePhase = .heldPolling, interval: Duration = .milliseconds(100),
+                     read: @escaping @Sendable () async throws -> Value?,
+                     onRetry: @escaping @Sendable (ProbeDiagnostic) throws -> Void = { error in
+                         try ProbeReporter.emit("M2_PROBE_EVIDENCE_RETRY:\(error.fields):pid=\(getpid())")
+                     }) async throws -> Value {
+        let clock = ContinuousClock(), deadline = ContinuousClock.now + timeout
+        return try await withThrowingTaskGroup(of: Value.self) { group in
+            group.addTask {
+                try await clock.sleep(until: deadline)
+                throw ProbeDiagnostic.capture(APIError.unavailable, phase: phase)
+            }
+            group.addTask {
+                while clock.now < deadline {
+                    try Task.checkCancellation()
+                    do {
+                        if let value = try await read() {
+                            guard clock.now < deadline else { break }
+                            return value
+                        }
+                    } catch {
+                        guard retryable(error) else { throw error }
+                        try onRetry(ProbeDiagnostic.capture(error, phase: .evidenceRequest))
+                    }
+                    try await clock.sleep(until: min(clock.now + interval, deadline))
+                }
+                throw ProbeDiagnostic.capture(APIError.unavailable, phase: phase)
+            }
+            defer { group.cancelAll() }
+            return try probeUnwrap(try await group.next())
+        }
+    }
+    static func wait(timeout: Duration = .seconds(10), interval: Duration = .milliseconds(100),
+                     read: @escaping @Sendable () async throws -> Bool,
+                     onRetry: @escaping @Sendable (ProbeDiagnostic) throws -> Void = { error in
+                         try ProbeReporter.emit("M2_PROBE_EVIDENCE_RETRY:\(error.fields):pid=\(getpid())")
+                     }) async throws {
+        let _: Bool = try await value(timeout: timeout, interval: interval, read: {
+            try await read() ? true : nil
+        }, onRetry: onRetry)
+    }
+
 }
 private func exitAtBoundary(_ config: CrashProbeConfiguration, store: KeychainStore) async throws -> Never {
     try ProbeReporter.phase(.boundaryValidation)
@@ -198,11 +256,33 @@ private actor BoundaryTransport: HTTPTransport {
             if probe.configuration.stage == "A11" && probe.configuration.mode == "CRASH" {
                 group.addTask {
                     try ProbeReporter.phase(.heldPolling)
-                    for _ in 0..<200 {
-                        if try await probe.evidence().held { try await exitAtBoundary(probe.configuration, store: store) }
-                        try await Task.sleep(for: .milliseconds(50))
+                    try await ProbeHeldPolling.wait {
+                        let observed = try await probe.evidence()
+                        try probeEqual(observed.stage, probe.configuration.stage)
+                        guard observed.held else { return false }
+                        // The fixture reads D1 and then its in-memory held flag. A GET
+                        // racing commit can see an older D1 row with held=true. Read
+                        // again after the barrier before asserting a coherent snapshot.
+                        let evidence = try await probe.evidence()
+                        do {
+                            try probeTrue(evidence.held)
+                            try probeEqual(evidence.stage, probe.configuration.stage)
+                            try probeEqual(evidence.requests.count, 1)
+                            try probeEqual(evidence.requests.first?.status, 200)
+                            try probeEqual(evidence.requests.first?.generation, 0)
+                            try probeEqual(evidence.requests.first?.resultGeneration, 1)
+                            try probeEqual(evidence.session.generation, 1)
+                            try probeEqual(evidence.session.revoked, 0)
+                            try probeEqual(evidence.operations.count, 1)
+                            let expected = try await store.read("expected-request")
+                            let requestID = try probeUnwrap(expected.flatMap { String(data: $0, encoding: .utf8) })
+                            try probeEqual(evidence.requests.first?.requestId, requestID)
+                            try probeEqual(evidence.operations.first?.request_id, requestID)
+                            try probeEqual(evidence.operations.first?.old_generation, 0)
+                        } catch { throw ProbeDiagnostic.capture(error, phase: .boundaryValidation) }
+                        return true
                     }
-                    throw ProbeDiagnostic.capture(APIError.unavailable, phase: .heldPolling)
+                    try await exitAtBoundary(probe.configuration, store: store)
                 }
             }
             guard let value = try await group.next() else { throw APIError.unavailable }
@@ -260,7 +340,8 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
         try probeEqual(before.generation, config.stage == "A13" ? 1 : 0)
         if config.stage == "A13" { try probeNil(before.pending) } else { try probeEqual(before.pending?.requestID, requestID) }
         phase = .recoveryEvidence; try ProbeReporter.phase(phase)
-        let probe = LoopbackProbe(configuration: config), committed = try await probe.evidence()
+        let probe = LoopbackProbe(configuration: config)
+        let committed = try await ProbeHeldPolling.value(phase: .recoveryEvidence) { try await probe.evidence() }
         try probeEqual(committed.session.generation, 1); try probeEqual(committed.operations.count, 1)
         try probeEqual(committed.operations.first?.request_id, requestID)
         let auth = try service(config, store: base, base: base)
@@ -268,7 +349,8 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
         try await auth.restore()
         phase = .recoveryAssertions; try ProbeReporter.phase(phase)
         let afterRecord = try await journal.read()
-        let after = try probeUnwrap(afterRecord), evidence = try await probe.evidence()
+        let after = try probeUnwrap(afterRecord)
+        let evidence = try await ProbeHeldPolling.value(phase: .recoveryAssertions) { try await probe.evidence() }
         try probeEqual(after.scope, before.scope); try probeEqual(after.familyID, before.familyID)
         try probeEqual(after.absoluteExpiresAt, before.absoluteExpiresAt); try probeNil(after.pending)
         try probeEqual(evidence.requests.count, 2); try probeEqual(evidence.session.revoked, 0)

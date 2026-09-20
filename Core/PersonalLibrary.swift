@@ -36,9 +36,40 @@ nonisolated struct LibraryFile: Codable {
 }
 actor ScopedLibrary {
     private let directory: URL?
+    private let maximumStorageBytes: Int
+    private let maximumScopeFiles: Int
+    // JSON trailing whitespace reserves real, budgeted bytes in the same atomic file.
+    static let controlReserveBytes = 64 * 1024
+    private enum WritePurpose { case ordinary, control }
     private var scopes: [AccountScope: LibraryFile] = [:]
     private var syncing = Set<AccountScope>()
-    init(directory: URL? = nil) { self.directory = directory }
+    init(directory: URL? = nil, maximumStorageBytes: Int = 100 * 1024 * 1024, maximumScopeFiles: Int = 64) {
+        self.directory = directory; self.maximumStorageBytes = maximumStorageBytes; self.maximumScopeFiles = maximumScopeFiles
+    }
+    /// Release decoded inactive accounts only. Never treat unsent journals or privacy intent as a cache.
+    func releaseInactiveScopes(keeping scope: AccountScope) {
+        guard directory != nil else { return }
+        scopes = scopes.filter { $0.key == scope || syncing.contains($0.key) }
+    }
+    private func prepareDirectory(_ directory: URL) throws {
+        if FileManager.default.fileExists(atPath: directory.path) {
+            let info = try directory.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard info.isDirectory == true, info.isSymbolicLink != true else { throw APIError.storageUnavailable }
+        } else { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
+    }
+    private func checkBudget(_ directory: URL, replacing url: URL, bytes: Int) throws {
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+        var total = 0, old = 0, exists = false
+        for file in files {
+            let info = try file.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+            guard info.isRegularFile == true, info.isSymbolicLink != true, let size = info.fileSize, size >= 0 else { throw APIError.storageUnavailable }
+            total += size
+            if file == url { old = size; exists = true }
+        }
+        let withinBudget = total - old + bytes <= maximumStorageBytes && files.count + (exists ? 0 : 1) <= maximumScopeFiles
+        // A pre-existing over-budget store can still shrink, but cannot silently grow.
+        guard withinBudget || (exists && bytes < old) else { throw APIError.storageUnavailable }
+    }
     private func file(_ scope: AccountScope) -> URL? {
         let identity = scope.environment.rawValue + ":" + (scope.accountID ?? "guest")
         let key = SHA256.hash(data: Data(identity.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -48,7 +79,10 @@ actor ScopedLibrary {
         if let value = scopes[scope] { return value }
         var value = LibraryFile(scope: scope)
         if let url = file(scope), FileManager.default.fileExists(atPath: url.path) {
-            let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+            if let directory { try prepareDirectory(directory) }
+            let info = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+            guard info.isRegularFile == true, info.isSymbolicLink != true else { throw APIError.storageUnavailable }
+            let size = info.fileSize ?? Int.max
             guard size <= 20 * 1024 * 1024 else { throw APIError.storageUnavailable }
             value = try JSONDecoder().decode(LibraryFile.self, from: Data(contentsOf: url))
             guard [1, 2].contains(value.schema), value.scope == scope else { throw APIError.storageUnavailable }
@@ -65,22 +99,37 @@ actor ScopedLibrary {
                     value.recent = []; value.conflict = true
                     value.historyBlockedLocally = true; value.preferences.historyEnabled = false
                 }
-                try save(value)
+                try save(value, purpose: .control)
             }
         }
         scopes[scope] = value; return value
     }
-    private func save(_ value: LibraryFile) throws {
-        let data = try JSONEncoder().encode(value)
-        guard data.count <= 20 * 1024 * 1024 else { throw APIError.storageUnavailable }
+    private func save(_ value: LibraryFile, purpose: WritePurpose = .ordinary) throws {
+        var data = try JSONEncoder().encode(value)
+        let payloadBytes = data.count
+        guard payloadBytes <= 20 * 1024 * 1024 else { throw APIError.storageUnavailable }
         if let directory, let url = file(value.scope) {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try prepareDirectory(directory)
+            var previousSize = 0
+            if FileManager.default.fileExists(atPath: url.path) {
+                let info = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+                guard info.isRegularFile == true, info.isSymbolicLink != true else { throw APIError.storageUnavailable }
+                previousSize = info.fileSize ?? 0
+            }
+            // Ordinary data must leave the full reserve. Control writes may consume their
+            // own file's reserve, never another account's bytes or an unbounded extra quota.
+            let reservedSize = payloadBytes + Self.controlReserveBytes
+            let target = purpose == .ordinary || previousSize == 0 ? reservedSize : max(payloadBytes, min(previousSize, reservedSize))
+            guard target <= 20 * 1024 * 1024 else { throw APIError.storageUnavailable }
+            try checkBudget(directory, replacing: url, bytes: target)
+            data.append(Data(repeating: 0x20, count: target - payloadBytes))
             var protected = directory
             var resources = URLResourceValues(); resources.isExcludedFromBackup = true
             try protected.setResourceValues(resources)
             try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         }
         scopes[value.scope] = value // Publish only after durable write succeeds.
+        releaseInactiveScopes(keeping: value.scope)
     }
     func view(in scope: AccountScope) throws -> LibraryView {
         let value = try state(scope)
@@ -113,7 +162,7 @@ actor ScopedLibrary {
     }
     func setHistory(_ enabled: Bool, scope: AccountScope) throws {
         var stored = try state(scope)
-        guard stored.operations.count < 5000 else { throw APIError.storageUnavailable }
+        guard stored.operations.count < (enabled ? 5000 : 5016) else { throw APIError.storageUnavailable }
         stored.historyBlockedLocally = !enabled; stored.preferences.historyEnabled = enabled
         stored.operations.removeAll { $0.kind == .listen }
         if scope.accountID != nil {
@@ -121,18 +170,18 @@ actor ScopedLibrary {
             stored.operations.append(.init(id: UUID().uuidString, created: Date(), kind: .preference, value: enabled, privacyDependency: parent))
             bindRootPrivacy(&stored)
         }
-        try save(stored)
+        try save(stored, purpose: enabled ? .ordinary : .control)
     }
     func clearHistory(scope: AccountScope) throws {
         var stored = try state(scope)
-        guard stored.operations.count < 5000 else { throw APIError.storageUnavailable }
+        guard stored.operations.count < 5016 else { throw APIError.storageUnavailable }
         stored.recent = []; stored.operations.removeAll { $0.kind == .listen }
         if scope.accountID != nil {
             let parent = stored.operations.last(where: isPrivacy)?.id
             stored.operations.append(.init(id: UUID().uuidString, created: Date(), kind: .clear, privacyDependency: parent))
             bindRootPrivacy(&stored)
         }
-        try save(stored)
+        try save(stored, purpose: .control)
     }
     private func mergedRecent(_ rows: [LibraryRecent], now: Date = Date()) -> [LibraryRecent] {
         let cutoff = now.addingTimeInterval(-90 * 86400)
@@ -179,9 +228,19 @@ actor ScopedLibrary {
         resetPrivacyChain(&value)
         if lostEnable { value.historyBlockedLocally = true; value.preferences.historyEnabled = false }
     }
+    private func adoptPreferences(_ preferences: LibraryPreferences, into current: inout LibraryFile) {
+        let previousEpoch = current.confirmedPreferences?.historyEpoch
+        current.confirmedPreferences = preferences
+        bindRootPrivacy(&current) // Never change an ambiguous request body or idempotency ID.
+        if !current.operations.contains(where: isPrivacy) {
+            current.preferences = preferences
+            current.operations.removeAll { $0.kind == .listen && ($0.privacyDependency != nil || $0.epoch != preferences.historyEpoch || !preferences.historyEnabled || current.historyBlockedLocally) }
+            // On an epoch change, stale display history is not evidence of current server history.
+            if previousEpoch != preferences.historyEpoch { current.recent = [] }
+        }
+    }
     private func merge(_ snapshot: LibrarySnapshot, into current: inout LibraryFile) {
-        current.confirmedPreferences = snapshot.preferences; current.synced = true
-        bindRootPrivacy(&current) // Bind only never-issued roots; never change an ambiguous request body/ID.
+        adoptPreferences(snapshot.preferences, into: &current); current.synced = true
         let pendingTracks = Set(current.operations.filter { $0.kind == .favorite }.compactMap(\.trackID))
         let overlays = current.favorites.filter { pendingTracks.contains($0.key) }
         current.favorites = Dictionary(uniqueKeysWithValues: snapshot.favorites.map { ($0.trackId, $0) })
@@ -204,11 +263,13 @@ actor ScopedLibrary {
         if !expired.isEmpty {
             for op in expired where isPrivacy(op) { rejectPrivacy(op, in: &value) }
             let ids = Set(expired.map(\.id)); value.operations.removeAll { ids.contains($0.id) }
-            value.conflict = true; try save(value)
+            value.conflict = true; try save(value, purpose: .control)
         }
         if value.confirmedPreferences == nil {
             let snapshot = try await remote.snapshot(scope: scope); try Task.checkCancellation()
-            var current = try state(scope); merge(snapshot, into: &current); try save(current)
+            var current = try state(scope)
+            adoptPreferences(snapshot.preferences, into: &current)
+            try save(current, purpose: .control)
         }
         for _ in 0..<100 {
             try Task.checkCancellation()
@@ -230,7 +291,7 @@ actor ScopedLibrary {
                         if isPrivacy(current.operations[i]) { current.operations[i].version = receipt.version }
                     }
                 }
-                current.operations.removeAll { $0.id == operation.id }; try save(current)
+                current.operations.removeAll { $0.id == operation.id }; try save(current, purpose: .control)
             } catch APIError.rejected(let code) where [400, 404, 409].contains(code) {
                 try Task.checkCancellation()
                 var current = try state(scope)
@@ -243,13 +304,23 @@ actor ScopedLibrary {
                     }
                     current.conflict = true
                 }
-                try save(current); break
+                try save(current, purpose: .control); break
             }
         }
         let snapshot = try await remote.snapshot(scope: scope); try Task.checkCancellation()
-        var current = try state(scope); merge(snapshot, into: &current); try save(current)
+        let stored = try state(scope)
+        var current = stored; merge(snapshot, into: &current)
+        do { try save(current) }
+        catch APIError.storageUnavailable {
+            // A large display snapshot must not block acknowledgements already persisted above.
+            // Retain local journals and authoritative privacy state; report the refresh failure.
+            var minimal = stored
+            adoptPreferences(snapshot.preferences, into: &minimal); minimal.synced = false
+            try save(minimal, purpose: .control)
+            throw APIError.storageUnavailable
+        }
     }
-    func clear(scope: AccountScope) throws { try save(LibraryFile(scope: scope)) }
+    func clear(scope: AccountScope) throws { try save(LibraryFile(scope: scope), purpose: .control) }
 }
 
 // Accumulate actual advancing playback samples, not slider positions or wall time alone.

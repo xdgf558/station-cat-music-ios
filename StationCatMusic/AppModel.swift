@@ -21,6 +21,7 @@ import Observation
     private(set) var scope = AccountScope.guest
     let playback: PlaybackService
     let library: ScopedLibrary
+    let artwork: ArtworkLoader
     let client: any CatalogProviding
     let account: NativeAccountModel
     let musicWebOrigin: URL?
@@ -35,7 +36,7 @@ import Observation
     @ObservationIgnored private var detailTask: Task<Void, Never>?
     private var operation = 0
     @ObservationIgnored private var catalogTask: Task<Catalog, Error>?
-    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock) { self.libraryRemote = libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.musicWebOrigin = MusicLink.webOrigin(musicWebOrigin)
+    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader()) { self.artwork = artwork; self.libraryRemote = libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.musicWebOrigin = MusicLink.webOrigin(musicWebOrigin)
         if let native = client as? NativeMusicAPI { playback.configure(authorizer: native) }
         playback.onSelection = { [weak self] track in self?.loadDetail(track) }
         account.onInvalidate = { [weak self] in
@@ -113,6 +114,7 @@ import Observation
         let scope = AccountScope(environment: self.scope.environment, accountID: requested.accountID)
         libraryGeneration += 1; syncTask?.cancel(); libraryBusy = false
         operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.clear(); tracks = []; favorites = []; recent = []; self.scope = scope
+        await library.releaseInactiveScopes(keeping: scope)
         await refreshLibrary(); syncLibrary()
     }
     func toggleFavorite(_ track: Track) async {
@@ -129,6 +131,7 @@ import Observation
     }
     func clearCache() async {
         detailTask?.cancel(); detail = nil; URLCache.shared.removeAllCachedResponses()
+        do { try await artwork.clearCache() } catch { libraryStatus = "libraryError"; return }
         await load()
     }
     func select(_ track: Track, from list: [Track]? = nil) {

@@ -20,9 +20,10 @@ import SwiftUI
         if Bundle.main.object(forInfoDictionaryKey: "StationPersonalSyncEnabled") as? String == "YES", let native = client as? NativeMusicAPI, let auth = account.auth {
             libraryRemote = try? NativeLibraryAPI(configuration: native.configuration, explicitlyEnabled: true, auth: auth, transport: URLSessionTransport())
         }
-        let model = AppModel(client: client, library: ScopedLibrary(directory: directory), account: account, musicWebOrigin: webOrigin, libraryRemote: libraryRemote, environment: environment)
+        let artwork = ArtworkLoader(cacheDirectory: URL.cachesDirectory.appending(path: "PublicMusicArtwork-v1"))
+        let model = AppModel(client: client, library: ScopedLibrary(directory: directory), account: account, musicWebOrigin: webOrigin, libraryRemote: libraryRemote, environment: environment, artwork: artwork)
         if let native = client as? NativeMusicAPI, let host = native.configuration.origin.host {
-            model.playback.attachSystem(SystemPlayback(playback: model.playback, artworkHost: host))
+            model.playback.attachSystem(SystemPlayback(playback: model.playback, artworkHost: host, artworkLoader: artwork))
         }
         _model = State(initialValue: model)
     }

@@ -47,7 +47,7 @@ container=Path(subprocess.check_output(['xcrun','simctl','get_app_container',sim
 summary=[]
 with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
     log=(output/'M2-boundaries-service.log').open('w')
-    server=subprocess.Popen([node,'scripts/helpers/mobile-crash-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT)
+    server=subprocess.Popen([node,'--import',str(root/'scripts/probe_transport_diagnostics.mjs'),'scripts/helpers/mobile-crash-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT)
     try:
         ready=Path(directory)/'ready.json'
         connection=wait_ready(ready,server)
@@ -91,5 +91,8 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
         try:server.wait(timeout=10)
         except subprocess.TimeoutExpired:server.kill();server.wait()
         log.close()
+        diagnostic_file=Path(directory)/'diagnostics.jsonl'
+        if diagnostic_file.exists():
+            shutil.copyfile(diagnostic_file,output/'M2-fixture-diagnostics.jsonl')
         run(['xcrun','simctl','uninstall',simulator,bundle],'M2-boundaries-uninstall.log',60)
 print('All three boundaries passed; no production or HTTPS/AASA activation.',flush=True)

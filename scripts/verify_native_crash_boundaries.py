@@ -7,6 +7,7 @@ from crash_probe_runner import run_file_probe,wait_ready
 import hashlib,json,os,plistlib,platform,shutil,subprocess,tempfile,time,uuid
 from probe_evidence import read_probe_evidence, read_failure_evidence
 from probe_preparation import prepare_stage
+from probe_host_diagnostics import collect as collect_host_diagnostics
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
 backend=Path(os.environ['M2_BACKEND_PATH']).resolve()
@@ -68,6 +69,12 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
                 try:
                     result=run_file_probe(args,output/name,resultfile,stage,mode,env=env)
                 except Exception:
+                    # Failure-only process states and fixed stack categories; never raw stacks.
+                    # Collection cannot replace the original failure or retry the scenario.
+                    try:
+                        collect_host_diagnostics(server.pid, output/('M2-boundary-'+stage+'-'+mode+'-host.json'))
+                    except Exception:
+                        pass
                     # Retain the original failure. This single GET cannot turn a failed probe green.
                     diagnostic=read_failure_evidence(connection,stage)
                     (output/('M2-boundary-'+stage+'-'+mode+'-failure-state.json')).write_text(json.dumps(diagnostic,indent=2)+'\n')

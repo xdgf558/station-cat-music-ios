@@ -19,6 +19,7 @@ jobs:
       - run: python scripts/test_crash_probe_runner.py
       - run: python scripts/test_probe_evidence.py
       - run: python scripts/test_probe_preparation.py
+      - run: python scripts/test_probe_host_diagnostics.py
   simulator:
     runs-on: macos-26
     steps:

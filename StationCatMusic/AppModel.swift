@@ -15,9 +15,11 @@ import Observation
     var historyEnabled = true
     var libraryStatus = "libraryLocal"
     var libraryBusy = false
+    var localCleanupStatus = ""
     let libraryRemote: (any LibraryRemote)?
     @ObservationIgnored private var syncTask: Task<Void, Never>?
     private var libraryGeneration = 0
+    private var scopeTransition = false
     private(set) var scope = AccountScope.guest
     let playback: PlaybackService
     let library: ScopedLibrary
@@ -41,7 +43,7 @@ import Observation
         playback.onSelection = { [weak self] track in self?.loadDetail(track) }
         account.onInvalidate = { [weak self] in
             guard let self else { return }
-            self.libraryGeneration += 1; self.syncTask?.cancel(); self.libraryBusy = false
+            self.libraryGeneration += 1; self.syncTask?.cancel(); self.libraryBusy = false; self.scopeTransition = false
             self.favorites = []; self.recent = []; self.playback.clear()
         }
         playback.onListen = { [weak self] track, variant, audible, position, eventID in
@@ -91,8 +93,11 @@ import Observation
     }
     var recentTracks: [Track] { recent.compactMap { item in tracks.first { $0.id == item.trackId } } }
     func refreshLibrary() async {
+        guard !scopeTransition else { return }
         let captured = scope, generation = libraryGeneration
         do {
+            await library.selectScope(captured)
+            guard scope == captured, libraryGeneration == generation else { return }
             let value = try await library.view(in: captured)
             guard scope == captured, libraryGeneration == generation else { return }
             favorites = value.favorites; recent = value.recent; historyEnabled = value.historyEnabled
@@ -100,7 +105,7 @@ import Observation
         } catch { if scope == captured && libraryGeneration == generation { libraryStatus = "libraryError" } }
     }
     func syncLibrary() {
-        guard let libraryRemote, scope.accountID != nil, !libraryBusy else { return }
+        guard let libraryRemote, scope.accountID != nil, !libraryBusy, !scopeTransition else { return }
         let captured = scope, generation = libraryGeneration
         libraryBusy = true
         syncTask = Task { [weak self] in
@@ -112,8 +117,13 @@ import Observation
     }
     func changeScope(_ requested: AccountScope) async {
         let scope = AccountScope(environment: self.scope.environment, accountID: requested.accountID)
+        scopeTransition = true
         libraryGeneration += 1; syncTask?.cancel(); libraryBusy = false
-        operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.clear(); tracks = []; favorites = []; recent = []; self.scope = scope
+        let transition = libraryGeneration
+        operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.clear(); tracks = []; favorites = []; recent = []
+        await library.selectScope(scope)
+        guard transition == libraryGeneration else { return }
+        self.scope = scope; scopeTransition = false
         await library.releaseInactiveScopes(keeping: scope)
         await refreshLibrary(); syncLibrary()
     }
@@ -128,6 +138,13 @@ import Observation
     func clearHistory() async {
         do { try await library.clearHistory(scope: scope); await refreshLibrary(); syncLibrary() }
         catch { libraryStatus = "libraryError" }
+    }
+    func removeInactiveAccountData(confirmedScope: AccountScope) async {
+        guard scope == confirmedScope, !scopeTransition else { localCleanupStatus = "localCleanupChanged"; return }
+        do {
+            let removed = try await library.removeInactiveAccountFiles(keeping: confirmedScope)
+            localCleanupStatus = removed > 0 ? "localCleanupDone" : "localCleanupNothing"
+        } catch { localCleanupStatus = "localCleanupFailed" }
     }
     func clearCache() async {
         detailTask?.cancel(); detail = nil; URLCache.shared.removeAllCachedResponses()

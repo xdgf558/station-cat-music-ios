@@ -12,10 +12,18 @@
 
 原 push `35547800516` 失败证据保留：PID 6409，seedRequest，URL error -1001；artifact ZIP SHA256 `520343402df3563d932f0735ab4cb3f78452886949e3d18baea2c5f9b2318a13`。旧密码阶段共28.012秒，日志未区分计算与数据库耗时；没有到达崩溃边界，不能归因于后置 evidence GET 或宣称已确定底层环境根因。
 
-新恢复夹具固定到网站 `b2d699e`（完整 SHA 和各源码哈希见 backend-recovery-fixture.json）。宿主在每次 CRASH App 启动前调用一次准备 POST，以90秒绝对期限覆盖连接、响应头和响应体；到期 shutdown socket 并失败，无写请求重试。App 只 GET 已准备的同阶段会话。网站保留真实密码/PKCE/token 路径，并拆分 hash/write 诊断。准备异常时原有 finally 仍保存服务诊断。A11/A12/A13 的 PID退出、Keychain/删除回执/刷新操作断言，以及服务端120秒重放期限保持原样。
+新恢复夹具固定到网站 `f0fe53f`（完整 SHA 和各源码哈希见 backend-recovery-fixture.json）。宿主在每次 CRASH App 启动前调用一次准备 POST，以90秒绝对期限覆盖连接、响应头和响应体；到期 shutdown socket 并失败，无写请求重试。App 只 GET 已准备的同阶段会话。网站保留真实密码/PKCE/token 路径，并拆分 hash/write 诊断。准备异常时原有 finally 仍保存服务诊断。A11/A12/A13 的 PID退出、Keychain/删除回执/刷新操作断言，以及服务端120秒重放期限保持原样。
 
 新增 Python 回归覆盖单次成功、409/500/503不重试、错阶段或额外字段拒绝、响应头加响应体共享绝对期限、慢速分段响应中断、非法阶段不发请求和准备先于宿主循环。准备结果只归档阶段、ready、次数、耗时，不归档认证载荷。
 
 本机工具链是 Xcode27 beta6 / iOS27模拟器，不能替代固定Xcode26.4.1远端 CI或实体iPhone验收。生产认证、曲库同步开关及origin均保持关闭。真实HTTPS/AASA、后台锁屏、Keychain锁定、网络切换、AirPlay、完整销户和长期保留仍待后续验收。
 
 本次本机完整测试：129 项 Swift 通过、19 项专用探针按设计跳过、3 项 UI 通过；Python 准备 7/7、证据读取 14/14、宿主驱动 20/20。独立真实模拟器 A11/A12/A13 均通过，服务端两次请求间隔分别 0.516、0.583、0.572 秒。固定新后端的进程 PID、准备耗时、源码 SHA256 见 [本次本机证据](R1-review-evidence.json)。远端新 head CI 需另行核对，不能复用旧 head 成功结果。
+
+## 第二次 push 的定位与修复
+
+`35581775938`（af8a50e）准备已在0.777秒内成功。失败发生在 heldPolling，服务端 refresh 已完成，但每次 evidence GET 都重新读取 D1，超时后前一次查询仍执行，新读又叠加。已保留新 durable log 与诊断，不将其归为旧 seed 超时或环境波动。
+
+网站 f0fe53f 在准备和每次 refresh 完成后以一次真实 D1 batch 获取 session/operation 行，原子发布脱敏快照；GET不再读数据库或同步写日志。held只随完整的提交后快照发布，generation/撤销/请求ID/操作数/120秒窗口断言保持不变。驱动额外归档最后一份提交证据，用于诊断，不把文件当作验收替代。
+
+固定新夹具的本机真实A11/A12/A13再次通过，间隔0.486/0.566/0.531秒。网站实际Worker/D1回归确认十次GET不增加查询次数。仍需最新head远端双CI验证。

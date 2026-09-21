@@ -97,5 +97,8 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
         diagnostic_file=Path(directory)/'diagnostics.jsonl'
         if diagnostic_file.exists():
             shutil.copyfile(diagnostic_file,output/'M2-fixture-diagnostics.jsonl')
+        snapshot_file=Path(directory)/'evidence.json'
+        if snapshot_file.exists():
+            shutil.copyfile(snapshot_file,output/'M2-last-committed-evidence.json')
         run(['xcrun','simctl','uninstall',simulator,bundle],'M2-boundaries-uninstall.log',60)
 print('All three boundaries passed; no production or HTTPS/AASA activation.',flush=True)

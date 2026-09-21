@@ -18,23 +18,23 @@
     {
       "case": "A11",
       "result": "passed",
-      "seconds": 1.17,
+      "seconds": 1.1,
       "actual_process_exit": true,
       "hostExitConfirmed": true,
-      "crashedHostPID": 50550,
+      "crashedHostPID": 52223,
       "evidenceTransport": "unique simulator-container file",
       "hostExitAfterMarkerSeconds": 0.004,
-      "recoveredHostPID": 50566,
-      "serverRequestIntervalSeconds": 0.516,
+      "recoveredHostPID": 52241,
+      "serverRequestIntervalSeconds": 0.486,
       "evidenceRead": {
         "attempts": 1,
-        "seconds": 0.054
+        "seconds": 0.001
       },
       "preparation": {
         "stage": "A11",
         "ready": true,
         "attempts": 1,
-        "seconds": 0.133,
+        "seconds": 0.144,
         "deadlineSeconds": 90
       },
       "storage": "simulator Keychain",
@@ -45,23 +45,23 @@
     {
       "case": "A12",
       "result": "passed",
-      "seconds": 1.23,
+      "seconds": 1.11,
       "actual_process_exit": true,
       "hostExitConfirmed": true,
-      "crashedHostPID": 50582,
+      "crashedHostPID": 52258,
       "evidenceTransport": "unique simulator-container file",
       "hostExitAfterMarkerSeconds": 0.004,
-      "recoveredHostPID": 50597,
-      "serverRequestIntervalSeconds": 0.583,
+      "recoveredHostPID": 52274,
+      "serverRequestIntervalSeconds": 0.566,
       "evidenceRead": {
         "attempts": 1,
-        "seconds": 0.048
+        "seconds": 0.001
       },
       "preparation": {
         "stage": "A12",
         "ready": true,
         "attempts": 1,
-        "seconds": 0.136,
+        "seconds": 0.122,
         "deadlineSeconds": 90
       },
       "storage": "simulator Keychain",
@@ -72,23 +72,23 @@
     {
       "case": "A13",
       "result": "passed",
-      "seconds": 1.14,
+      "seconds": 1.15,
       "actual_process_exit": true,
       "hostExitConfirmed": true,
-      "crashedHostPID": 50619,
+      "crashedHostPID": 52289,
       "evidenceTransport": "unique simulator-container file",
-      "hostExitAfterMarkerSeconds": 0.005,
-      "recoveredHostPID": 50635,
-      "serverRequestIntervalSeconds": 0.572,
+      "hostExitAfterMarkerSeconds": 0.01,
+      "recoveredHostPID": 52306,
+      "serverRequestIntervalSeconds": 0.531,
       "evidenceRead": {
         "attempts": 1,
-        "seconds": 0.042
+        "seconds": 0.002
       },
       "preparation": {
         "stage": "A13",
         "ready": true,
         "attempts": 1,
-        "seconds": 0.121,
+        "seconds": 0.154,
         "deadlineSeconds": 90
       },
       "storage": "simulator Keychain",
@@ -102,11 +102,10 @@
     "Tests/LocalAccountCleanupTests.swift": "c268b8b5df62570fb622d070a09104f83dfaf5dfc08f845274aa464b5818036d",
     "TestsSupport/NativeCrashScenario.swift": "71a566a202fdf599b5ddc859544e752e4aafe95c393e9eb2f51307f0a0b0512d",
     "scripts/probe_preparation.py": "a7b0dabbbb697bba4d0ae7688ff5d3ff02bf0ef3f81b934d9ef9885158413829",
-    "scripts/verify_native_crash_boundaries.py": "688e71dad56af0ccbed5c4cf71adde95e9c968cfc54feec8faa7ac56f66c6cca",
-    "contracts/backend-recovery-fixture.json": "50ba6d7111600fb79568ffb25546d1da17da103bd2ec946d2bca762bf6b20b3a"
+    "scripts/verify_native_crash_boundaries.py": "c358e814e554de137bf778d613c6f68befef21ea8ea0621740e52c850bd20748",
+    "contracts/backend-recovery-fixture.json": "491addb7f450c0cf26a323d7e0ff5c1d422b3e5e0c6838743499c136cbfc684b"
   },
-  "remoteCI": "Pending new-head verification; old failed push preserved in review report",
+  "remoteCI": "Previous af8a50e push 35581775938 failed in heldPolling; retained and addressed by commit-time evidence snapshots. Latest head verification pending.",
   "productionEnabled": false,
-  "testedBackendCommit": "1737d8aad40cde1e4571fa4d1f37d0d3686c69b9",
-  "pinUpdateNote": "Only backend regression scheduling changed after the local run; fixture source hashes are identical. New head remote CI required."
+  "testedBackendCommit": "f0fe53f2e0cf75fa7ad6e5020fb75cb67c282649"
 }

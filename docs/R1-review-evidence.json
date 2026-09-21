@@ -106,5 +106,7 @@
     "contracts/backend-recovery-fixture.json": "50ba6d7111600fb79568ffb25546d1da17da103bd2ec946d2bca762bf6b20b3a"
   },
   "remoteCI": "Pending new-head verification; old failed push preserved in review report",
-  "productionEnabled": false
+  "productionEnabled": false,
+  "testedBackendCommit": "1737d8aad40cde1e4571fa4d1f37d0d3686c69b9",
+  "pinUpdateNote": "Only backend regression scheduling changed after the local run; fixture source hashes are identical. New head remote CI required."
 }

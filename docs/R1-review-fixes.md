@@ -12,7 +12,7 @@
 
 原 push `35547800516` 失败证据保留：PID 6409，seedRequest，URL error -1001；artifact ZIP SHA256 `520343402df3563d932f0735ab4cb3f78452886949e3d18baea2c5f9b2318a13`。旧密码阶段共28.012秒，日志未区分计算与数据库耗时；没有到达崩溃边界，不能归因于后置 evidence GET 或宣称已确定底层环境根因。
 
-新恢复夹具固定到网站 `1737d8a`（完整 SHA 和各源码哈希见 backend-recovery-fixture.json）。宿主在每次 CRASH App 启动前调用一次准备 POST，以90秒绝对期限覆盖连接、响应头和响应体；到期 shutdown socket 并失败，无写请求重试。App 只 GET 已准备的同阶段会话。网站保留真实密码/PKCE/token 路径，并拆分 hash/write 诊断。准备异常时原有 finally 仍保存服务诊断。A11/A12/A13 的 PID退出、Keychain/删除回执/刷新操作断言，以及服务端120秒重放期限保持原样。
+新恢复夹具固定到网站 `b2d699e`（完整 SHA 和各源码哈希见 backend-recovery-fixture.json）。宿主在每次 CRASH App 启动前调用一次准备 POST，以90秒绝对期限覆盖连接、响应头和响应体；到期 shutdown socket 并失败，无写请求重试。App 只 GET 已准备的同阶段会话。网站保留真实密码/PKCE/token 路径，并拆分 hash/write 诊断。准备异常时原有 finally 仍保存服务诊断。A11/A12/A13 的 PID退出、Keychain/删除回执/刷新操作断言，以及服务端120秒重放期限保持原样。
 
 新增 Python 回归覆盖单次成功、409/500/503不重试、错阶段或额外字段拒绝、响应头加响应体共享绝对期限、慢速分段响应中断、非法阶段不发请求和准备先于宿主循环。准备结果只归档阶段、ready、次数、耗时，不归档认证载荷。
 

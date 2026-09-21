@@ -1,6 +1,6 @@
 {
   "repository": "xdgf558/caption-ai-landing-site",
-  "commit": "1737d8aad40cde1e4571fa4d1f37d0d3686c69b9",
+  "commit": "b2d699e84c9028ccc63dc29b313ee788dee6f44e",
   "sha256": {
     "scripts/helpers/mobile-crash-service.mjs": "8d03059e6eb27ff8349333f2395d4386690c9aac8c311b7091f5d89316914e2b",
     "scripts/helpers/mobile-runtime-worker.js": "b6c4f382f2efa4ac30b43e00732af93bd37ea02ce47ae1ce52506abdd6485cb8",

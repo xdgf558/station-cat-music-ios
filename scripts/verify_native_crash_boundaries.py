@@ -6,6 +6,7 @@ from pathlib import Path
 from crash_probe_runner import run_file_probe,wait_ready
 import hashlib,json,os,plistlib,platform,shutil,subprocess,tempfile,time,uuid
 from probe_evidence import read_probe_evidence, read_failure_evidence
+from probe_preparation import prepare_stage
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
 backend=Path(os.environ['M2_BACKEND_PATH']).resolve()
@@ -53,6 +54,8 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
         connection=wait_ready(ready,server)
         for stage in ['A11','A12','A13']:
             started=time.monotonic()
+            preparation=prepare_stage(connection,stage)
+            (output/('M2-boundary-'+stage+'-preparation.json')).write_text(json.dumps(preparation,indent=2)+'\n')
             for mode in ['CRASH','RECOVER']:
                 run_id=str(uuid.uuid4())
                 resultfile=container/'Documents'/('M2-'+run_id+'.log')
@@ -83,7 +86,7 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
             requests=evidence['requests']
             interval=(requests[1]['committedAt']-requests[0]['committedAt'])/1000
             print(stage+': server request interval '+str(round(interval,3))+' seconds',flush=True)
-            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,**crash_evidence,'serverRequestIntervalSeconds':round(interval,3),'evidenceRead':read_stats,'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
+            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,**crash_evidence,'serverRequestIntervalSeconds':round(interval,3),'evidenceRead':read_stats,'preparation':preparation,'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
             (output/'M2-boundaries-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
             print(stage+': process termination and recovery passed',flush=True)
     finally:

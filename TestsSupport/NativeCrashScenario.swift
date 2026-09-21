@@ -140,7 +140,7 @@ private struct LoopbackProbe: Sendable {
             guard let response = response as? HTTPURLResponse, data.count < 262_144 else { throw APIError.invalidPayload }
             return HTTPResult(status: response.statusCode, data: data)
         } catch {
-            let phase: ProbePhase = path == "/fixture/seed" ? .seedRequest : path == "/fixture/evidence" ? .evidenceRequest : .refreshRequest
+            let phase: ProbePhase = path.hasPrefix("/fixture/seed?") ? .seedRequest : path == "/fixture/evidence" ? .evidenceRequest : .refreshRequest
             throw ProbeDiagnostic.capture(error, phase: phase)
         }
     }
@@ -309,7 +309,7 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
         let base = KeychainStore(service: config.service)
         for key in ["auth.development", "deletion.development", "expected-request", "expected-receipt"] { try await base.remove(key) }
         phase = .seedRequest; try ProbeReporter.phase(phase)
-        let result = try await LoopbackProbe(configuration: config).request("/fixture/seed", method: "POST", body: JSONSerialization.data(withJSONObject: ["stage": config.stage]))
+        let result = try await LoopbackProbe(configuration: config).request("/fixture/seed?stage=\(config.stage)", method: "GET")
         guard result.status == 200 else { throw APIError.rejected(result.status) }
         phase = .seedDecode; try ProbeReporter.phase(phase)
         let seed = try NativeJSON.decoder().decode(NativeResponse<NativeTokens>.self, from: result.data)

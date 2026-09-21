@@ -5,13 +5,27 @@ private actor CleanupRemote: LibraryRemote {
     var waiting = false
     var release: CheckedContinuation<Void, Never>?
     var block = false
+    var preferences: [AccountScope: LibraryPreferences] = [:]
+    var uploadedListens = 0
+    func changeHistoryOnOtherDevice(_ enabled: Bool, scope: AccountScope) {
+        var value = preferences[scope] ?? .init()
+        value.historyEnabled = enabled; value.version += 1; value.historyEpoch += 1
+        preferences[scope] = value
+    }
     func setBlocking() { block = true }
     func resume() { release?.resume(); release = nil; block = false }
     func snapshot(scope: AccountScope) async throws -> LibrarySnapshot {
         if block { waiting = true; await withCheckedContinuation { release = $0 } }
-        return .init(favorites: [.init(trackId: "remote", favorite: true, version: 1, updatedAt: Date())], recent: [], preferences: .init())
+        return .init(favorites: [.init(trackId: "remote", favorite: true, version: 1, updatedAt: Date())], recent: [], preferences: preferences[scope] ?? .init())
     }
-    func apply(_ operation: LibraryOperation, scope: AccountScope) async throws -> LibraryPreferences? { nil }
+    func apply(_ operation: LibraryOperation, scope: AccountScope) async throws -> LibraryPreferences? {
+        if operation.kind == .preference {
+            changeHistoryOnOtherDevice(operation.value!, scope: scope)
+            return preferences[scope]
+        }
+        if operation.kind == .listen { uploadedListens += 1 }
+        return nil
+    }
 }
 @MainActor final class LocalAccountCleanupTests: XCTestCase {
     let a = AccountScope(environment: .development, accountID: "1")
@@ -108,6 +122,41 @@ private actor CleanupRemote: LibraryRemote {
         let removed = try await reopened.removeInactiveAccountFiles(keeping: a)
         XCTAssertEqual(removed, 0); XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).count, 2)
         let view = try await reopened.view(in: b); XCTAssertFalse(view.historyEnabled)
+    }
+
+    func testConfirmedLocalHistoryBlockSurvivesCleanupRemoteEnableAndDiskReopen() async throws {
+        // Run a retained-file control and the cleanup path against the same server change.
+        for clean in [false, true] {
+            let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+            let remote = CleanupRemote(), library = ScopedLibrary(directory: dir)
+            try await library.synchronize(scope: b, remote: remote)
+            try await library.setHistory(false, scope: b)
+            try await library.synchronize(scope: b, remote: remote)
+            let confirmed = try await library.view(in: b)
+            XCTAssertEqual(confirmed.pending, 0); XCTAssertFalse(confirmed.conflict)
+            XCTAssertTrue(confirmed.synced); XCTAssertFalse(confirmed.historyEnabled)
+            let serverPreference = await remote.preferences[b]; XCTAssertEqual(serverPreference?.historyEnabled, false)
+            await library.selectScope(a)
+            if clean {
+                let removed = try await library.removeInactiveAccountFiles(keeping: a)
+                XCTAssertEqual(removed, 0, "A confirmed local privacy block is not a cache")
+            }
+            await remote.changeHistoryOnOtherDevice(true, scope: b)
+            let reopened = ScopedLibrary(directory: dir)
+            try await reopened.synchronize(scope: b, remote: remote)
+            let track = Track(id: "00000000-0000-4000-8000-000000000001", title: "Fixture", artist: "Fixture", durationSeconds: 60, audioVersion: 1, access: .free)
+            try await reopened.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: b)
+            let protected = try await reopened.view(in: b)
+            XCTAssertFalse(protected.historyEnabled); XCTAssertEqual(protected.pending, 0); XCTAssertTrue(protected.recent.isEmpty)
+            try await reopened.synchronize(scope: b, remote: remote)
+            let uploads = await remote.uploadedListens; XCTAssertEqual(uploads, 0)
+            // Only a new explicit local enable is permitted to release this protection.
+            try await reopened.setHistory(true, scope: b)
+            try await reopened.synchronize(scope: b, remote: remote)
+            try await reopened.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: b)
+            try await reopened.synchronize(scope: b, remote: remote)
+            let enabledUploads = await remote.uploadedListens; XCTAssertEqual(enabledUploads, 1)
+        }
     }
 
 }

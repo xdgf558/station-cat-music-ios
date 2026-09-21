@@ -74,7 +74,7 @@ actor ScopedLibrary {
                 stored.scope.accountID != nil, stored.scope != active, stored.scope.environment == active.environment,
                 !syncing.contains(stored.scope), stored.synced, !stored.conflict, stored.operations.isEmpty,
                 stored.confirmedPreferences == stored.preferences,
-                !stored.historyBlockedLocally || stored.confirmedPreferences?.historyEnabled == false,
+                !stored.historyBlockedLocally,
                 scopes[stored.scope]?.operations.isEmpty != false else { continue }
             candidates.append((url, stored.scope))
         }

@@ -48,7 +48,9 @@ container=Path(subprocess.check_output(['xcrun','simctl','get_app_container',sim
 summary=[]
 with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
     log=(output/'M2-boundaries-service.log').open('w')
-    server=subprocess.Popen([node,'--import',str(root/'scripts/probe_transport_diagnostics.mjs'),'scripts/helpers/mobile-crash-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT)
+    fixture_env=os.environ.copy()
+    fixture_env['M2_RUNTIME_DIAGNOSTICS_FILE']=str(Path(directory)/'runtime-diagnostics.jsonl')
+    server=subprocess.Popen([node,'--import',str(root/'scripts/probe_transport_diagnostics.mjs'),'--import',str(root/'scripts/probe_runtime_diagnostics.mjs'),'scripts/helpers/mobile-crash-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT,env=fixture_env)
     try:
         ready=Path(directory)/'ready.json'
         connection=wait_ready(ready,server)
@@ -97,6 +99,9 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
         diagnostic_file=Path(directory)/'diagnostics.jsonl'
         if diagnostic_file.exists():
             shutil.copyfile(diagnostic_file,output/'M2-fixture-diagnostics.jsonl')
+        runtime_file=Path(directory)/'runtime-diagnostics.jsonl'
+        if runtime_file.exists():
+            shutil.copyfile(runtime_file,output/'M2-runtime-diagnostics.jsonl')
         snapshot_file=Path(directory)/'evidence.json'
         if snapshot_file.exists():
             shutil.copyfile(snapshot_file,output/'M2-last-committed-evidence.json')

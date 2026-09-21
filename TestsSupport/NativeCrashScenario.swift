@@ -54,10 +54,10 @@ struct ProbeDiagnostic: Error, Sendable {
 // Test-only durable evidence. No credential values are written here.
 enum ProbeReporter {
     private static let lock = NSLock()
-    static func phase(_ phase: ProbePhase) throws { try emit("M2_PROBE_STEP:\(phase.rawValue):pid=\(getpid())") }
+    static func phase(_ phase: ProbePhase) throws { try emit("M2_PROBE_STEP:\(phase.rawValue):pid=\(getpid()):at=\(Int64(Date().timeIntervalSince1970 * 1000))") }
     static func failure(_ error: Error) throws {
         let diagnostic = ProbeDiagnostic.capture(error, phase: .configuration)
-        try emit("M2_PROBE_FAILED:\(diagnostic.fields):pid=\(getpid())")
+        try emit("M2_PROBE_FAILED:\(diagnostic.fields):pid=\(getpid()):at=\(Int64(Date().timeIntervalSince1970 * 1000))")
     }
     static func emit(_ line: String) throws {
         lock.lock(); defer { lock.unlock() }

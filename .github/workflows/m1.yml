@@ -58,7 +58,7 @@ jobs:
       - name: Install isolated backend test dependencies
         working-directory: .backend-m2
         run: npm ci
-      - run: node --test scripts/test_probe_transport_diagnostics.mjs
+      - run: node --test scripts/test_probe_transport_diagnostics.mjs scripts/test_probe_runtime_diagnostics.mjs
       - name: Verify A11–A13 actual process termination and recovery
         env:
           M2_BACKEND_PATH: ${{ github.workspace }}/.backend-m2

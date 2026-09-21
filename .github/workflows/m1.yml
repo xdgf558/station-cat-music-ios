@@ -18,6 +18,8 @@ jobs:
       - run: python scripts/validate_contract.py && python scripts/check_source.py
       - run: python scripts/test_crash_probe_runner.py
       - run: python scripts/test_probe_evidence.py
+      - run: python scripts/test_probe_preparation.py
+      - run: python scripts/test_probe_host_diagnostics.py
   simulator:
     runs-on: macos-26
     steps:
@@ -57,7 +59,7 @@ jobs:
       - name: Install isolated backend test dependencies
         working-directory: .backend-m2
         run: npm ci
-      - run: node --test scripts/test_probe_transport_diagnostics.mjs
+      - run: node --test scripts/test_probe_transport_diagnostics.mjs scripts/test_probe_runtime_diagnostics.mjs
       - name: Verify A11–A13 actual process termination and recovery
         env:
           M2_BACKEND_PATH: ${{ github.workspace }}/.backend-m2

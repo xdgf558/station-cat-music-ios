@@ -1,11 +1,11 @@
 {
   "repository": "xdgf558/caption-ai-landing-site",
-  "commit": "08d891897003e8124c67e6c09819f55cab6fdca7",
+  "commit": "f0fe53f2e0cf75fa7ad6e5020fb75cb67c282649",
   "sha256": {
-    "scripts/helpers/mobile-crash-service.mjs": "e36815eb7592af3c205d30973c92c64d1da3f13bcec86461b8e218db1321e20d",
+    "scripts/helpers/mobile-crash-service.mjs": "51dad8123a351914b585d112eb1f7fd22122f67f396ba6876795fe5310073c2d",
     "scripts/helpers/mobile-runtime-worker.js": "b6c4f382f2efa4ac30b43e00732af93bd37ea02ce47ae1ce52506abdd6485cb8",
-    "src/worker.js": "331d3876ae54e898ff5248bbbcb28cf00acbeeb8008b3d291990dc0b5e3ded44",
-    "package.json": "f6d2deca100af185aaa4e0150b9e0c4831b2bf12dac961aa16740c94d4cd3e89",
+    "src/worker.js": "31895fb86af174f1f8364141e5d10683e3d82b020dd17f65c0620a54b9fb2e74",
+    "package.json": "ee9a1e33d5ddcf9547b822aa14fe65304eefb426dcb6010a7f01408bbec85559",
     "package-lock.json": "b81e63fc2580e6e768dcfe5d799eb5944e95bf1fb51a056b8697ece1e6c9d4b0",
     "src/mobile/deletion.js": "a1f4e0ba704c89a82ff720b6cad4ac2d282030e4371508424b142ec2a0c1998a",
     "src/mobile/http.js": "c3a28a09550f982b164b53f4511099d42ac36459e48cf2c9db12685ec41c817e",
@@ -13,6 +13,8 @@
     "src/mobile/security.js": "0f23d68f2abd2a74e59a32a347031d0da3e4398911f2713c88c8bf104e903d5d",
     "src/mobile/sessions.js": "be2bd9f1c6a0a9f92d125388b78f5805eef704286865b87491da79e407090a24",
     "migrations-mobile/0001_native_auth.sql": "e74329fd93ccc85915a296de9bad1549aa919b093c5a707e9f78a0656fe2dc5b",
-    "scripts/helpers/mobile-probe-diagnostics.mjs": "5cfb3b981b81c6dfab30acac5e6d06aff6a7c4486d7969c15da6b38d17d84be3"
+    "scripts/helpers/mobile-probe-diagnostics.mjs": "162ddd4382ac39824d5924ae296910089180570f6245670f5f5b8a03350acc01",
+    "src/mobile/library.js": "2c70c296eeba564709b7102150a7f111ee263885555380d347b25d81f91c4f53",
+    "src/mobile/libraryReceipts.js": "ed30895aad41a724003ab270cf881d99520a305d64fc2806fdffe5f0f887d13a"
   }
 }

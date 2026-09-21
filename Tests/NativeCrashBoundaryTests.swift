@@ -110,3 +110,16 @@ extension NativeCrashBoundaryTests {
         XCTAssertEqual(calls, 2)
     }
 }
+
+extension NativeCrashBoundaryTests {
+    func testCommitWaitDoesNotFailBeforeTheRefreshTransportBudget() async throws {
+        XCTAssertEqual(ProbeTransportBudget.requestSeconds, 35)
+        XCTAssertEqual(ProbeTransportBudget.resourceSeconds, 40)
+        // CI observed a successful refresh after 11.3s, before its existing
+        // request timeout; the former independent 10s observer failed first.
+        try await ProbeHeldPolling.waitForCommit {
+            try await Task.sleep(for: .seconds(11))
+            return true
+        }
+    }
+}

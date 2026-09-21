@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-21",
+  "scope": "local-mock-simulator",
+  "toolchain": "Xcode 27 beta 6 / iOS 27 simulator",
+  "configuration": "Mock",
+  "swiftTests": {
+    "passed": 128,
+    "skippedDedicatedProbes": 19
+  },
+  "uiTests": {
+    "passed": 3
+  },
+  "remoteCI": "not-run",
+  "productionEnabled": false,
+  "sourceSHA256": {
+    "Core/PersonalLibrary.swift": "0eef52bdb2dfca1120c9aff5796f658720b9fbca5f5eb7df3506b500b2593784",
+    "StationCatMusic/AppModel.swift": "47be15e118e4ad53f6e975334345166678322b324d3cf0de747e60d897ab2aec",
+    "StationCatMusic/RootView.swift": "0f04b57ec9d3a56cb46df697149241525e963af54791b7c875e26c2b753a6816",
+    "Tests/LocalAccountCleanupTests.swift": "fca660f9c2a466d6e7b5cd5cd15c6f937d3f65e2202ee0b2bbc3824867345a25",
+    "Resources/Localizations.json": "46b57b880be75633d06ad5172da74b4f5435573ea056f73a7c1d2bfdc87df759",
+    "scripts/seed_resources.py": "e3222247bdafd00eeba1307e2da446f89a2e714e680962aff2be8b7999d5c9c4"
+  }
+}

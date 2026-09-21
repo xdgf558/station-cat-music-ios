@@ -12,6 +12,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var confirmHistoryClear = false
+    @State private var confirmLocalCleanup = false
+    @State private var cleanupScope: AccountScope?
     @State private var showDeletion = false
     @State private var confirmDeletion = false
     @State private var deletionPassword = ""
@@ -33,6 +35,12 @@ struct RootView: View {
         .onChange(of: model.locale) { _, _ in if model.nativeMusic != nil { Task { await model.load() } } }
         .onChange(of: model.account.scope) { _, scope in Task { await model.changeScope(scope); await model.load() } }
         .alert(model.t("clearHistoryConfirm"), isPresented: $confirmHistoryClear) { Button(model.t("clearHistory"), role: .destructive) { Task { await model.clearHistory() } }; Button(model.t("cancel"), role: .cancel) {} }
+        .confirmationDialog(model.t("localCleanupConfirm"), isPresented: $confirmLocalCleanup, titleVisibility: .visible) {
+            Button(model.t("localCleanup"), role: .destructive) {
+                if let scope = cleanupScope { Task { await model.removeInactiveAccountData(confirmedScope: scope) } }
+            }
+            Button(model.t("cancel"), role: .cancel) {}
+        } message: { Text(model.t("localCleanupDetail")) }
         .sheet(isPresented: $showDeletion) { deletionSheet }
         .onChange(of: scenePhase) { _, phase in if phase == .active { model.playback.becameActive(); model.syncLibrary() } }
         .environment(\.locale, Locale(identifier: model.locale))
@@ -153,6 +161,8 @@ struct RootView: View {
                 Toggle(model.t("historyEnabled"), isOn: Binding(get: { model.historyEnabled }, set: { value in Task { await model.setHistory(value) } }))
                 Button(model.t("clearHistory"), role: .destructive) { confirmHistoryClear = true }
                 Button(model.t("clearCache")) { Task { await model.clearCache() } }
+                Button(model.t("localCleanup"), role: .destructive) { cleanupScope = model.scope; confirmLocalCleanup = true }
+                if !model.localCleanupStatus.isEmpty { Text(model.t(model.localCleanupStatus)).font(.footnote) }
                 if model.libraryRemote != nil && model.scope.accountID != nil { Button(model.t("syncNow")) { model.syncLibrary() }.disabled(model.libraryBusy) }
                 Link(model.t("privacy"), destination: URL(string: "/music/#music-privacy", relativeTo: legalOrigin)!)
                 Link(model.t("terms"), destination: URL(string: "/music/#music-listening", relativeTo: legalOrigin)!)

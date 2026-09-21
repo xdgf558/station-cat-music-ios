@@ -30,3 +30,5 @@ R2 需要用户提供或确认隔离测试域名、Apple Developer Team ID 与�
 参考：[M5 交付记录](M5-report.md)、[M4 实体机边界](M4-report.md)、网站 `docs/mobile-ios-m2/deletion-plan/README.md` 及主开发文档 v1.0.1 的发布清单。
 
 当前 R1 第一批本地进展见 [缓存与存储预算报告](v1-storage-report.md)。该批不包含完整销户执行器或服务端长期压缩。
+
+R1 第二批本地进展见 [隔离生命周期与账号回收报告](R1-lifecycle-report.md)。个人阶段可恢复清理及无损回执压缩已实现；完整销户最终完成与生产启用仍未通过验收。

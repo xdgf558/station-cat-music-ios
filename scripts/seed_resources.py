@@ -8,6 +8,13 @@ historyEnabled|Save listening history|保存播放历史|儲存播放歷史|再�
 clearHistory|Clear listening history|清空播放历史|清空播放歷史|再生履歴を消去
 clearHistoryConfirm|Clear this library’s listening history?|清空此音乐库的播放历史？|清空此音樂庫的播放歷史？|このライブラリの再生履歴を消去しますか？
 clearCache|Clear temporary cache|清除临时缓存|清除暫存快取|一時キャッシュを消去
+localCleanup|Remove other accounts’ local data|清理其他账号的本机资料|清理其他帳號的本機資料|他のアカウントの端末データを整理
+localCleanupConfirm|Remove synced data for inactive accounts?|清理已退出账号的已同步资料？|清理已登出帳號的已同步資料？|未使用アカウントの同期済みデータを削除しますか？
+localCleanupDetail|Only synced copies on this device are removed. Your current account, guest data and unsynced changes are kept. Server accounts are not deleted.|仅移除这台设备上的已同步副本，保留当前账号、游客资料和未同步操作，不会删除服务器账号。|僅移除這台裝置上的已同步副本，保留目前帳號、訪客資料和未同步操作，不會刪除伺服器帳號。|この端末の同期済みコピーだけを削除します。現在のアカウント、ゲストデータ、未同期の変更は保持します。サーバーのアカウントは削除しません。
+localCleanupDone|Synced local copies removed. Unsent changes were kept.|已清理本机副本，未同步操作已保留。|已清理本機副本，未同步操作已保留。|端末のコピーを削除しました。未同期の変更は保持しました。
+localCleanupNothing|No eligible copies to remove. Active accounts and unsynced changes were kept.|没有可清理的副本，当前账号及未同步操作已保留。|沒有可清理的副本，目前帳號及未同步操作已保留。|削除できるコピーはありません。使用中のアカウントと未同期の変更は保持しました。
+localCleanupFailed|Could not finish removing local copies. Please retry.|未能完成本机资料清理，请重试。|未能完成本機資料清理，請重試。|端末データの整理を完了できませんでした。再試行してください。
+localCleanupChanged|Account changed. Please review and confirm again.|账号已切换，请重新确认。|帳號已切換，請重新確認。|アカウントが変更されました。もう一度確認してください。
 syncNow|Sync now|立即同步|立即同步|今すぐ同期
 libraryLocal|Saved on this device.|已保存在此设备。|已儲存在此裝置。|このデバイスに保存済み。
 libraryPending|Changes awaiting sync. Retry when connected.|更改待同步，联网后可重试。|變更待同步，連線後可重試。|同期待ちです。接続後に再試行してください。

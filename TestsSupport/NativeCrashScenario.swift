@@ -54,10 +54,10 @@ struct ProbeDiagnostic: Error, Sendable {
 // Test-only durable evidence. No credential values are written here.
 enum ProbeReporter {
     private static let lock = NSLock()
-    static func phase(_ phase: ProbePhase) throws { try emit("M2_PROBE_STEP:\(phase.rawValue):pid=\(getpid())") }
+    static func phase(_ phase: ProbePhase) throws { try emit("M2_PROBE_STEP:\(phase.rawValue):pid=\(getpid()):at=\(Int64(Date().timeIntervalSince1970 * 1000))") }
     static func failure(_ error: Error) throws {
         let diagnostic = ProbeDiagnostic.capture(error, phase: .configuration)
-        try emit("M2_PROBE_FAILED:\(diagnostic.fields):pid=\(getpid())")
+        try emit("M2_PROBE_FAILED:\(diagnostic.fields):pid=\(getpid()):at=\(Int64(Date().timeIntervalSince1970 * 1000))")
     }
     static func emit(_ line: String) throws {
         lock.lock(); defer { lock.unlock() }
@@ -120,6 +120,10 @@ private struct ProbeEvidence: Decodable, Sendable {
     struct Operation: Decodable, Sendable { let request_id: String; let old_generation: Int }
     let stage: String; let held: Bool; let requests: [Request]; let session: Session; let operations: [Operation]
 }
+enum ProbeTransportBudget {
+    static let requestSeconds: TimeInterval = 35
+    static let resourceSeconds: TimeInterval = 40
+}
 private struct LoopbackProbe: Sendable {
     let configuration: CrashProbeConfiguration
     func request(_ path: String, method: String = "GET", body: Data? = nil) async throws -> HTTPResult {
@@ -127,8 +131,8 @@ private struct LoopbackProbe: Sendable {
         settings.httpCookieStorage = nil; settings.urlCache = nil
         // Evidence polling must not occupy the refresh replay window with a 40s GET.
         let evidenceRead = path == "/fixture/evidence"
-        settings.timeoutIntervalForRequest = evidenceRead ? 2 : 35
-        settings.timeoutIntervalForResource = evidenceRead ? 2 : 40
+        settings.timeoutIntervalForRequest = evidenceRead ? 2 : ProbeTransportBudget.requestSeconds
+        settings.timeoutIntervalForResource = evidenceRead ? 2 : ProbeTransportBudget.resourceSeconds
         let session = URLSession(configuration: settings, delegate: RejectRedirects(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         var r = URLRequest(url: URL(string: "http://127.0.0.1:\(configuration.port)\(path)")!)
@@ -140,7 +144,7 @@ private struct LoopbackProbe: Sendable {
             guard let response = response as? HTTPURLResponse, data.count < 262_144 else { throw APIError.invalidPayload }
             return HTTPResult(status: response.statusCode, data: data)
         } catch {
-            let phase: ProbePhase = path == "/fixture/seed" ? .seedRequest : path == "/fixture/evidence" ? .evidenceRequest : .refreshRequest
+            let phase: ProbePhase = path.hasPrefix("/fixture/seed?") ? .seedRequest : path == "/fixture/evidence" ? .evidenceRequest : .refreshRequest
             throw ProbeDiagnostic.capture(error, phase: phase)
         }
     }
@@ -155,6 +159,12 @@ private struct LoopbackProbe: Sendable {
 
 // Only GET evidence is retried. Mutation requests and boundary assertions never enter this loop.
 enum ProbeHeldPolling {
+    static func waitForCommit(read: @escaping @Sendable () async throws -> Bool) async throws {
+        // The observer must allow the refresh transport's existing request budget.
+        // This precedes the crash; the server's 120-second replay deadline is unchanged.
+        try await wait(timeout: .seconds(ProbeTransportBudget.requestSeconds), read: read)
+    }
+
     static func retryable(_ error: Error) -> Bool {
         guard let diagnostic = error as? ProbeDiagnostic,
               [.evidenceRequest, .evidenceDecode].contains(diagnostic.phase) else { return false }
@@ -256,7 +266,7 @@ private actor BoundaryTransport: HTTPTransport {
             if probe.configuration.stage == "A11" && probe.configuration.mode == "CRASH" {
                 group.addTask {
                     try ProbeReporter.phase(.heldPolling)
-                    try await ProbeHeldPolling.wait {
+                    try await ProbeHeldPolling.waitForCommit {
                         let observed = try await probe.evidence()
                         try probeEqual(observed.stage, probe.configuration.stage)
                         guard observed.held else { return false }
@@ -309,7 +319,7 @@ private struct UnusedProbeBrowser: AuthenticationBrowser {
         let base = KeychainStore(service: config.service)
         for key in ["auth.development", "deletion.development", "expected-request", "expected-receipt"] { try await base.remove(key) }
         phase = .seedRequest; try ProbeReporter.phase(phase)
-        let result = try await LoopbackProbe(configuration: config).request("/fixture/seed", method: "POST", body: JSONSerialization.data(withJSONObject: ["stage": config.stage]))
+        let result = try await LoopbackProbe(configuration: config).request("/fixture/seed?stage=\(config.stage)", method: "GET")
         guard result.status == 200 else { throw APIError.rejected(result.status) }
         phase = .seedDecode; try ProbeReporter.phase(phase)
         let seed = try NativeJSON.decoder().decode(NativeResponse<NativeTokens>.self, from: result.data)

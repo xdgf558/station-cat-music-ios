@@ -6,6 +6,8 @@ from pathlib import Path
 from crash_probe_runner import run_file_probe,wait_ready
 import hashlib,json,os,plistlib,platform,shutil,subprocess,tempfile,time,uuid
 from probe_evidence import read_probe_evidence, read_failure_evidence
+from probe_preparation import prepare_stage
+from probe_host_diagnostics import collect as collect_host_diagnostics
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
 backend=Path(os.environ['M2_BACKEND_PATH']).resolve()
@@ -47,12 +49,16 @@ container=Path(subprocess.check_output(['xcrun','simctl','get_app_container',sim
 summary=[]
 with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
     log=(output/'M2-boundaries-service.log').open('w')
-    server=subprocess.Popen([node,'--import',str(root/'scripts/probe_transport_diagnostics.mjs'),'scripts/helpers/mobile-crash-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT)
+    fixture_env=os.environ.copy()
+    fixture_env['M2_RUNTIME_DIAGNOSTICS_FILE']=str(Path(directory)/'runtime-diagnostics.jsonl')
+    server=subprocess.Popen([node,'--import',str(root/'scripts/probe_transport_diagnostics.mjs'),'--import',str(root/'scripts/probe_runtime_diagnostics.mjs'),'scripts/helpers/mobile-crash-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT,env=fixture_env)
     try:
         ready=Path(directory)/'ready.json'
         connection=wait_ready(ready,server)
         for stage in ['A11','A12','A13']:
             started=time.monotonic()
+            preparation=prepare_stage(connection,stage)
+            (output/('M2-boundary-'+stage+'-preparation.json')).write_text(json.dumps(preparation,indent=2)+'\n')
             for mode in ['CRASH','RECOVER']:
                 run_id=str(uuid.uuid4())
                 resultfile=container/'Documents'/('M2-'+run_id+'.log')
@@ -63,6 +69,12 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
                 try:
                     result=run_file_probe(args,output/name,resultfile,stage,mode,env=env)
                 except Exception:
+                    # Failure-only process states and fixed stack categories; never raw stacks.
+                    # Collection cannot replace the original failure or retry the scenario.
+                    try:
+                        collect_host_diagnostics(server.pid, output/('M2-boundary-'+stage+'-'+mode+'-host.json'))
+                    except Exception:
+                        pass
                     # Retain the original failure. This single GET cannot turn a failed probe green.
                     diagnostic=read_failure_evidence(connection,stage)
                     (output/('M2-boundary-'+stage+'-'+mode+'-failure-state.json')).write_text(json.dumps(diagnostic,indent=2)+'\n')
@@ -83,7 +95,7 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
             requests=evidence['requests']
             interval=(requests[1]['committedAt']-requests[0]['committedAt'])/1000
             print(stage+': server request interval '+str(round(interval,3))+' seconds',flush=True)
-            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,**crash_evidence,'serverRequestIntervalSeconds':round(interval,3),'evidenceRead':read_stats,'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
+            summary.append({'case':stage,'result':'passed','seconds':round(time.monotonic()-started,2),'actual_process_exit':True,**crash_evidence,'serverRequestIntervalSeconds':round(interval,3),'evidenceRead':read_stats,'preparation':preparation,'storage':'simulator Keychain','server':'real isolated Worker + temporary D1','transport':'test-only HTTP loopback bridge','replay_window_seconds':120})
             (output/'M2-boundaries-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
             print(stage+': process termination and recovery passed',flush=True)
     finally:
@@ -94,5 +106,11 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
         diagnostic_file=Path(directory)/'diagnostics.jsonl'
         if diagnostic_file.exists():
             shutil.copyfile(diagnostic_file,output/'M2-fixture-diagnostics.jsonl')
+        runtime_file=Path(directory)/'runtime-diagnostics.jsonl'
+        if runtime_file.exists():
+            shutil.copyfile(runtime_file,output/'M2-runtime-diagnostics.jsonl')
+        snapshot_file=Path(directory)/'evidence.json'
+        if snapshot_file.exists():
+            shutil.copyfile(snapshot_file,output/'M2-last-committed-evidence.json')
         run(['xcrun','simctl','uninstall',simulator,bundle],'M2-boundaries-uninstall.log',60)
 print('All three boundaries passed; no production or HTTPS/AASA activation.',flush=True)

@@ -43,6 +43,10 @@ actor ScopedLibrary {
     private enum WritePurpose { case ordinary, control }
     private var scopes: [AccountScope: LibraryFile] = [:]
     private var syncing = Set<AccountScope>()
+    // UI scope changes and reclamation serialize on this actor.
+    private var selectedScope: AccountScope?
+    func selectScope(_ scope: AccountScope) { selectedScope = scope }
+
     init(directory: URL? = nil, maximumStorageBytes: Int = 100 * 1024 * 1024, maximumScopeFiles: Int = 64) {
         self.directory = directory; self.maximumStorageBytes = maximumStorageBytes; self.maximumScopeFiles = maximumScopeFiles
     }
@@ -50,6 +54,37 @@ actor ScopedLibrary {
     func releaseInactiveScopes(keeping scope: AccountScope) {
         guard directory != nil else { return }
         scopes = scopes.filter { $0.key == scope || syncing.contains($0.key) }
+    }
+    /// Explicit local reclamation, separate from cache clearing and server account deletion.
+    /// Unsent journals, guests, active scopes and in-flight syncs are never discarded.
+    func removeInactiveAccountFiles(keeping active: AccountScope) throws -> Int {
+        guard selectedScope == active else { throw APIError.storageUnavailable }
+        guard let directory else { return 0 }
+        guard FileManager.default.fileExists(atPath: directory.path) else { return 0 }
+        try prepareDirectory(directory)
+        let urls = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+        var candidates: [(URL, AccountScope)] = []
+        for url in urls {
+            let info = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+            // Unknown files are not ours to reclaim. Never follow symbolic links.
+            guard url.pathExtension == "json", info.isRegularFile == true, info.isSymbolicLink != true,
+                let size = info.fileSize, size <= 20 * 1024 * 1024,
+                let stored = try? JSONDecoder().decode(LibraryFile.self, from: Data(contentsOf: url)),
+                stored.schema == 2, file(stored.scope) == url,
+                stored.scope.accountID != nil, stored.scope != active, stored.scope.environment == active.environment,
+                !syncing.contains(stored.scope), stored.synced, !stored.conflict, stored.operations.isEmpty,
+                stored.confirmedPreferences == stored.preferences,
+                !stored.historyBlockedLocally,
+                scopes[stored.scope]?.operations.isEmpty != false else { continue }
+            candidates.append((url, stored.scope))
+        }
+        // No suspension point between validation and deletion: sync and local writes use this actor.
+        var removed = 0
+        for (url, scope) in candidates {
+            try FileManager.default.removeItem(at: url)
+            scopes.removeValue(forKey: scope); removed += 1
+        }
+        return removed
     }
     private func prepareDirectory(_ directory: URL) throws {
         if FileManager.default.fileExists(atPath: directory.path) {

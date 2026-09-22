@@ -25,15 +25,15 @@ struct RootView: View {
             NavigationStack { library.safeAreaInset(edge: .bottom) { miniPlayer } }.tabItem { Label(model.t("library"), systemImage: "person.crop.circle") }.tag(2)
         }
         .tint(Palette.gold)
-        .onOpenURL { url in Task { await model.openMusicLink(url) } }
+        .onOpenURL { url in Task { await model.receiveMusicLink(url) } }
         .alert(model.t("linkUnavailable"), isPresented: $model.linkUnavailable) { Button(model.t("close"), role: .cancel) {} }
         .sheet(isPresented: $model.showPlayer) { player }
-        .task { await model.refreshLibrary(); await model.load(); await model.account.restore() }
+        .task { await model.initialize() }
         .onChange(of: model.playback.state) { _, state in
             if state == .verificationRequired && model.nativeMusic != nil { Task { await model.load() } }
         }
         .onChange(of: model.locale) { _, _ in if model.nativeMusic != nil { Task { await model.load() } } }
-        .onChange(of: model.account.scope) { _, scope in Task { await model.changeScope(scope); await model.load() } }
+        .onChange(of: model.account.scope) { _, scope in Task { await model.accountScopeChanged(scope) } }
         .alert(model.t("clearHistoryConfirm"), isPresented: $confirmHistoryClear) { Button(model.t("clearHistory"), role: .destructive) { Task { await model.clearHistory() } }; Button(model.t("cancel"), role: .cancel) {} }
         .confirmationDialog(model.t("localCleanupConfirm"), isPresented: $confirmLocalCleanup, titleVisibility: .visible) {
             Button(model.t("localCleanup"), role: .destructive) {

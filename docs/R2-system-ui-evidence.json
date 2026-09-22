@@ -1,0 +1,76 @@
+{
+  "date": "2026-09-22",
+  "origin": "https://station-cat-music-r2.yehao1105.workers.dev",
+  "toolchain": "Xcode 27 beta 6 (local; not fixed CI)",
+  "device": "iPhone 17 Pro simulator, iOS 26.4.1 (23E254a)",
+  "status": "isolated_simulator_UI_acceptance_passed",
+  "universalLinks": {
+    "sourceSHA256": "b7a076421bc6e21b22a6944235eb23090f5fcac8bd5b18a4a30daec48294af77",
+    "privateRun": "R2-system-ui-24b248f3-7383-4c44-9233-8464d32ee689",
+    "durationSeconds": 36.439,
+    "failures": 0,
+    "OSDefaultDispatch": true,
+    "warmTrack": true,
+    "warmAlbum": true,
+    "coldTrack": true,
+    "coldAlbum": true,
+    "noPlayingUIObservationSecondsPerLink": 3
+  },
+  "startupRegression": {
+    "sourceSHA256": "15ceada59cab147e8b477b0c1a4578b8e1500b9cbd7a25b6bf8532de167de066",
+    "tests": 8,
+    "failures": 0,
+    "durationSeconds": 0.037
+  },
+  "failuresRetainedLocally": [
+    {
+      "run": "R2-system-ui-5be62afb-2a33-4da5-b17c-8909822bcf0b",
+      "category": "iOS26.5 test host Busy before test execution"
+    },
+    {
+      "run": "R2-system-ui-937c3b8f-0554-452a-ab07-2553962dcf94",
+      "category": "cold track startup race reproduced; warm track and album passed; product fixed and all four paths retested"
+    },
+    {
+      "category": "system login UI driver focus and keyboard ownership checks; no successful callback claimed from those attempts"
+    },
+    {
+      "run": "R2-system-ui-4e88c7d4-831b-4b6b-9a3d-f6e95e3eae2d",
+      "category": "real form POST rejected ACCESS_DENIED; form-only Referrer-Policy fix retained exact Origin validation; successful system login retested"
+    }
+  ],
+  "privateEvidence": "Raw logs, screenshots and xcresult remain ignored/local; never upload typed credentials or authorization URLs.",
+  "notVerified": [
+    "physical iPhone",
+    "locked Keychain",
+    "background and interruption playback",
+    "network switching",
+    "AirPlay",
+    "production enablement",
+    "App Store submission"
+  ],
+  "systemLogin": {
+    "sourceSHA256": "4123e68ee27cc30837d3e7852427ca337719981657062331ff430940a0c7860d",
+    "runnerSHA256": "ad8aa8d8312d55a5efadf62f77c4293fd0c84599e4b0bde9f66d63019561b7c4",
+    "privateRun": "R2-system-ui-0cd0ea97-bbdd-46d6-9ba1-071aae322b9b",
+    "durationSeconds": 40.091,
+    "failures": 0,
+    "actualASWebAuthenticationSession": true,
+    "HTTPSCallback": true,
+    "authenticatedUI": true,
+    "signedOutCleanup": true,
+    "testCredentialsNotSavedByUI": true,
+    "isolatedWorkerVersion": "b3f418bb-94e6-42ab-8be0-2dd4a128045a"
+  },
+  "defaultMockRegression": {
+    "toolchain": "local Xcode 27 beta 6",
+    "unitTestsDiscovered": 158,
+    "unitTestsSkippedByDesign": 20,
+    "unitTestsPassed": 138,
+    "UItestsDiscovered": 5,
+    "UItestsSkippedByDesign": 2,
+    "UItestsPassed": 3,
+    "failures": 0,
+    "R2ProbesSkipBeforePrivateInputOrNetwork": true
+  }
+}

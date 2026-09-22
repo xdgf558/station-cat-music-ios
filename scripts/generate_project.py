@@ -26,7 +26,14 @@ configrefs={n:ref('Config/'+n+'.xcconfig','text.xcconfig') for n in configs}
 products=[];targets=[]
 def configlist(label,values):
  items=[]
- for n in configs:items.append(obj(label+n,'XCBuildConfiguration',name=n,baseConfigurationReference=configrefs[n],buildSettings=values))
+ for n in configs:
+  settings=dict(values)
+  if label in ['StationCatMusic','StationCatMusicTests','StationCatMusicUITests'] and n in ['Staging','Production']:
+   suffix='' if label=='StationCatMusic' else ('.uitests' if label.endswith('UITests') else '.tests')
+   settings['PRODUCT_BUNDLE_IDENTIFIER']='org.stationcat.music'+('.staging' if n=='Staging' else '')+suffix
+   settings['DEVELOPMENT_TEAM']='2AM5S7BM2N'
+   if label=='StationCatMusic' and n=='Staging':settings['CODE_SIGN_ENTITLEMENTS']='$(STATION_APP_ENTITLEMENTS)'
+  items.append(obj(label+n,'XCBuildConfiguration',name=n,baseConfigurationReference=configrefs[n],buildSettings=settings))
  return obj(label+'configs','XCConfigurationList',buildConfigurations=items,defaultConfigurationIsVisible=0,defaultConfigurationName='Mock')
 def phase(label,kind,refs):
  return obj(label,kind,buildActionMask=2147483647,files=[obj(label+f,'PBXBuildFile',fileRef=f) for f in refs],runOnlyForDeploymentPostprocessing=0)
@@ -52,3 +59,5 @@ def reference(name):return f'<BuildableReference BuildableIdentifier="primary" B
 (scheme/'StationCatMusic.xcscheme').write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2640" version="1.7"><BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{reference('StationCatMusic')}</BuildActionEntry></BuildActionEntries></BuildAction><TestAction buildConfiguration="Mock" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB"><Testables><TestableReference skipped="NO">{reference('StationCatMusicTests')}</TestableReference><TestableReference skipped="NO">{reference('StationCatMusicUITests')}</TestableReference></Testables></TestAction><LaunchAction buildConfiguration="Mock" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" allowLocationSimulation="NO"><BuildableProductRunnable runnableDebuggingMode="0">{reference('StationCatMusic')}</BuildableProductRunnable></LaunchAction><ProfileAction buildConfiguration="Production"/><AnalyzeAction buildConfiguration="Mock"/><ArchiveAction buildConfiguration="Production" revealArchiveInOrganizer="YES"/></Scheme>''')
 print('Generated project with',len(sources),'app sources,',len(tests),'test sources')
+staging=(scheme/'StationCatMusic.xcscheme').read_text().replace('buildConfiguration="Mock"','buildConfiguration="Staging"').replace('buildConfiguration="Production"','buildConfiguration="Staging"')
+(scheme/'StationCatMusicStaging.xcscheme').write_text(staging)

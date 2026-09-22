@@ -36,6 +36,10 @@ import Observation
     var activeCollection: MusicCollection?
     var nativeMusic: NativeMusicAPI? { client as? NativeMusicAPI }
     @ObservationIgnored private var detailTask: Task<Void, Never>?
+    @ObservationIgnored private var initializationTask: Task<Void, Never>?
+    @ObservationIgnored private var pendingMusicLink: URL?
+    @ObservationIgnored private var initializationReloadRequested = false
+    private var initialized = false
     private var operation = 0
     @ObservationIgnored private var catalogTask: Task<Catalog, Error>?
     init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader()) { self.artwork = artwork; self.libraryRemote = libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.musicWebOrigin = MusicLink.webOrigin(musicWebOrigin)
@@ -56,7 +60,59 @@ import Observation
         }
     }
     func t(_ key: String) -> String { L10n.text(key, locale: locale) }
+    func initialize() async {
+        if let initializationTask { await initializationTask.value; return }
+        let work = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.refreshLibrary()
+            // Restore can finish as guest/unavailable. In either case the public
+            // catalog remains usable; a failed restore must not strand a link.
+            await self.account.restore()
+            while true {
+                self.initializationReloadRequested = false
+                let requestedLocale = self.locale
+                let requested = self.account.scope
+                if self.scope.accountID != requested.accountID { await self.changeScope(requested) }
+                await self.loadCatalog()
+                // A user account change during loading invalidates that result.
+                // Locale/reload requests are coalesced here, rather than cancelling
+                // this load and releasing the URL while a replacement is unfinished.
+                if self.scope.accountID == self.account.scope.accountID && requestedLocale == self.locale && !self.initializationReloadRequested { break }
+            }
+            self.initialized = true
+            if let url = self.pendingMusicLink {
+                self.pendingMusicLink = nil
+                await self.openMusicLink(url)
+            }
+        }
+        initializationTask = work
+        await work.value
+    }
+    func receiveMusicLink(_ url: URL) async {
+        guard nativeMusic != nil, let host = musicWebOrigin?.host, MusicLink(url, allowedHost: host) != nil else { return }
+        guard initialized else {
+            // OS cold-launch delivery can precede the root view's task. Keep only
+            // the latest valid navigation intent; malformed URLs cannot replace it.
+            pendingMusicLink = url
+            return
+        }
+        await openMusicLink(url)
+    }
+    func accountScopeChanged(_ requested: AccountScope) async {
+        // Initialization owns restoration. Its delayed SwiftUI onChange callback
+        // must not clear a link that was opened after that scope was reconciled.
+        guard initialized, requested == account.scope, scope.accountID != requested.accountID else { return }
+        await changeScope(requested)
+        await load()
+    }
     func load() async {
+        if initializationTask != nil && !initialized {
+            initializationReloadRequested = true
+            return
+        }
+        await loadCatalog()
+    }
+    private func loadCatalog() async {
         operation += 1; let id = operation; let startedScope = scope
         phase = .loading; featuredPhase = .loading; featuredTracks = []; collections = []; catalogTask?.cancel()
         let client = self.client
@@ -162,6 +218,7 @@ import Observation
         guard let track, let nativeMusic else { return }
         let version = operation, locale = locale
         detailTask = Task { [weak self] in
+            guard !Task.isCancelled else { return }
             let value = try? await nativeMusic.detail(track, locale: locale)
             guard let self, !Task.isCancelled, self.operation == version, self.playback.selectedTrack == track else { return }
             self.detail = value

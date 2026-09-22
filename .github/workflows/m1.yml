@@ -38,6 +38,16 @@ jobs:
           assert candidates, 'No iPhone simulator installed'
           with open(os.environ['GITHUB_ENV'],'a') as f:f.write('M1_SIMULATOR_ID='+candidates[0]['udid']+'\n')
           PY
+      - name: Compile all simulator test targets with pinned stable Xcode
+        timeout-minutes: 15
+        run: |
+          mkdir -p evidence
+          xcodebuild -project StationCatMusic.xcodeproj -scheme StationCatMusic -configuration Mock \
+            -destination "platform=iOS Simulator,id=$M1_SIMULATOR_ID" -derivedDataPath .build \
+            build-for-testing > evidence/R2-stable-build.log 2>&1 || {
+              tail -n 100 evidence/R2-stable-build.log
+              exit 1
+            }
       - name: Read reviewed backend fixture revision
         id: backend
         run: |

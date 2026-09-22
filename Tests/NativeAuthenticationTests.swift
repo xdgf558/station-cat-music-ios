@@ -10,10 +10,7 @@ import CryptoKit
         return URL(string: callback.absoluteString + "?code=" + String(repeating: "C", count: 43) + "&state=" + state)!
     }
 }
-actor AuthFixtureTransport: HTTPTransport {
-    // Explicit actor initialization avoids the stable compiler's synthesized
-    // initializer diagnostic when this fixture is used from another test file.
-    init() {}
+actor AuthFixtureTransport {
     var requests: [URLRequest] = []
     var failRefresh = false
     var mismatch = false
@@ -66,6 +63,9 @@ actor AuthFixtureTransport: HTTPTransport {
         return HTTPResult(status: 200, data: try JSONSerialization.data(withJSONObject: ["data": data, "serverNow": date(now), "requestId": UUID().uuidString]))
     }
 }
+// Keep protocol conformance separate from actor declaration isolation inference.
+// The mutable fixture state and send implementation remain actor-isolated.
+extension AuthFixtureTransport: HTTPTransport {}
 @MainActor final class NativeAuthenticationTests: XCTestCase {
     let origin = URL(string: "https://native.example.test")!
     func setup(store: any SecureStore = MemorySecureStore(), transport: AuthFixtureTransport = AuthFixtureTransport()) throws -> (NativeAuthenticationService, AuthJournal, NativeAuthAPI, AuthFixtureTransport) {

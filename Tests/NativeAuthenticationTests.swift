@@ -11,6 +11,9 @@ import CryptoKit
     }
 }
 actor AuthFixtureTransport: HTTPTransport {
+    // Explicit actor initialization avoids the stable compiler's synthesized
+    // initializer diagnostic when this fixture is used from another test file.
+    init() {}
     var requests: [URLRequest] = []
     var failRefresh = false
     var mismatch = false

@@ -14,3 +14,5 @@ __pycache__/
 .backend-m3/
 
 .backend-m5/
+Config/R2.local.xcconfig
+Config/R2.local.entitlements

@@ -1,0 +1,33 @@
+{
+  "date": "2026-09-22",
+  "origin": "https://station-cat-music-r2.yehao1105.workers.dev",
+  "toolchain": "Xcode 27 beta 6 (local; not fixed CI)",
+  "device": "iPhone 17 Pro simulator, iOS 26.4.1 (23E254a)",
+  "testSourceSHA256": "e32fd3112ebc4b7669f0587fb09953deea096372e3b7f0d654d410622b570a7c",
+  "testCount": 1,
+  "failures": 0,
+  "durationSeconds": 72.019,
+  "checks": {
+    "realHTTPS": true,
+    "passwordPKCEViaHTTPForm": true,
+    "refresh": true,
+    "albumAndLyrics": true,
+    "freeVIPBoundary": true,
+    "avplayerBeyondFiveSeconds": true,
+    "successfulHEAD": 2,
+    "successfulRange206": 9,
+    "crossSessionFavoritesAndHistory": true,
+    "accountIsolation": true,
+    "testLibraryCleanup": true,
+    "sessionsSignedOut": true,
+    "defaultRunSkipsBeforeNetwork": true
+  },
+  "notVerified": [
+    "ASWebAuthenticationSession",
+    "OS Universal Link dispatch",
+    "Keychain by this test (MemorySecureStore used)",
+    "physical iPhone",
+    "production",
+    "App Store submission"
+  ]
+}

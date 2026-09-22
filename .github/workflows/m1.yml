@@ -104,4 +104,9 @@ jobs:
         if: always()
         with:
           name: m1-local-test-evidence
-          path: evidence/
+          # Opt-in HTTPS UI results may contain synthetic typed credentials.
+          # Keep them local even if a future job invokes an R2 probe.
+          path: |
+            evidence/
+            !evidence/R2-system-ui-*/**
+            !evidence/R2-native-https-*.log

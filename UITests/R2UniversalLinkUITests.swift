@@ -3,6 +3,11 @@ import XCTest
 // Explicit local R2 acceptance only. XCUISystem opens through the OS default
 // handler; this test never calls AppModel, onOpenURL, or target-app open(URL).
 @MainActor final class R2UniversalLinkUITests: XCTestCase {
+    #if targetEnvironment(simulator)
+    private let physicalDevice = false
+    #else
+    private let physicalDevice = true
+    #endif
     private let origin = "https://station-cat-music-r2.yehao1105.workers.dev"
     private let bundleID = "org.stationcat.music.staging"
     private var phase = "input"
@@ -104,7 +109,7 @@ import XCTest
                 evidence(app)
                 print("R2_SYSTEM_LINK_STEP:\(phase):passed")
             }
-            print("R2_SYSTEM_LINKS_PASSED: os_default_dispatch=true warm_track=true cold_track=true warm_album=true cold_album=true idle_observation_seconds_per_link=3 physical_device=false")
+            print("R2_SYSTEM_LINKS_PASSED: os_default_dispatch=true warm_track=true cold_track=true warm_album=true cold_album=true idle_observation_seconds_per_link=3 physical_device=\(physicalDevice)")
         } catch {
             // Do not print URLs, response bodies, input data or UI-tree snapshots.
             XCTFail("R2_SYSTEM_LINKS_FAILED phase=\(phase) category=assertion")

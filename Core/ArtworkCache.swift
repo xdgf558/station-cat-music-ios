@@ -40,6 +40,9 @@ nonisolated struct ArtworkCache {
         }
     }
     func read(_ url: URL, now: Date) throws -> Data? {
+        try readEntry(url, now: now)?.data
+    }
+    func readEntry(_ url: URL, now: Date) throws -> Entry? {
         try prune()
         let path = file(url)
         guard FileManager.default.fileExists(atPath: path.path) else { return nil }
@@ -52,7 +55,7 @@ nonisolated struct ArtworkCache {
             try FileManager.default.removeItem(at: path); return nil
         }
         try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: path.path)
-        return entry.data
+        return entry
     }
     func store(_ data: Data, url: URL, expires: Date, now: Date) throws {
         guard !data.isEmpty, data.count <= ArtworkLoader.maximumBytes, expires > now, expires <= now.addingTimeInterval(86400) else { return }

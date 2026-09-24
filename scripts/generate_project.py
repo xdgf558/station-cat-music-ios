@@ -20,7 +20,8 @@ def ref(path,kind):
 sources=[ref(str(p.relative_to(root)),'sourcecode.swift') for d in ['Core','StationCatMusic'] for p in sorted((root/d).glob('*.swift'))]
 tests=[ref(str(p.relative_to(root)),'sourcecode.swift') for directory in ['Tests','TestsSupport'] for p in sorted((root/directory).glob('*.swift'))]
 uits=[ref(str(p.relative_to(root)),'sourcecode.swift') for p in sorted((root/'UITests').glob('*.swift'))]
-resources=[ref('Resources/Localizations.json','text.json'),ref('contracts/fixtures/catalog.json','text.json'),ref('contracts/fixtures/schema-examples.json','text.json')]
+resources=[ref('Resources/Localizations.json','text.json'),ref('contracts/fixtures/catalog.json','text.json'),ref('contracts/fixtures/schema-examples.json','text.json'),ref('Resources/Assets.xcassets','folder.assetcatalog')]
+testresources=[ref('Resources/TestAudio/SyntheticAudio.mp3','audio.mp3')]
 configs=['Mock','Development','Staging','Production']
 configrefs={n:ref('Config/'+n+'.xcconfig','text.xcconfig') for n in configs}
 products=[];targets=[]
@@ -42,14 +43,14 @@ for name,refs,productType in [('StationCatMusic',sources,'com.apple.product-type
  isapp=name=='StationCatMusic';isui=name.endswith('UITests')
  product=obj(name+'product','PBXFileReference',explicitFileType='wrapper.application' if isapp else 'wrapper.cfbundle',path=name+('.app' if isapp else '.xctest'),sourceTree='BUILT_PRODUCTS_DIR');products.append(product)
  settings={'PRODUCT_NAME':name,'PRODUCT_BUNDLE_IDENTIFIER':'org.stationcat.music.dev'+('' if isapp else ('.uitests' if isui else '.tests')),'GENERATE_INFOPLIST_FILE':'YES','SWIFT_VERSION':'6.0','SWIFT_STRICT_CONCURRENCY':'complete','SWIFT_DEFAULT_ACTOR_ISOLATION':'nonisolated','ENABLE_TESTABILITY':'YES','CODE_SIGN_STYLE':'Automatic','TARGETED_DEVICE_FAMILY':'1','IPHONEOS_DEPLOYMENT_TARGET':'18.0','SDKROOT':'iphoneos','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks @loader_path/Frameworks'}
- if isapp:settings.update({'GENERATE_INFOPLIST_FILE':'NO','INFOPLIST_FILE':'Config/Info.plist','INFOPLIST_KEY_CFBundleDisplayName':'Station Cat Music','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_StationEnvironment':'$(STATION_ENVIRONMENT)','INFOPLIST_KEY_UISupportedInterfaceOrientations':'UIInterfaceOrientationPortrait','INFOPLIST_KEY_LSApplicationCategoryType':'public.app-category.music','MARKETING_VERSION':'0.1.0','CURRENT_PROJECT_VERSION':'1'})
+ if isapp:settings.update({'GENERATE_INFOPLIST_FILE':'NO','INFOPLIST_FILE':'Config/Info.plist','INFOPLIST_KEY_CFBundleDisplayName':'Station Cat Music','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_StationEnvironment':'$(STATION_ENVIRONMENT)','INFOPLIST_KEY_UISupportedInterfaceOrientations':'UIInterfaceOrientationPortrait','INFOPLIST_KEY_LSApplicationCategoryType':'public.app-category.music','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','MARKETING_VERSION':'0.1.0','CURRENT_PROJECT_VERSION':'2'})
  elif isui:settings['TEST_TARGET_NAME']='StationCatMusic'
  else:settings.update({'TEST_HOST':'$(BUILT_PRODUCTS_DIR)/StationCatMusic.app/StationCatMusic','BUNDLE_LOADER':'$(TEST_HOST)'})
  dependencies=[]
  if not isapp:
   proxy=obj(name+'proxy','PBXContainerItemProxy',containerPortal=ident('project'),proxyType=1,remoteGlobalIDString=appID,remoteInfo='StationCatMusic')
   dependencies=[obj(name+'dep','PBXTargetDependency',target=appID,targetProxy=proxy)]
- target=obj('target:'+name,'PBXNativeTarget',name=name,productName=name,productReference=product,productType=productType,buildConfigurationList=configlist(name,settings),buildPhases=[phase(name+'src','PBXSourcesBuildPhase',refs),phase(name+'frameworks','PBXFrameworksBuildPhase',[]),phase(name+'resources','PBXResourcesBuildPhase',resources if isapp else [])],buildRules=[],dependencies=dependencies);targets.append(target)
+ target=obj('target:'+name,'PBXNativeTarget',name=name,productName=name,productReference=product,productType=productType,buildConfigurationList=configlist(name,settings),buildPhases=[phase(name+'src','PBXSourcesBuildPhase',refs),phase(name+'frameworks','PBXFrameworksBuildPhase',[]),phase(name+'resources','PBXResourcesBuildPhase',resources if isapp else (testresources if not isui else []))],buildRules=[],dependencies=dependencies);targets.append(target)
 prodgroup=obj('products','PBXGroup',name='Products',children=products,sourceTree='<group>')
 group=obj('group','PBXGroup',children=files+[prodgroup],sourceTree='<group>')
 obj('project','PBXProject',attributes={'BuildIndependentTargetsInParallel':'YES','LastUpgradeCheck':'2640'},buildConfigurationList=configlist('project',{'CLANG_ENABLE_MODULES':'YES','SWIFT_OPTIMIZATION_LEVEL':'-Onone','DEBUG_INFORMATION_FORMAT':'dwarf','ENABLE_USER_SCRIPT_SANDBOXING':'YES'}),compatibilityVersion='Xcode 14.0',developmentRegion='en',knownRegions=['en','zh-Hans','zh-Hant','ja','Base'],mainGroup=group,productRefGroup=prodgroup,projectDirPath='',projectRoot='',targets=targets)

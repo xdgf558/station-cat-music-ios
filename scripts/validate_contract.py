@@ -14,6 +14,8 @@ for name,value in fixtures.items():check(name,value)
 check('CatalogResponse',json.loads((r/'contracts/fixtures/catalog.json').read_text()))
 # Fail closed for security enums, bound identities, confirmation and request field injection.
 negative=[]
+for key,value in [('accessMode','vip'),('variant','preview'),('byteSize',33554433),('sha256','invalid')]:
+ bad=deepcopy(fixtures['OfflinePermit']);bad[key]=value;negative.append(('OfflinePermit',bad))
 for name,key,value in [('PlaybackGrant','authMode','unknown'),('DeleteConfirmRequest','confirmedScopeVersion','single-service'),('RefreshRequest','generation',-1),('EntitlementSource','kind','future-access'),('Config','capabilities',{'musicPurchases':True}),('TokenRequest','codeVerifier','short')]:
  bad=deepcopy(fixtures[name]);bad[key]=value;negative.append((name,bad))
 bad=deepcopy(fixtures['PlaybackGrant']);bad.update(authMode='session_bearer',accountId=None);negative.append(('PlaybackGrant',bad))
@@ -37,5 +39,5 @@ for name in ['prepare','{id}/confirm']:
  assert paths['/api/mobile/v1/me/deletion-requests/'+name]['post']['security']==[{'Bearer':[]}]
 assert not any('/subscriptions/' in path for path in paths)
 assert '/auth/mobile/authorize' in paths
-assert sum(len(p) for p in paths.values())==25
-print(f'OpenAPI valid: 25 operations, {len(fixtures)+1} positive fixtures, {len(negative)} negative fixtures; four-language error keys and receipt hash verified.')
+assert sum(len(p) for p in paths.values())==26
+print(f'OpenAPI valid: 26 operations, {len(fixtures)+1} positive fixtures, {len(negative)} negative fixtures; four-language error keys and receipt hash verified.')

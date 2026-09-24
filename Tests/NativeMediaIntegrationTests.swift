@@ -80,11 +80,15 @@ struct ProbeAuthorizer: PlaybackAuthorizing {
         player.configure(authorizer: ProbeAuthorizer(identity: identity, bridge: bridge, shortDeadline: true))
         player.select(track); player.requestPlay(); try await Task.sleep(for: .seconds(2))
         XCTAssertFalse(player.hasAudioSource); XCTAssertFalse(player.isPlaying); XCTAssertEqual(player.state, .verificationRequired)
+        // Initial loading now combines metadata with the first bounded GET.
+        // Exercise the separate renewal HEAD path explicitly against the Worker.
+        let authorization = try await ProbeAuthorizer(identity: identity, bridge: bridge, shortDeadline: false).authorize(track: track, variant: "full")
+        let metadataChannel = AuthorizedMediaChannel(authorization: authorization, authorizer: ProbeAuthorizer(identity: identity, bridge: bridge, shortDeadline: false), transport: bridge, lifetime: 30)
+        _ = try await metadataChannel.metadata()
         let evidence = try await bridge.fixture("evidence", as: [ProbeRequest].self)
         let ranges = evidence.filter { $0.range != nil }
         XCTAssertFalse(ranges.isEmpty); XCTAssertTrue(ranges.allSatisfy { $0.bearerMatched && $0.status == 206 })
         XCTAssertTrue(evidence.contains { $0.method == "HEAD" && $0.bearerMatched && $0.status == 200 })
-        let authorization = try await ProbeAuthorizer(identity: identity, bridge: bridge, shortDeadline: false).authorize(track: track, variant: "full")
         let _: [String: String] = try await bridge.fixture("revoke", as: [String: String].self)
         let channel = AuthorizedMediaChannel(authorization: authorization, authorizer: ProbeAuthorizer(identity: identity, bridge: bridge, shortDeadline: false), transport: bridge, lifetime: 30)
         do { _ = try await channel.read(start: 0, length: 2, total: 65245); XCTFail("Revoked session delivered audio") } catch {}

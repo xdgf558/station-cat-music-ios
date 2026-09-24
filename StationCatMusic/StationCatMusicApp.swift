@@ -6,7 +6,17 @@ import SwiftUI
         let configured = Bundle.main.object(forInfoDictionaryKey: "StationEnvironment") as? String ?? "production"
         let environment = AppEnvironment(rawValue: configured) ?? .production
         let data = Bundle.main.url(forResource: "catalog", withExtension: "json").flatMap { try? Data(contentsOf: $0) } ?? Data()
-        let transport = MockTransport(data: data)
+        var previewDelay: Duration = .zero
+        var previewStatus = 200
+        #if DEBUG && targetEnvironment(simulator)
+        // Screenshot/error-path fixtures affect Mock only, never a native host.
+        if environment == .mock {
+            let preview = ProcessInfo.processInfo.environment["STATION_STARTUP_PREVIEW"]
+            if preview == "slow" { previewDelay = .seconds(5) }
+            if preview == "failure" { previewStatus = 503 }
+        }
+        #endif
+        let transport = MockTransport(data: data, delay: previewDelay, status: previewStatus)
         let account = NativeAccountModel.configured(environment: environment)
         var client: any CatalogProviding = APIClient(environment: environment, transport: transport)
         if Bundle.main.object(forInfoDictionaryKey: "StationNativeMusicEnabled") as? String == "YES",

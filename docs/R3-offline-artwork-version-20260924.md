@@ -4,7 +4,7 @@ Scope: local iOS development branch and the dedicated HTTPS R2 isolation Worker.
 
 ## Review dependency
 
-Backend: [caption-ai-landing-site #181](https://github.com/xdgf558/caption-ai-landing-site/pull/181), commit `0310332102dd172d842f3b4e3a5cf02aeb9de6ac`. Review and merge that isolated API change before this iOS batch. Existing recovery/media/library CI fixtures retain their separately reviewed pins; they do not prove the new live offline endpoint. Offline deterministic tests and opt-in HTTPS/device evidence below cover that new path.
+Backend: [caption-ai-landing-site #181](https://github.com/xdgf558/caption-ai-landing-site/pull/181), commit `d9bc56650fb73d192ce99774b7f014e0e0bbcbbb`. Review and merge that isolated API change before this iOS batch. Existing recovery/media/library CI fixtures retain their separately reviewed pins; they do not prove the new live offline endpoint. Offline deterministic tests and opt-in HTTPS/device evidence below cover that new path.
 
 ## Behaviour
 
@@ -47,3 +47,16 @@ Xcode 27 beta emitted an AVAudioSession synchronous-activation warning and, afte
 ## Generated-source check
 
 Contract and four-language resource generators now include the R3 additions. Re-running all three generators leaves their output byte-identical. Contract validation covers 26 operations, 66 positive fixtures (including the new request/response), and 17 negative cases. This is a submission consistency check, not a replacement for pending remote CI.
+
+## PR #11 review fixes — 2026-09-25
+
+- Recognizable saved receipts remain listed when expired, clock-invalid, wrong-size or failed-integrity. The offline page disables playing these rows, labels them unavailable, and retains individual delete controls and byte accounting. Unknown or undecodable files are not silently claimed/deleted. Users can free the affected entry without clearing other music.
+- Playback failure no longer triggers an implicit catalog reload. A failed explicit refresh preserves already loaded catalog/featured rows; initial failures still show their diagnosis. Startup errors prefer the catalog diagnosis if the two requests fail differently. Playback still obtains its own fresh authorization on explicit online retry.
+- Catalog reconciliation first invalidates candidates (also invalidating in-flight saves), then releases the active AVPlayer item, then removes entries. Per-entry deletion failures retain unavailable rows and an error without losing successful removals.
+- Same-volume publication uses FileManager.replaceItemAt for an existing directory, without delete-before-move. Cancellation owns a lock-protected ticket shared with final publication; cancellation after writing but before publication cannot seal a song. The continuous lease and cancellation are rechecked before publishing.
+- Full-file integrity is verified once per file identity/cache instance; unchanged pause/resume uses inode, size, modification/change timestamps and expected hash. New instances and changed files still perform verification off MainActor. This deliberately retains first-use corruption detection rather than trusting only size; repeated 32 MiB hashing on resume is removed.
+- Artwork now accepts unqualified private cache policy for this device-only anonymous/cookieless cache; shared-cache policy is private at the Worker. Cookie, Vary, no-store, ambiguous directives and stale age remain rejected.
+
+The added regressions cover a full budget with an expired save, individual deletion/replacement, partial removal failure, AVPlayer item release before removal, actual safe-replace failure and successful retry, cancellation at the completed-file boundary, repeated-resume integrity reuse, failed refresh, mixed startup diagnostics and private artwork memory/disk reuse. Current remote CI must be rerun on this revision; no deployment or device install is performed by this review update.
+
+Validation for the review update: 83 distinct targeted Swift tests and 8 navigation UI tests passed across `.build/r3-review-fixes-final.xcresult` and `.build/r3-review-storage-cache.xcresult` (the 15 original offline cases ran in both; counted once). The later run adds full-budget recovery and private memory/disk checks. Generated outputs, 26-operation contract (66 positive/17 negative), source guards and diff checks passed. The first new partial-removal test used URL equality with mismatching directory URL forms and failed to inject the intended error; matching the unique directory component fixed the fixture, after which both partial-success/failure assertions passed. No product deletion condition was relaxed to pass it. New endpoint/header assertions await an explicitly deployed isolated Worker revision; production and physical-device results are not inferred from these local runs.

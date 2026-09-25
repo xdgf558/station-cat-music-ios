@@ -169,10 +169,12 @@ rows += (
  'offlineFull|Offline storage is full. Remove some downloads and try again.|缓存空间已满，请删除部分已缓存歌曲后重试。|快取空間已滿，請刪除部分已快取歌曲後重試。|容量が不足しています。保存した曲を削除して再試行してください。\n'
  'releaseOffline|Resume interrupted playback after tapping play. Save permanently free songs for offline listening and manage downloads.|播放中断后点击播放可从原进度继续；支持长期免费歌曲离线缓存及空间管理。|播放中斷後點擊播放可從原進度繼續；支援長期免費歌曲離線快取及空間管理。|中断後は再生をタップすると元の位置から再開。常時無料曲のオフライン保存と容量管理に対応。\n'
 )
+rows += '\nofflineUnavailable|Expired or unavailable · Remove to free space|已过期或不可用 · 可删除以释放空间|已過期或無法使用 · 可刪除以釋放空間|期限切れ・利用不可 · 削除して空き容量を確保\n'
 # Embedded hero newlines are restored from escaped markers after splitting rows.
 rows=rows.replace('A little music.\nA slower day.','A little music.\\nA slower day.').replace('听一点音乐，\n让日常慢下来。','听一点音乐，\\n让日常慢下来。').replace('聽一點音樂，\n讓日常慢下來。','聽一點音樂，\\n讓日常慢下來。').replace('音楽とともに、\nゆっくり過ごす。','音楽とともに、\\nゆっくり過ごす。')
 translations={x:{} for x in ['en','zh-Hans','zh-Hant','ja']}
 for row in rows.splitlines():
+ if not row: continue
  key,*values=row.split('|');assert len(values)==4,key
  for lang,value in zip(translations,values):translations[lang][key]=value.replace('\\n','\n')
 (root/'Resources/Localizations.json').write_text(json.dumps(translations,ensure_ascii=False,indent=2)+'\n')

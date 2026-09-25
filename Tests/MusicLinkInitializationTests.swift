@@ -21,6 +21,7 @@ private actor StartupMusicTransport: HTTPTransport {
         self.holdCatalog = holdCatalog; self.holdFeatured = holdFeatured
         self.catalogStatus = catalogStatus; self.featuredStatus = featuredStatus
     }
+    func fail() { catalogStatus = 503; featuredStatus = 503 }
     func succeed() { catalogStatus = 200; featuredStatus = 200 }
     func bothEntered() -> Bool { featuredEntered && catalogEntered }
     func releaseFeatured() { holdFeatured = false; let waiting = featuredWaiters; featuredWaiters = []; waiting.forEach { $0.resume() } }
@@ -82,6 +83,29 @@ private actor StartupMusicTransport: HTTPTransport {
         XCTAssertTrue([PlaybackService.State.idle, .selected].contains(model.playback.state), file: file, line: line)
         XCTAssertEqual(model.playback.position, 0, file: file, line: line)
         XCTAssertFalse(paths.contains { $0.contains("/playback-grants") || $0.contains("/music/media/") }, file: file, line: line)
+    }
+    func testFailedRefreshPreservesCatalogAndDiscoveryWithoutPlaybackRetryLoop() async throws {
+        let transport = StartupMusicTransport(holdCatalog: false), model = try model(transport)
+        defer { model.playback.shutdown() }
+        await model.initialize()
+        let tracks = model.tracks, featured = model.featuredTracks
+        let before = await transport.paths.count
+        model.playback.deny()
+        await Task.yield()
+        let after = await transport.paths.count
+        XCTAssertEqual(before, after)
+        await transport.fail(); await model.load()
+        XCTAssertEqual(model.tracks, tracks); XCTAssertEqual(model.featuredTracks, featured)
+        XCTAssertEqual(model.phase, .loaded); XCTAssertEqual(model.discoveryPhase, .loaded)
+        XCTAssertNotNil(model.catalogFailure)
+    }
+    func testMixedStartupFailuresPreferCatalogDiagnosis() async throws {
+        let transport = StartupMusicTransport(holdCatalog: false, catalogStatus: 503, featuredStatus: 401), model = try model(transport)
+        defer { model.playback.shutdown() }
+        await model.initialize()
+        XCTAssertEqual(model.startupPhase, .unavailable)
+        XCTAssertEqual(model.startupFailureKey, model.catalogFailure?.messageKey)
+        XCTAssertNotEqual(model.startupFailureKey, "startupFailure")
     }
     func testStartupShowcaseWaitsForInitializationAndNeverReturnsOnReload() async throws {
         let transport = StartupMusicTransport(holdCatalog: true, holdFeatured: true), model = try model(transport)

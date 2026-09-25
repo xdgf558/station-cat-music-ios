@@ -8,6 +8,13 @@ final class ArtworkFreshnessTests: XCTestCase {
         let defaults = ["Cache-Control": "public, max-age=60", "Date": format.string(from: generated ?? now), "Age": "0"]
         return HTTPURLResponse(url: URL(string: "https://artwork.test/image")!, statusCode: 200, httpVersion: nil, headerFields: defaults.merging(fields) { _, new in new })!
     }
+    func testPrivateDeviceCachingStillRejectsCookieVaryAndNoStore() {
+        XCTAssertNotNil(ArtworkFreshness.expiration(response(["Cache-Control":"private, max-age=60"]), responseTime: now, storedAt: now, responseDelay: 0, residentTime: 0))
+        for fields in [["Set-Cookie":"session=fixture"], ["Vary":"Authorization"], ["Cache-Control":"private, no-store, max-age=60"], ["Cache-Control":"private=Authorization, max-age=60"]] {
+            let headers = ["Cache-Control":"private, max-age=60"].merging(fields) { _, new in new }
+            XCTAssertNil(ArtworkFreshness.expiration(response(headers), responseTime: now, storedAt: now, responseDelay: 0, residentTime: 0))
+        }
+    }
     func testVaryAndOldDateAreNotPersisted() {
         for vary in ["*", "Accept-Language", "Accept-Encoding", "*, Accept"] {
             XCTAssertNil(ArtworkFreshness.expiration(response(["Vary": vary]), responseTime: now, storedAt: now, responseDelay: 0, residentTime: 0))

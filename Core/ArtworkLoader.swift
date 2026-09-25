@@ -132,7 +132,11 @@ nonisolated enum ArtworkFreshness {
               storedAt >= responseTime else { return nil }
         let fields = (response.value(forHTTPHeaderField: "Cache-Control") ?? "").lowercased().split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
         let directives = fields.map { $0.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) } }
-        guard fields.contains("public"), !directives.contains(where: { ["no-store", "no-cache", "private"].contains($0.first ?? "") }) else { return nil }
+        // This cache is local to the device and never sends identity or cookies.
+        // Accept an unqualified private directive, but not field-qualified/ambiguous policy.
+        let policies = directives.filter { ["public", "private"].contains($0.first ?? "") }
+        guard policies.count == 1, policies[0].count == 1,
+              !directives.contains(where: { ["no-store", "no-cache"].contains($0.first ?? "") }) else { return nil }
         let ages = directives.filter { $0.first == "max-age" }
         guard ages.count == 1, ages[0].count == 2,
               let lifetime = deltaSeconds(ages[0][1]), lifetime > 0,

@@ -210,10 +210,21 @@ private final class CachedArtworkProtocol: URLProtocol, @unchecked Sendable {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).count, 2)
         let values = try dir.resourceValues(forKeys: [.isExcludedFromBackupKey]); XCTAssertEqual(values.isExcludedFromBackup, true)
     }
-    func testPrivateUncacheableAndInvalidResponsesNeverPersist() async throws {
+    func testPrivateCoverIsReusedByDeviceMemoryAndDiskOnly() async throws {
+        let base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let url = URL(string: "https://artwork.test/private-" + UUID().uuidString + "?v=1")!
+        let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: base)
+        _ = try await loader.load(url, allowedHost: "artwork.test")
+        _ = try await loader.load(url, allowedHost: "artwork.test")
+        let reopened = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: base)
+        _ = try await reopened.load(url, allowedHost: "artwork.test")
+        XCTAssertEqual(CachedArtworkProtocol.state.count(url.path), 1)
+    }
+    func testUncacheableAndInvalidResponsesNeverPersist() async throws {
         let dir = directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: dir)
-        for kind in ["no-store", "private", "cookie", "old-age", "missing", "bad-mime", "corrupt", "vary-star", "vary-language", "old-date", "no-date"] {
+        for kind in ["no-store", "cookie", "old-age", "missing", "bad-mime", "corrupt", "vary-star", "vary-language", "old-date", "no-date"] {
             let url = URL(string: "https://artwork.test/" + kind + UUID().uuidString)!
             _ = try await loader.load(url, allowedHost: "artwork.test")
             _ = try await loader.load(url, allowedHost: "artwork.test")

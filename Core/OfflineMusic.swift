@@ -33,10 +33,27 @@ nonisolated struct OfflineSong: Codable, Identifiable, Sendable {
     let permit: OfflinePermit
     let savedAt: Date
     let expiresAt: Date
+    var unavailable: Bool? = nil // Listing-only; invalid owned saves remain individually removable.
     var id: String { track.id }
 }
 nonisolated struct OfflinePlayable: Sendable { let song: OfflineSong; let url: URL; let remaining: Double }
 
+/// Cancellation and publication share one linearization point, including disk I/O.
+nonisolated final class OfflineDownloadTicket: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    func cancel() { lock.withLock { cancelled = true } }
+    func commit(_ body: () throws -> Void) throws {
+        try lock.withLock {
+            guard !cancelled, !Task.isCancelled else { throw CancellationError() }
+            try body()
+        }
+    }
+}
+nonisolated struct OfflineRemovalResult: Sendable {
+    var removed = Set<String>()
+    var failed = Set<String>()
+}
 /// Explicit public, permanent-free saves. No bearer, grant URL, listening position,
 /// account data or paid/temporary-free audio is persisted in this store.
 actor OfflineMusicCache {
@@ -46,11 +63,28 @@ actor OfflineMusicCache {
     private let transport: any MediaHTTPTransport
     private var generation = 0
     private var downloading = false
+    private var invalidated = Set<String>()
+    private struct Verified: Equatable { let inode: UInt64; let size: Int; let modified: Date; let changed: Date; let hash: String }
+    private var verified: [String: Verified] = [:]
+    private(set) var integrityChecks = 0
+    private let publishFiles: @Sendable (URL, URL) throws -> Void
+    private let removeFiles: @Sendable (URL) throws -> Void
+    private let beforePublication: (@Sendable () async throws -> Void)?
     init(origin: URL, baseDirectory: URL? = nil, capacity: Int = OfflineMusicCache.maximumBytes,
-         transport: any MediaHTTPTransport = NativeMediaTransport()) {
+         transport: any MediaHTTPTransport = NativeMediaTransport(),
+         publishFiles: @escaping @Sendable (URL, URL) throws -> Void = OfflineMusicCache.publish,
+         removeFiles: @escaping @Sendable (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) },
+         beforePublication: (@Sendable () async throws -> Void)? = nil) {
         let root = baseDirectory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "OfflineMusic")
         self.directory = root.appending(path: Self.digest(Data(origin.absoluteString.utf8)))
         self.capacity = capacity; self.transport = transport
+        self.publishFiles = publishFiles; self.removeFiles = removeFiles; self.beforePublication = beforePublication
+    }
+    nonisolated static func publish(_ temporary: URL, _ destination: URL) throws {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: destination.path) {
+            _ = try fm.replaceItemAt(destination, withItemAt: temporary, options: [.usingNewMetadataOnly])
+        } else { try fm.moveItem(at: temporary, to: destination) }
     }
     private static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     private func path(_ id: String) -> URL { directory.appending(path: Self.digest(Data(id.utf8))) }
@@ -76,17 +110,30 @@ actor OfflineMusicCache {
         let info = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
         return info.isRegularFile == true && info.isSymbolicLink != true && (info.fileSize ?? Int.max) <= limit
     }
-    private func entry(_ url: URL, now: Date) throws -> OfflineSong? {
+    private func owned(_ url: URL) throws -> OfflineSong? {
         try safeDirectory(url)
-        let receipt = url.appending(path: "receipt.json"), audio = url.appending(path: "audio.mp3")
-        guard try regular(receipt, limit: 32768), try regular(audio, limit: 33_554_432) else { return nil }
+        let receipt = url.appending(path: "receipt.json")
+        guard try regular(receipt, limit: 32768) else { return nil }
         let value = try JSONDecoder().decode(OfflineSong.self, from: Data(contentsOf: receipt))
-        guard path(value.id).lastPathComponent == url.lastPathComponent, value.savedAt <= now.addingTimeInterval(2), value.expiresAt > now,
+        guard UUID(uuidString: value.id) != nil, path(value.id).lastPathComponent == url.lastPathComponent else { return nil }
+        return value
+    }
+    private func entry(_ url: URL, now: Date) throws -> OfflineSong? {
+        guard let value = try owned(url), !invalidated.contains(value.id) else { return nil }
+        let audio = url.appending(path: "audio.mp3")
+        guard try regular(audio, limit: 33_554_432), value.savedAt <= now.addingTimeInterval(2), value.expiresAt > now,
               value.expiresAt.timeIntervalSince(value.savedAt) <= 7 * 86400 else { return nil }
-        // Persisted metadata must obey the same policy, identity and finite bounds.
         try value.permit.validate(track: value.track, serverNow: value.permit.validUntil.addingTimeInterval(-7 * 86400))
         guard try audio.resourceValues(forKeys: [.fileSizeKey]).fileSize == value.permit.byteSize else { return nil }
         return value
+    }
+    private func fingerprint(_ file: URL, hash: String) throws -> Verified {
+        let attrs = try FileManager.default.attributesOfItem(atPath: file.path)
+        let resource = try file.resourceValues(forKeys: [.attributeModificationDateKey])
+        guard let inode = (attrs[.systemFileNumber] as? NSNumber)?.uint64Value,
+              let size = (attrs[.size] as? NSNumber)?.intValue,
+              let modified = attrs[.modificationDate] as? Date, let changed = resource.attributeModificationDate else { throw APIError.storageUnavailable }
+        return Verified(inode: inode, size: size, modified: modified, changed: changed, hash: hash)
     }
     private func folders() throws -> [URL] {
         try prepare()
@@ -95,7 +142,11 @@ actor OfflineMusicCache {
         }
     }
     func songs(now: Date = Date()) throws -> [OfflineSong] {
-        try folders().compactMap { try? entry($0, now: now) }.sorted { $0.savedAt > $1.savedAt }
+        try folders().compactMap { folder -> OfflineSong? in
+            guard var song = try? owned(folder) else { return nil }
+            song.unavailable = (try? entry(folder, now: now)) == nil
+            return song
+        }.sorted { $0.savedAt > $1.savedAt }
     }
     private func occupiedBytes() throws -> Int {
         // Include expired/corrupt owned files in the budget. Never erase unknown data
@@ -117,10 +168,21 @@ actor OfflineMusicCache {
         let folder = path(track.id)
         guard let song = try? entry(folder, now: now), song.track.audioVersion == track.audioVersion else { return nil }
         let file = folder.appending(path: "audio.mp3")
-        guard Self.digest(try Data(contentsOf: file)) == song.permit.sha256 else { return nil }
+        let identity = try fingerprint(file, hash: song.permit.sha256)
+        // Verify once per file identity/session, never re-hash unchanged audio on resume.
+        // A new cache instance or changed file must still fail closed on corruption.
+        if verified[track.id] != identity {
+            integrityChecks += 1
+            guard Self.digest(try Data(contentsOf: file)) == song.permit.sha256 else {
+                invalidated.insert(track.id); verified.removeValue(forKey: track.id); return nil
+            }
+            guard try fingerprint(file, hash: song.permit.sha256) == identity else { return nil }
+            verified[track.id] = identity
+        }
         return OfflinePlayable(song: song, url: file, remaining: song.expiresAt.timeIntervalSince(max(now, Date())))
     }
-    func download(_ track: Track, source: any OfflineMusicProviding) async throws {
+    func download(_ track: Track, source: any OfflineMusicProviding, cancellation: OfflineDownloadTicket = OfflineDownloadTicket()) async throws {
+        try Task.checkCancellation()
         guard !downloading, track.access == .free, track.offlineEligible == true else { throw APIError.unavailable }
         try prepare()
         downloading = true; let ticket = generation
@@ -168,16 +230,25 @@ actor OfflineMusicCache {
         defer { try? FileManager.default.removeItem(at: temporary) }
         try data.write(to: temporary.appending(path: "audio.mp3"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         try JSONEncoder().encode(value).write(to: temporary.appending(path: "receipt.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        // Allow cancellation/catalog invalidation while the completed files await sealing.
+        if let beforePublication { try await beforePublication() }
+        await Task.yield()
+        try Task.checkCancellation(); guard generation == ticket else { throw CancellationError() }
+        guard clock.now < start.advanced(by: .seconds(lease)), Date() < value.expiresAt,
+              Date() >= started.addingTimeInterval(-2) else { throw APIError.requiresAuthentication }
         let destination = path(track.id)
-        if FileManager.default.fileExists(atPath: destination.path) { try safeDirectory(destination); try FileManager.default.removeItem(at: destination) }
-        try FileManager.default.moveItem(at: temporary, to: destination)
+        if FileManager.default.fileExists(atPath: destination.path) { try safeDirectory(destination) }
+        try cancellation.commit { try publishFiles(temporary, destination) }
+        invalidated.remove(track.id)
+        verified[track.id] = try? fingerprint(destination.appending(path: "audio.mp3"), hash: permit.sha256)
     }
     func remove(_ id: String) throws {
         generation += 1; try prepare()
         let target = path(id)
         guard FileManager.default.fileExists(atPath: target.path) else { return }
         try safeDirectory(target)
-        try FileManager.default.removeItem(at: target)
+        try removeFiles(target)
+        verified.removeValue(forKey: id); invalidated.remove(id)
     }
     func clear() throws {
         generation += 1
@@ -186,13 +257,24 @@ actor OfflineMusicCache {
             try FileManager.default.removeItem(at: folder)
         }
     }
-    func reconcile(_ catalog: [Track]) throws -> Set<String> {
+    func reconciliationCandidates(_ catalog: [Track]) throws -> Set<String> {
+        generation += 1 // An in-flight download cannot publish an older policy after this snapshot.
         let map = Dictionary(uniqueKeysWithValues: catalog.map { ($0.id, $0) })
-        var removed = Set<String>()
         for song in try songs() {
-            guard let track = map[song.id], track.offlineEligible == true, track.access == .free,
-                  track.audioVersion == song.track.audioVersion else { try remove(song.id); removed.insert(song.id); continue }
+            if song.unavailable == true || map[song.id].map({ $0.offlineEligible != true || $0.access != .free || $0.audioVersion != song.track.audioVersion }) ?? true {
+                invalidated.insert(song.id)
+            }
         }
-        return removed
+        return invalidated
+    }
+    // Caller releases AVPlayer's item before this phase. Each failure is retained
+    // separately: one undeletable directory cannot hide successfully removed IDs.
+    func removeInvalidated(_ ids: Set<String>) -> OfflineRemovalResult {
+        var result = OfflineRemovalResult()
+        for id in ids.sorted() where invalidated.contains(id) {
+            do { try remove(id); result.removed.insert(id) }
+            catch { result.failed.insert(id) }
+        }
+        return result
     }
 }

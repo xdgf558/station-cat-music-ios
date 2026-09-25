@@ -29,9 +29,6 @@ struct RootView: View {
         .alert(model.t("linkUnavailable"), isPresented: $model.linkUnavailable) { Button(model.t("close"), role: .cancel) {} }
         .sheet(isPresented: $model.showPlayer) { player }
         .task { await model.initialize() }
-        .onChange(of: model.playback.state) { _, state in
-            if state == .verificationRequired && model.nativeMusic != nil { Task { await model.load() } }
-        }
         .onChange(of: model.locale) { _, _ in if model.nativeMusic != nil { Task { await model.load() } } }
         .onChange(of: model.account.scope) { _, scope in Task { await model.accountScopeChanged(scope) } }
         .alert(model.t("clearHistoryConfirm"), isPresented: $confirmHistoryClear) { Button(model.t("clearHistory"), role: .destructive) { Task { await model.clearHistory() } }; Button(model.t("cancel"), role: .cancel) {} }
@@ -379,12 +376,12 @@ struct RootView: View {
                 if model.offlineSongs.isEmpty { Label(model.t("offlineEmpty"), systemImage: "arrow.down.circle").foregroundStyle(Palette.muted) }
                 ForEach(model.offlineSongs) { song in
                     HStack {
-                        Button { model.select(song.track, from: model.offlineSongs.map(\.track)) } label: {
+                        Button { model.select(song.track, from: model.offlineSongs.filter { $0.unavailable != true }.map(\.track)) } label: {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(song.track.title).font(.headline)
-                                Text(model.t("offlineUntil") + " " + song.expiresAt.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(Palette.muted)
+                                Text(song.unavailable == true ? model.t("offlineUnavailable") : model.t("offlineUntil") + " " + song.expiresAt.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(Palette.muted)
                             }.frame(maxWidth: .infinity, alignment: .leading)
-                        }.buttonStyle(.plain)
+                        }.buttonStyle(.plain).disabled(song.unavailable == true)
                         Button(role: .destructive) { Task { await model.removeOffline(song.id) } } label: { Image(systemName: "trash").frame(width: 44, height: 44) }.accessibilityLabel(model.t("remove") + " " + song.track.title)
                     }
                 }
@@ -545,7 +542,7 @@ struct RootView: View {
                             Text(model.t("playbackDenied")).font(.subheadline).foregroundStyle(Palette.accent)
                         }
                         if track.offlineEligible == true {
-                            let saved = model.offlineSongs.contains { $0.id == track.id && $0.track.audioVersion == track.audioVersion }
+                            let saved = model.offlineSongs.contains { $0.id == track.id && $0.track.audioVersion == track.audioVersion && $0.unavailable != true }
                             Button { model.saveOffline(track) } label: {
                                 Label(model.t(saved ? "offlineSaved" : model.offlineDownloading == track.id ? "offlineSaving" : "offlineSave"), systemImage: saved ? "checkmark.circle" : "arrow.down.circle")
                             }.font(.subheadline).foregroundStyle(Palette.accent).frame(minHeight: 44)

@@ -261,6 +261,20 @@
     "requestId": "fixture-only",
     "serverNow": "2026-09-16T00:00:00Z"
   },
+  "OfflinePermit": {
+    "trackId": "a3d01b06-8c4c-4a8a-9d66-25429d2ad843",
+    "audioVersion": 1,
+    "policyVersion": 1,
+    "accessMode": "free",
+    "variant": "full",
+    "byteSize": 1,
+    "sha256": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+    "durationSeconds": 1,
+    "validUntil": "2026-09-16T00:00:00Z"
+  },
+  "OfflinePermitRequest": {
+    "audioVersion": 1
+  },
   "TrackResponse": {
     "data": {
       "id": "fixture-only",
@@ -554,6 +568,21 @@
       "prepareExpiresAt": "2026-09-16T00:10:00Z",
       "receiptExpiresAt": "2026-09-16T00:10:00Z",
       "confirmAccepted": false
+    },
+    "requestId": "fixture-only",
+    "serverNow": "2026-09-16T00:00:00Z"
+  },
+  "OfflinePermitResponse": {
+    "data": {
+      "trackId": "a3d01b06-8c4c-4a8a-9d66-25429d2ad843",
+      "audioVersion": 1,
+      "policyVersion": 1,
+      "accessMode": "free",
+      "variant": "full",
+      "byteSize": 1,
+      "sha256": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+      "durationSeconds": 1,
+      "validUntil": "2026-09-16T00:00:00Z"
     },
     "requestId": "fixture-only",
     "serverNow": "2026-09-16T00:00:00Z"

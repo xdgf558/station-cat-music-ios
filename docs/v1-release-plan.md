@@ -19,7 +19,9 @@
 
 R1 可以继续使用本地隔离服务和合成数据推进。用户已确认公开评论匿名保留、个人清理不被余额或争议阻塞且不自动退款/清零。财务保留期限、最小字段及平台备份策略仍须明确；不能将原草案的 approved/executionEnabled 改为 true 当作已经批准。未完成必要清理不得报告 completed。
 
-R2 的隔离域名、Team ID 和 App ID 已于 2026-09-22 配置，隔离 HTTPS、原生网络/播放、真实系统浏览器登录回调与歌曲/专辑冷暖启动 Universal Link 均已通过模拟器验收；固定稳定 Xcode CI 与实体机仍未验收。具体证据和限制见 [R2 联调记录](R2-preparation.md)。R3 仍需要可用实体 iPhone。
+R2 的隔离域名、Team ID 和 App ID 已于 2026-09-22 配置，隔离 HTTPS、原生网络/播放、真实系统浏览器登录回调与歌曲/专辑冷暖启动 Universal Link 均已通过模拟器验收。具体证据和限制见 [R2 联调记录](R2-preparation.md)。
+
+2026-09-24 已在 iPhone Air / iOS 27.0 完成第一组 R3 实机检查：真实 HTTPS 曲库、70 秒以上播放及两次授权、暂停恢复、拖动和 Now Playing 清理通过。后台 UI 自动化在启用自动化模式时超时，尚未执行测试；锁屏、网络切换、耳机及其他发布边界仍待实机确认。详见 [R3 当前记录](R3-physical-device-20260924.md)。本地新版图标、Quiet Orbit 界面、“我的”分级页面和启动展示页仍需提交 PR 并通过当前提交的远端 CI。
 
 ## 发布边界
 
@@ -32,3 +34,8 @@ R2 的隔离域名、Team ID 和 App ID 已于 2026-09-22 配置，隔离 HTTPS�
 当前 R1 第一批本地进展见 [缓存与存储预算报告](v1-storage-report.md)。该批不包含完整销户执行器或服务端长期压缩。
 
 R1 第二批本地进展见 [隔离生命周期与账号回收报告](R1-lifecycle-report.md)。个人阶段可恢复清理及无损回执压缩已实现；完整销户最终完成与生产启用仍未通过验收。
+
+
+### 2026-09-24 — free offline development increment
+
+See [R3 artwork, resume, offline and version evidence](R3-offline-artwork-version-20260924.md). Development 0.1.0 (2) adds permanent-free-only offline saves, optional auto-cache, storage management and explicit interrupted playback resume. VIP/limited-free remain online. Installed on the intended iPhone Air on 2026-09-25; physical transport-denied offline playback and resume passed. User-observed airplane-mode acceptance remains pending. No production native enablement or StoreKit sale is included.

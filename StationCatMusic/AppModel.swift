@@ -3,6 +3,15 @@ import Observation
 
 @MainActor @Observable final class AppModel {
     enum Phase: Equatable { case loading, loaded, empty, unavailable }
+    enum StartupPhase: Equatable { case loading, ready, unavailable }
+    private(set) var startupPhase: StartupPhase = .loading
+    private(set) var catalogFailure: CatalogFailure?
+    private(set) var featuredFailure: CatalogFailure?
+    var startupFailureKey: String {
+        if let catalogFailure { return catalogFailure.messageKey }
+        if let featuredFailure { return featuredFailure.messageKey }
+        return "startupFailure"
+    }
     var phase: Phase = .loading
     var tracks: [Track] = []
     var query = ""
@@ -23,6 +32,15 @@ import Observation
     private(set) var scope = AccountScope.guest
     let playback: PlaybackService
     let library: ScopedLibrary
+    var autoCacheFreeSongs = false
+    private var offlinePreferenceKey = ""
+    var offlineSongs: [OfflineSong] = []
+    var offlineBytes = 0
+    var offlineDownloading: String?
+    var offlineStatus = ""
+    let offlineCache: OfflineMusicCache?
+    @ObservationIgnored private var offlineTask: Task<Void, Never>?
+    @ObservationIgnored private var offlineTicket: OfflineDownloadTicket?
     let artwork: ArtworkLoader
     let client: any CatalogProviding
     let account: NativeAccountModel
@@ -33,6 +51,7 @@ import Observation
     private(set) var featuredPhase: Phase = .loading
     var discoveryTracks: [Track] { nativeMusic == nil ? tracks : featuredTracks }
     var discoveryPhase: Phase { nativeMusic == nil ? phase : featuredPhase }
+    var discoveryFailure: CatalogFailure? { nativeMusic == nil ? catalogFailure : featuredFailure }
     var activeCollection: MusicCollection?
     var nativeMusic: NativeMusicAPI? { client as? NativeMusicAPI }
     @ObservationIgnored private var detailTask: Task<Void, Never>?
@@ -41,9 +60,14 @@ import Observation
     @ObservationIgnored private var initializationReloadRequested = false
     private var initialized = false
     private var operation = 0
-    @ObservationIgnored private var catalogTask: Task<Catalog, Error>?
-    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader()) { self.artwork = artwork; self.libraryRemote = libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.musicWebOrigin = MusicLink.webOrigin(musicWebOrigin)
-        if let native = client as? NativeMusicAPI { playback.configure(authorizer: native) }
+    @ObservationIgnored private var catalogTask: Task<Void, Never>?
+    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader(), offlineStorage: OfflineMusicCache? = nil) { self.artwork = artwork; self.libraryRemote = libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.musicWebOrigin = MusicLink.webOrigin(musicWebOrigin)
+        if let native = client as? NativeMusicAPI {
+            let cache = offlineStorage ?? OfflineMusicCache(origin: native.configuration.origin)
+            offlineCache = cache; playback.offlineCache = cache; playback.configure(authorizer: native)
+            offlinePreferenceKey = "autoCacheFreeSongs." + native.configuration.origin.absoluteString
+            autoCacheFreeSongs = UserDefaults.standard.bool(forKey: offlinePreferenceKey)
+        } else { offlineCache = offlineStorage; playback.offlineCache = offlineStorage }
         playback.onSelection = { [weak self] track in self?.loadDetail(track) }
         account.onInvalidate = { [weak self] in
             guard let self else { return }
@@ -52,6 +76,8 @@ import Observation
         }
         playback.onListen = { [weak self] track, variant, audible, position, eventID in
             guard let self else { return }; let scope = self.scope, generation = self.libraryGeneration
+            if self.autoCacheFreeSongs, variant == "full", track.offlineEligible == true,
+               !self.playback.isOfflinePlayback, !self.offlineSongs.contains(where: { $0.id == track.id }) { self.saveOffline(track) }
             Task { [weak self] in
                 guard let self, self.libraryGeneration == generation else { return }
                 do { try await self.library.record(track, variant: variant, audible: audible, position: position, eventID: eventID, scope: scope); await self.refreshLibrary(); self.syncLibrary() }
@@ -65,6 +91,7 @@ import Observation
         let work = Task { @MainActor [weak self] in
             guard let self else { return }
             await self.refreshLibrary()
+            await self.refreshOffline()
             // Restore can finish as guest/unavailable. In either case the public
             // catalog remains usable; a failed restore must not strand a link.
             await self.account.restore()
@@ -84,9 +111,25 @@ import Observation
                 self.pendingMusicLink = nil
                 await self.openMusicLink(url)
             }
+            self.finishStartup()
         }
         initializationTask = work
         await work.value
+    }
+    private func finishStartup() {
+        // A successful empty response is ready too. A failed secondary section
+        // must not block a usable app, or a resolved cold-launch music link.
+        startupPhase = phase == .loaded || phase == .empty || featuredPhase == .loaded || featuredPhase == .empty || showPlayer || activeCollection != nil ? .ready : .unavailable
+    }
+    func retryStartup() async {
+        guard startupPhase == .unavailable else { return }
+        startupPhase = .loading
+        initialized = false; initializationTask = nil
+        await initialize()
+    }
+    func continueAfterStartupFailure() {
+        guard startupPhase == .unavailable else { return }
+        startupPhase = .ready
     }
     func receiveMusicLink(_ url: URL) async {
         guard nativeMusic != nil, let host = musicWebOrigin?.host, MusicLink(url, allowedHost: host) != nil else { return }
@@ -97,6 +140,7 @@ import Observation
             return
         }
         await openMusicLink(url)
+        if startupPhase == .unavailable { finishStartup() }
     }
     func accountScopeChanged(_ requested: AccountScope) async {
         // Initialization owns restoration. Its delayed SwiftUI onChange callback
@@ -114,33 +158,64 @@ import Observation
     }
     private func loadCatalog() async {
         operation += 1; let id = operation; let startedScope = scope
-        phase = .loading; featuredPhase = .loading; featuredTracks = []; collections = []; catalogTask?.cancel()
-        let client = self.client
-        let locale = locale
-        let work = Task { if let native = client as? NativeMusicAPI { await native.setLocale(locale) }; return try await client.catalog() }; catalogTask = work
+        if tracks.isEmpty { phase = .loading }
+        if featuredTracks.isEmpty && collections.isEmpty { featuredPhase = .loading }
+        catalogTask?.cancel()
+        catalogFailure = nil; featuredFailure = nil
+        let client = self.client, locale = locale
+        // The discovery endpoint is independent of the paginated catalog. Publish
+        // each section as soon as it arrives; cancellation still owns both tasks.
+        let work = Task { @MainActor in
+            if let native = client as? NativeMusicAPI {
+                await native.setLocale(locale)
+                guard id == self.operation, !Task.isCancelled else { return }
+                async let catalog: Void = self.loadCatalogSection(client, id: id, scope: startedScope, locale: locale)
+                async let featured: Void = self.loadFeaturedSection(native, id: id, scope: startedScope, locale: locale)
+                _ = await (catalog, featured)
+            } else {
+                await self.loadCatalogSection(client, id: id, scope: startedScope, locale: locale)
+            }
+        }
+        catalogTask = work
+        await withTaskCancellationHandler(operation: { await work.value }, onCancel: { work.cancel() })
+    }
+    private func loadCatalogSection(_ client: any CatalogProviding, id: Int, scope startedScope: AccountScope, locale: String) async {
         do {
-            let catalog = try await withTaskCancellationHandler(operation: { try await work.value }, onCancel: { work.cancel() })
-            guard id == operation, startedScope == scope, !Task.isCancelled else { return }
+            let catalog = try await client.catalog()
+            guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
+            if let offlineCache {
+                do {
+                    let candidates = try await offlineCache.reconciliationCandidates(catalog.items)
+                    guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
+                    if playback.isOfflinePlayback, let playing = playback.selectedTrack?.id, candidates.contains(playing) { playback.deny() }
+                    let result = await offlineCache.removeInvalidated(candidates)
+                    if !result.failed.isEmpty { offlineStatus = "offlineFailed" }
+                } catch { offlineStatus = "offlineFailed" }
+                await refreshOffline()
+            }
+            guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
             tracks = catalog.items; phase = tracks.isEmpty ? .empty : .loaded
             if let selected = activeCollection {
                 let current = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
                 activeCollection = MusicCollection(id: selected.id, slug: selected.slug, title: selected.title, description: selected.description,
                     version: selected.version, tracks: selected.tracks.compactMap { current[$0.id] }, nextCursor: nil)
             }
-            if let nativeMusic {
-                do {
-                    let featured = try await nativeMusic.featured()
-                    guard id == operation, startedScope == scope, !Task.isCancelled else { return }
-                    featuredTracks = featured.tracks; collections = featured.collections
-                    featuredPhase = featuredTracks.isEmpty ? .empty : .loaded
-                } catch {
-                    guard id == operation, startedScope == scope, !Task.isCancelled else { return }
-                    featuredPhase = .unavailable
-                }
-            }
         } catch {
-            guard id == operation, startedScope == scope, !Task.isCancelled else { return }
-            phase = .unavailable; featuredPhase = .unavailable
+            guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
+            phase = tracks.isEmpty ? .unavailable : .loaded
+            catalogFailure = CatalogFailure(error)
+        }
+    }
+    private func loadFeaturedSection(_ native: NativeMusicAPI, id: Int, scope startedScope: AccountScope, locale: String) async {
+        do {
+            let featured = try await native.featured()
+            guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
+            featuredTracks = featured.tracks; collections = featured.collections
+            featuredPhase = featuredTracks.isEmpty ? .empty : .loaded
+        } catch {
+            guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
+            featuredPhase = featuredTracks.isEmpty && collections.isEmpty ? .unavailable : .loaded
+            featuredFailure = CatalogFailure(error)
         }
     }
     var favoriteTracks: [Track] { tracks.filter { favorites.contains($0.id) } }
@@ -201,6 +276,37 @@ import Observation
             let removed = try await library.removeInactiveAccountFiles(keeping: confirmedScope)
             localCleanupStatus = removed > 0 ? "localCleanupDone" : "localCleanupNothing"
         } catch { localCleanupStatus = "localCleanupFailed" }
+    }
+    func setAutoCache(_ enabled: Bool) {
+        autoCacheFreeSongs = enabled
+        UserDefaults.standard.set(enabled, forKey: offlinePreferenceKey)
+    }
+    func refreshOffline() async {
+        guard let offlineCache else { return }
+        offlineSongs = (try? await offlineCache.songs()) ?? []
+        offlineBytes = (try? await offlineCache.usage()) ?? 0
+    }
+    func saveOffline(_ track: Track) {
+        guard let nativeMusic, let offlineCache, offlineDownloading == nil else { return }
+        offlineDownloading = track.id; offlineStatus = "offlineSaving"
+        let ticket = OfflineDownloadTicket(); offlineTicket = ticket
+        offlineTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.offlineDownloading = nil }
+            do { try await offlineCache.download(track, source: nativeMusic, cancellation: ticket); self.offlineStatus = "offlineSaved" }
+            catch is CancellationError { self.offlineStatus = "" }
+            catch APIError.storageUnavailable { self.offlineStatus = "offlineFull" }
+            catch { self.offlineStatus = "offlineFailed" }
+            await self.refreshOffline()
+        }
+    }
+    func cancelOfflineDownload() { offlineTicket?.cancel(); offlineTask?.cancel() }
+    func removeOffline(_ id: String? = nil) async {
+        if id == nil || id == offlineDownloading { cancelOfflineDownload() }
+        if playback.isOfflinePlayback && (id == nil || playback.selectedTrack?.id == id) { playback.pause() }
+        do { if let id { try await offlineCache?.remove(id) } else { try await offlineCache?.clear() }; offlineStatus = "" }
+        catch { offlineStatus = "offlineFailed" }
+        await refreshOffline()
     }
     func clearCache() async {
         detailTask?.cancel(); detail = nil; URLCache.shared.removeAllCachedResponses()

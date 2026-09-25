@@ -1,6 +1,8 @@
 import XCTest
 import ImageIO
 import UniformTypeIdentifiers
+import MediaPlayer
+import UIKit
 @testable import StationCatMusic
 
 private final class ArtworkFixtureProtocol: URLProtocol, @unchecked Sendable {
@@ -43,6 +45,30 @@ private final class ArtworkFixtureProtocol: URLProtocol, @unchecked Sendable {
 }
 
 @MainActor final class ArtworkLoaderTests: XCTestCase {
+    func testNowPlayingArtworkCanBeRequestedFromMediaPlayerBackgroundQueue() async throws {
+        let playback = PlaybackService()
+        let system = SystemPlayback(playback: playback, artworkHost: "artwork.test",
+            artworkLoader: ArtworkLoader(protocolClasses: [ArtworkFixtureProtocol.self]))
+        defer { system.shutdown(); playback.shutdown() }
+        let track = Track(id: UUID().uuidString, title: "Background artwork regression", artist: "Fixture",
+            durationSeconds: 180, audioVersion: 1, access: .free, coverUrl: URL(string: "https://artwork.test/near-limit")!)
+        system.publish(PlaybackSnapshot(track: track, position: 0, duration: 180, playing: false,
+            canNext: false, canPrevious: false, canSeek: false, canPause: false))
+        let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+        while MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] == nil,
+              ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        let artwork = try XCTUnwrap(MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] as? MPMediaItemArtwork)
+        let reference = BackgroundArtworkReference(artwork: artwork)
+        let widths = await Task.detached {
+            dispatchPrecondition(condition: .notOnQueue(.main))
+            return [32, 128, 512].map { size in
+                reference.artwork.image(at: CGSize(width: size, height: size))?.cgImage?.width
+            }
+        }.value
+        XCTAssertEqual(widths, [512, 512, 512])
+        system.shutdown()
+        XCTAssertNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
+    }
     func testNearCapacityDownloadAndDecodeKeepMainActorResponsive() async throws {
         let size = await Task.detached { ArtworkFixtureProtocol.nearLimit.count }.value
         XCTAssertEqual(size, 2_097_136)
@@ -78,6 +104,13 @@ private final class ArtworkFixtureProtocol: URLProtocol, @unchecked Sendable {
     }
 }
 
+// Test-only transfer of a fully initialized, read-only MediaPlayer object to its
+// documented request surface. No MainActor model or mutable UI crosses threads.
+private final class BackgroundArtworkReference: @unchecked Sendable {
+    let artwork: MPMediaItemArtwork
+    init(artwork: MPMediaItemArtwork) { self.artwork = artwork }
+}
+
 private final class CacheFixtureState: @unchecked Sendable {
     private let lock = NSLock()
     private var counts: [String: Int] = [:]
@@ -101,6 +134,7 @@ private final class CachedArtworkProtocol: URLProtocol, @unchecked Sendable {
         if path.contains("old-date") { headers["Date"] = date.string(from: Date().addingTimeInterval(-7200)) }
         if path.contains("no-date") { headers.removeValue(forKey: "Date") }
         if path.contains("no-store") { headers["Cache-Control"] = "public, max-age=3600, no-store" }
+        if path.contains("short-ttl") { headers["Cache-Control"] = "public, max-age=3" }
         if path.contains("private") { headers["Cache-Control"] = "private, max-age=3600" }
         if path.contains("cookie") { headers["Set-Cookie"] = "fixture=not-a-credential" }
         if path.contains("old-age") { headers["Age"] = "3600" }
@@ -119,6 +153,48 @@ private final class CachedArtworkProtocol: URLProtocol, @unchecked Sendable {
 
 @MainActor final class ArtworkCacheTests: XCTestCase {
     func directory() -> URL { FileManager.default.temporaryDirectory.appending(path: UUID().uuidString) }
+    func testConcurrentViewsShareDownloadAndDecodedImageDespiteOneCancellation() async throws {
+        let path = "/held-shared-" + UUID().uuidString, state = CachedArtworkProtocol.state
+        let url = URL(string: "https://artwork.test" + path)!
+        let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self])
+        let first = Task { try await loader.load(url, allowedHost: "artwork.test") }
+        for _ in 0..<200 { if state.isHeld(path) { break }; try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(state.isHeld(path))
+        let others = (0..<4).map { _ in Task { try await loader.load(url, allowedHost: "artwork.test") } }
+        defer { state.release(path); first.cancel(); others.forEach { $0.cancel() } }
+        await Task.yield(); first.cancel(); state.release(path)
+        do { _ = try await first.value; XCTFail("Cancelled view received an image") } catch {}
+        let firstShared = try await others[0].value
+        let image = try XCTUnwrap(firstShared)
+        for other in others.dropFirst() { let value = try await other.value; XCTAssertTrue(value === image) }
+        let warm = try await loader.load(url, allowedHost: "artwork.test")
+        XCTAssertTrue(warm === image); XCTAssertEqual(state.count(path), 1)
+        let refused = try await loader.load(url, allowedHost: "wrong.test")
+        XCTAssertNil(refused)
+        try await loader.clearCache()
+        // Use an ordinary URL for clear/reload, avoiding another intentionally held response.
+        let reload = URL(string: "https://artwork.test/clear-" + UUID().uuidString)!
+        _ = try await loader.load(reload, allowedHost: "artwork.test")
+        try await loader.clearCache()
+        _ = try await loader.load(reload, allowedHost: "artwork.test")
+        XCTAssertEqual(state.count(reload.path), 2)
+    }
+    func testDecodedMemoryBudgetAndFreshnessAreBounded() async throws {
+        let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], memoryMaximumBytes: 1_048_576)
+        let a = URL(string: "https://artwork.test/memory-a-" + UUID().uuidString)!
+        let b = URL(string: "https://artwork.test/memory-b-" + UUID().uuidString)!
+        _ = try await loader.load(a, allowedHost: "artwork.test")
+        _ = try await loader.load(b, allowedHost: "artwork.test")
+        _ = try await loader.load(a, allowedHost: "artwork.test")
+        XCTAssertEqual(CachedArtworkProtocol.state.count(a.path), 2)
+        let short = URL(string: "https://artwork.test/short-ttl-" + UUID().uuidString)!
+        let first = try await loader.load(short, allowedHost: "artwork.test")
+        let cached = try await loader.load(short, allowedHost: "artwork.test")
+        XCTAssertNotNil(first); XCTAssertTrue(first === cached)
+        try await Task.sleep(for: .seconds(3.1))
+        _ = try await loader.load(short, allowedHost: "artwork.test")
+        XCTAssertEqual(CachedArtworkProtocol.state.count(short.path), 2)
+    }
     func testPublicCoverReusedAfterLoaderRelaunchAndVersionIsPartOfKey() async throws {
         let dir = directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let path = "/cache-" + UUID().uuidString
@@ -134,12 +210,25 @@ private final class CachedArtworkProtocol: URLProtocol, @unchecked Sendable {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).count, 2)
         let values = try dir.resourceValues(forKeys: [.isExcludedFromBackupKey]); XCTAssertEqual(values.isExcludedFromBackup, true)
     }
-    func testPrivateUncacheableAndInvalidResponsesNeverPersist() async throws {
+    func testPrivateCoverIsReusedByDeviceMemoryAndDiskOnly() async throws {
+        let base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let url = URL(string: "https://artwork.test/private-" + UUID().uuidString + "?v=1")!
+        let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: base)
+        _ = try await loader.load(url, allowedHost: "artwork.test")
+        _ = try await loader.load(url, allowedHost: "artwork.test")
+        let reopened = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: base)
+        _ = try await reopened.load(url, allowedHost: "artwork.test")
+        XCTAssertEqual(CachedArtworkProtocol.state.count(url.path), 1)
+    }
+    func testUncacheableAndInvalidResponsesNeverPersist() async throws {
         let dir = directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: dir)
-        for kind in ["no-store", "private", "cookie", "old-age", "missing", "bad-mime", "corrupt", "vary-star", "vary-language", "old-date", "no-date"] {
+        for kind in ["no-store", "cookie", "old-age", "missing", "bad-mime", "corrupt", "vary-star", "vary-language", "old-date", "no-date"] {
             let url = URL(string: "https://artwork.test/" + kind + UUID().uuidString)!
             _ = try await loader.load(url, allowedHost: "artwork.test")
+            _ = try await loader.load(url, allowedHost: "artwork.test")
+            XCTAssertEqual(CachedArtworkProtocol.state.count(url.path), 2, "Uncacheable response leaked into decoded memory cache")
         }
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).count, 0)
         let refused = try await loader.load(URL(string: "https://artwork.test/refused")!, allowedHost: "different.test")

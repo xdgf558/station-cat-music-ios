@@ -55,6 +55,8 @@ nonisolated struct PlaybackBoundary: Sendable {
     private var activeVariant = "full"
     @ObservationIgnored private var seekSerial = 0
     @ObservationIgnored private var isSeeking = false
+    @ObservationIgnored var offlineCache: OfflineMusicCache?
+    private(set) var isOfflinePlayback = false
     private var authorizer: (any PlaybackAuthorizing)?
     @ObservationIgnored private var nativeLoader: NativeMediaLoader?
     @ObservationIgnored private var authorizationTask: Task<Void, Never>?
@@ -63,7 +65,15 @@ nonisolated struct PlaybackBoundary: Sendable {
     @ObservationIgnored private var progressTask: Task<Void, Never>?
     let identity = UUID()
     @ObservationIgnored private var player = PlaybackService.makePlayer()
-    private static func makePlayer() -> AVPlayer { let value = AVPlayer(); value.allowsExternalPlayback = false; return value }
+    private static func makePlayer() -> AVPlayer {
+        let value = AVPlayer()
+        value.allowsExternalPlayback = false
+        // AVPlayer cannot predict availability for our AVAssetResourceLoader.
+        // Apple's AVPlayer.h requires NO for delegates that supply media bytes;
+        // the default can delay both the initial start and every grant renewal.
+        value.automaticallyWaitsToMinimizeStalling = false
+        return value
+    }
     @ObservationIgnored private let clock: any PlaybackClock
     @ObservationIgnored private let transport: any MediaHTTPTransport
     @ObservationIgnored private let loader: any MediaLoading
@@ -123,15 +133,28 @@ nonisolated struct PlaybackBoundary: Sendable {
         interrupted = false
         begin(variant: variant ?? activeVariant, renewal: false)
     }
-    private func begin(variant: String, renewal: Bool) {
+    private func begin(variant: String, renewal: Bool, tryOffline: Bool = true) {
         guard !interrupted, let track = selectedTrack, let authorizer else { state = .verificationRequired; publish(); return }
+        if state == .completed { listenMeter = AudibleListenMeter(); listenID = UUID().uuidString }
+        if !renewal, tryOffline, let offlineCache, track.offlineEligible == true, track.access == .free, ["automatic", "full"].contains(variant) {
+            let previousState = state
+            let resume = [.paused, .verificationRequired].contains(state) && activeVariant == "full" ? position : 0
+            boundary.deny(); stop(); state = .authorizing; publish()
+            let sequence = boundary.sequence
+            authorizationTask = Task { [weak self] in
+                let local = try? await offlineCache.playable(track)
+                guard let self, !Task.isCancelled, self.boundary.sequence == sequence, self.selectedTrack == track else { return }
+                if let local { self.installOffline(local, position: resume, sequence: sequence) }
+                else { self.state = previousState; self.begin(variant: variant, renewal: false, tryOffline: false) }
+            }
+            return
+        }
         if !renewal {
             if let id = queue.currentID { guard queueAttempts.insert(id).inserted else { noticeKey = "queueUnavailable"; deny(); return } }
             if track.access == .unavailable { skipUnavailable(); return }
         }
         // Every explicit resume obtains a fresh URL and a fresh hard deadline.
-        if state == .completed { listenMeter = AudibleListenMeter(); listenID = UUID().uuidString }
-        let resumePosition = (renewal || state == .paused) && activeVariant == variant ? position : 0
+        let resumePosition = (renewal || state == .paused || state == .verificationRequired) && activeVariant == variant ? position : 0
         if renewal {
             guard state == .playing, boundary.deadline != nil else { return }
         } else { boundary.deny(); stop(); state = .authorizing; publish() }
@@ -144,34 +167,50 @@ nonisolated struct PlaybackBoundary: Sendable {
                 guard let self, !Task.isCancelled, self.boundary.sequence == sequence,
                       self.selectedTrack == track, await authorizer.isCurrent(authorization) else { return }
                 guard !Task.isCancelled, self.boundary.sequence == sequence, self.selectedTrack == track else { return }
+                if renewal { self.checkDeadline(); guard self.boundary.sequence == sequence, self.state == .playing else { return } }
                 let received = self.clock.now, grant = authorization.grant
-                try self.installBoundary(serverNow: authorization.serverNow.timeIntervalSince1970,
+                var candidate = self.boundary
+                try candidate.install(serverNow: authorization.serverNow.timeIntervalSince1970,
                     validUntil: grant.playbackValidUntil.timeIntervalSince1970, sent: sent, received: received, sequence: sequence)
-                guard let deadline = self.boundary.deadline else { throw APIError.requiresAuthentication }
-                try self.system?.activate()
+                guard let deadline = candidate.deadline else { throw APIError.requiresAuthentication }
                 guard self.clock.now < deadline else { throw APIError.requiresAuthentication }
                 let channel = AuthorizedMediaChannel(authorization: authorization, authorizer: authorizer,
                     transport: self.transport, lifetime: deadline - self.clock.now)
-                let loader = NativeMediaLoader(channel: channel) { [weak self] in
-                    guard self?.boundary.sequence == sequence else { return }; self?.deny()
+                if renewal {
+                    guard let currentLoader = self.nativeLoader, self.player.currentItem != nil else { throw APIError.staleResponse }
+                    try await currentLoader.renew(with: channel)
+                    self.checkDeadline()
+                    guard !Task.isCancelled, self.boundary.sequence == sequence, self.state == .playing,
+                          self.selectedTrack == track, self.clock.now < deadline else { return }
                 }
-                self.nativeLoader?.cancelAll(); self.progressTask?.cancel(); self.renewalTask?.cancel()
-                self.nativeLoader = loader
+                try self.installBoundary(serverNow: authorization.serverNow.timeIntervalSince1970,
+                    validUntil: grant.playbackValidUntil.timeIntervalSince1970, sent: sent, received: received, sequence: sequence)
+                if !renewal { try self.system?.activate() }
+                self.progressTask?.cancel(); self.renewalTask?.cancel()
                 if renewal { self.capturePosition() }
                 self.activeVariant = grant.variant; self.duration = grant.durationSeconds; self.previewOffset = grant.previewSourceStartSeconds ?? 0; self.position = min(renewal ? self.position : resumePosition, grant.durationSeconds)
-                self.removeEndObserver()
-                let item = AVPlayerItem(asset: loader.asset())
-                self.player.replaceCurrentItem(with: item)
-                self.endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self, weak item] _ in
-                    MainActor.assumeIsolated {
-                        guard let self, let item, self.player.currentItem === item, self.boundary.sequence == sequence else { return }
-                        self.completeNaturally()
+                if !renewal {
+                    let loader = NativeMediaLoader(channel: channel) { [weak self] in
+                        guard self?.boundary.sequence == sequence else { return }; self?.deny()
+                    }
+                    self.nativeLoader?.cancelAll(); self.nativeLoader = loader
+                    self.removeEndObserver()
+                    let item = AVPlayerItem(asset: loader.asset())
+                    self.player.replaceCurrentItem(with: item)
+                    self.endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self, weak item] _ in
+                        MainActor.assumeIsolated {
+                            guard let self, let item, self.player.currentItem === item, self.boundary.sequence == sequence else { return }
+                            self.completeNaturally()
+                        }
                     }
                 }
                 self.boundary.userResumed(); self.state = .playing
-                if self.position > 0 { self.seekCurrentItem(to: self.position) }
-                else { self.isSeeking = false; self.player.play() }; self.publish()
-                let renewAfter = grant.revalidateAt.timeIntervalSince(authorization.serverNow) - (received - sent) - 2
+                if !renewal {
+                    if self.position > 0 { self.seekCurrentItem(to: self.position) }
+                    else { self.isSeeking = false; self.player.play() }
+                }
+                self.publish()
+                let renewAfter = grant.revalidateAt.timeIntervalSince(authorization.serverNow) - (self.clock.now - sent) - 2
                 if renewAfter > 1 && self.clock.now + renewAfter < deadline {
                     self.renewalTask = Task { [weak self] in
                         do { try await Task.sleep(for: .seconds(renewAfter)) } catch { return }
@@ -179,24 +218,47 @@ nonisolated struct PlaybackBoundary: Sendable {
                         self.begin(variant: grant.variant, renewal: true)
                     }
                 }
-                self.progressTask = Task { [weak self] in
-                    while !Task.isCancelled {
-                        do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
-                        guard let self, self.boundary.sequence == sequence else { return }
-                        self.checkDeadline()
-                        self.capturePosition()
-                        if self.listenMeter.sample(wall: self.clock.now, media: self.position,
-                            playing: self.state == .playing && !self.isSeeking && self.player.timeControlStatus == .playing && !self.player.isMuted && self.player.volume > 0), let track = self.selectedTrack {
-                            self.onListen?(track, self.activeVariant, self.listenMeter.seconds, self.position, self.listenID)
-                        }
-                        self.checkSleepTimer(); self.publish()
-                        if self.player.currentItem?.status == .failed { self.deny(); return }
-                    }
-                }
+                self.startProgress(sequence: sequence)
             } catch {
                 guard let self, self.boundary.sequence == sequence, !Task.isCancelled else { return }
                 if !renewal, let error = error as? APIError, [APIError.rejected(403), .rejected(404)].contains(error) { self.skipUnavailable() }
                 else { self.deny() }
+            }
+        }
+    }
+    private func installOffline(_ local: OfflinePlayable, position: Double, sequence: Int) {
+        do {
+            guard local.remaining > 2 else { throw APIError.requiresAuthentication }
+            try installBoundary(serverNow: 0, validUntil: local.remaining, sent: clock.now, received: clock.now, sequence: sequence)
+            try system?.activate()
+            duration = local.song.track.durationSeconds; previewOffset = 0; activeVariant = "full"
+            self.position = min(position, duration); isOfflinePlayback = true
+            let item = AVPlayerItem(url: local.url)
+            player.replaceCurrentItem(with: item)
+            endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self, weak item] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let item, self.player.currentItem === item, self.boundary.sequence == sequence else { return }
+                    self.completeNaturally()
+                }
+            }
+            boundary.userResumed(); state = .playing
+            if self.position > 0 { seekCurrentItem(to: self.position) } else { player.play() }
+            startProgress(sequence: sequence); publish()
+        } catch { deny() }
+    }
+    private func startProgress(sequence: Int) {
+        progressTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
+                guard let self, self.boundary.sequence == sequence else { return }
+                self.checkDeadline()
+                self.capturePosition()
+                if self.listenMeter.sample(wall: self.clock.now, media: self.position,
+                    playing: self.state == .playing && !self.isSeeking && self.player.timeControlStatus == .playing && !self.player.isMuted && self.player.volume > 0), let track = self.selectedTrack {
+                    self.onListen?(track, self.activeVariant, self.listenMeter.seconds, self.position, self.listenID)
+                }
+                self.checkSleepTimer(); self.publish()
+                if self.player.currentItem?.status == .failed { self.deny(); return }
             }
         }
     }
@@ -254,8 +316,8 @@ nonisolated struct PlaybackBoundary: Sendable {
             self?.checkDeadline()
         }
     }
-    func checkDeadline() { if boundary.expire(at: clock.now) { stop(); state = .verificationRequired; cancelInterruptionIntent(); publish() } }
-    func deny() { cancelInterruptionIntent(); boundary.deny(); stop(); state = .verificationRequired; publish() }
+    func checkDeadline() { if boundary.expire(at: clock.now) { capturePosition(); stop(); state = .verificationRequired; cancelInterruptionIntent(); publish() } }
+    func deny() { capturePosition(); cancelInterruptionIntent(); boundary.deny(); stop(); state = .verificationRequired; publish() }
     private func skipUnavailable() {
         noticeKey = "queueSkipped"
         guard queueAttempts.count < queue.entries.count, let track = queue.advance(),
@@ -300,5 +362,5 @@ nonisolated struct PlaybackBoundary: Sendable {
         onSelection?(nil); system?.publish(nil)
     }
     func shutdown() { clear(); system?.shutdown(); system = nil; onSelection = nil }
-    func stop() { seekSerial += 1; isSeeking = false; removeEndObserver(); renewalTask?.cancel(); renewalTask = nil; authorizationTask?.cancel(); authorizationTask = nil; progressTask?.cancel(); progressTask = nil; nativeLoader?.cancelAll(); nativeLoader = nil; player.pause(); loader.cancelAll(); player.replaceCurrentItem(with: nil); deadlineTask?.cancel(); deadlineTask = nil; system?.deactivate() }
+    func stop() { isOfflinePlayback = false; seekSerial += 1; isSeeking = false; removeEndObserver(); renewalTask?.cancel(); renewalTask = nil; authorizationTask?.cancel(); authorizationTask = nil; progressTask?.cancel(); progressTask = nil; nativeLoader?.cancelAll(); nativeLoader = nil; player.pause(); loader.cancelAll(); player.replaceCurrentItem(with: nil); deadlineTask?.cancel(); deadlineTask = nil; system?.deactivate() }
 }

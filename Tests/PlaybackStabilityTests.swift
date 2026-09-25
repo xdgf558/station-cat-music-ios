@@ -9,6 +9,8 @@ private actor StabilityAuthorization: PlaybackAuthorizing {
     private(set) var requests = 0
     private(set) var variants: [String] = []
     private(set) var urls = Set<URL>()
+    private var completed = 0
+    func progress() -> (requests: Int, completed: Int, unique: Int) { (requests, completed, urls.count) }
     private var fault: Fault = .none
     private var current = true
     init(_ identity: ProbeIdentity, bridge: MusicProbeBridge, fast: Bool = false) {
@@ -22,7 +24,7 @@ private actor StabilityAuthorization: PlaybackAuthorizing {
         let result = try await base.authorize(track: track, variant: variant)
         if fault == .late { await Task.detached { try? await Task.sleep(for: .seconds(10)) }.value }
         let g = result.grant
-        urls.insert(g.playbackUrl)
+        urls.insert(g.playbackUrl); completed += 1
         if !fast { return result }
         // Fault cases only tighten client deadlines. Server time, grant and 60s revalidation stay unchanged.
         let end = min(g.playbackValidUntil, result.serverNow.addingTimeInterval(9))
@@ -86,10 +88,16 @@ private actor StabilityMedia: MediaHTTPTransport {
             let stalled = stillSince.duration(to: .now).components
             longestStall = max(longestStall, Double(stalled.seconds) + Double(stalled.attoseconds) / 1e18)
             previous = player.position
-            if await source.requests >= baseline + 2, player.isPlaying, player.position > paused + 115 { break }
+            // Playback stays .playing while renewal is in flight. A request count
+            // is not evidence of a returned grant; wait for both real responses.
+            let progress = await source.progress()
+            if progress.completed >= baseline + 2, progress.completed == progress.requests,
+               player.isPlaying, player.position > paused + 115 { break }
         }
-        let requests = await source.requests, unique = await source.urls.count, reads = await media.reads
-        XCTAssertGreaterThanOrEqual(requests, baseline + 2); XCTAssertEqual(unique, requests)
+        let progress = await source.progress(), reads = await media.reads
+        let requests = progress.requests, unique = progress.unique
+        XCTAssertGreaterThanOrEqual(progress.completed, baseline + 2)
+        XCTAssertEqual(progress.completed, requests); XCTAssertEqual(unique, requests)
         XCTAssertGreaterThan(player.position, paused + 115); XCTAssertLessThan(backward, 0.4)
         XCTAssertLessThan(longestStall, 5); XCTAssertGreaterThan(reads, 6)
         XCTAssertGreaterThanOrEqual(started.duration(to: .now), .seconds(110))

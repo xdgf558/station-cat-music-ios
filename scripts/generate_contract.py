@@ -11,6 +11,7 @@ text={'type':'string','maxLength':4000}; secret={'type':'string','minLength':32,
 s={}
 s['Track']=obj({'id':ID,'title':S,'artist':S,'durationSeconds':{'type':'number','minimum':0,'maximum':86400},'audioVersion':{'type':'integer','minimum':1},'access':enum('free','vip','preview','unavailable')})
 s['Track']['properties']['coverUrl']={'anyOf':[{'type':'string','format':'uri'},{'type':'null'}]}
+s['Track']['properties']['offlineEligible']={'type': 'boolean', 'description': 'Explicit permanent-free offline eligibility; false or absent means online-only. Never inferred from access=free.'}
 s['Catalog']=obj({'items':arr(ref('Track')),'nextCursor':cursor})
 text={'type':'string','maxLength':131072}
 s['LyricLine']=obj({'startSeconds':{'type':'number','minimum':0},'text':text})
@@ -54,6 +55,8 @@ s['DeleteStatus']={'oneOf':[ref('DeletePrepared'),ref('DeleteAccepted'),ref('Del
 for name in ['DeletePrepared','DeleteAccepted','DeleteExpired']: s[name]['additionalProperties']=False
 codes=['INVALID_REQUEST','AUTH_REQUIRED','SESSION_REVOKED','REFRESH_REAUTH_REQUIRED','REFRESH_CONFLICT','RECENT_AUTH_REQUIRED','TOTP_REQUIRED','VERSION_CONFLICT','HISTORY_EPOCH_STALE','MUSIC_DISABLED','MEDIA_UNAVAILABLE','GRANT_EXPIRED','ACCESS_DENIED','DELETION_STATUS_UNAVAILABLE','RATE_LIMITED','SERVICE_UNAVAILABLE','CLIENT_UPGRADE_REQUIRED']
 s['Error']=obj({'error':obj({'code':enum(*codes),'retryable':B,'retryAfterSeconds':N,'messageKey':enum(*['error.'+c.lower() for c in codes])},required=['code','retryable','messageKey']),'requestId':ID,'serverNow':D})
+s['OfflinePermit']={'type': 'object', 'properties': {'trackId': {'type': 'string', 'format': 'uuid'}, 'audioVersion': {'type': 'integer', 'minimum': 1}, 'policyVersion': {'type': 'integer', 'minimum': 1}, 'accessMode': {'const': 'free'}, 'variant': {'const': 'full'}, 'byteSize': {'type': 'integer', 'minimum': 1, 'maximum': 33554432}, 'sha256': {'type': 'string', 'pattern': '^[a-f0-9]{64}$'}, 'durationSeconds': {'type': 'number', 'exclusiveMinimum': 0}, 'validUntil': {'type': 'string', 'format': 'date-time', 'description': 'At most seven days from serverNow. Does not extend the separate download grant.'}}, 'required': ['trackId', 'audioVersion', 'policyVersion', 'accessMode', 'variant', 'byteSize', 'sha256', 'durationSeconds', 'validUntil'], 'additionalProperties': False}
+s['OfflinePermitRequest']=obj({'audioVersion':{'type':'integer','minimum':1}},closed=True)
 for name in list(s):
  if not (name.endswith('Request') or name=='Error'):
   s[name+'Response']=obj({'data':ref(name),'requestId':ID,'serverNow':D})
@@ -83,6 +86,7 @@ endpoint('get','/me','Account');endpoint('get','/me/entitlements','Entitlements'
 endpoint('get','/music/catalog','Catalog',auth='none');endpoint('get','/music/featured','Featured',auth='none')
 endpoint('get','/music/tracks/{id}','TrackDetail',auth='none');endpoint('get','/music/collections/{slug}','Collection',auth='none')
 endpoint('post','/music/tracks/{id}/playback-grants','PlaybackGrant','GrantRequest','optional',description='Server chooses authMode. VIP full requires Bearer. Account, session, version, variant and expiry are bound. Invalid Bearer never downgrades to public.')
+endpoint('post','/music/tracks/{id}/offline-permit','OfflinePermit','OfflinePermitRequest','optional',description='Isolated opt-in only. Permanently free full audio. Returns an integrity manifest and a maximum seven-day offline lease; media still needs a normal fresh playback grant. VIP, limited-free, preview and early-access policies are rejected.')
 for method in ['get','head']:
  endpoint(method,'/music/media/{grant}/audio','Acknowledged',auth='optional',description='Actual GET/HEAD and every Range re-check grant and requester. session_bearer requires same account/session Bearer. public restricted to valid free/preview. Never redirect or use shared CDN cache. Failure to resolve authorization is 503 without audio.')
  op=paths[prefix+'/music/media/{grant}/audio'][method];op['parameters'].append(parameter('Range','header',{'type':'string','pattern':'^bytes=[0-9]*-[0-9]*$'}))
@@ -127,6 +131,7 @@ def sample(schema):
  if t=='null':return None
  if schema.get('format')=='date-time':return '2026-09-16T00:00:00Z'
  if schema.get('pattern','').startswith('^https:'):return 'https://mock.invalid/api/mobile/v1/music/media/'+'f'*43+'/audio'
+ if schema.get('format')=='uuid':return 'a3d01b06-8c4c-4a8a-9d66-25429d2ad843'
  if schema.get('format')=='uri':return 'https://mock.invalid/FIXTURE_ONLY'
  if schema.get('pattern')=='^[a-f0-9]{64}$':return '630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd'
  if schema.get('minLength',0)>20:return 'FIXTUREONLY' * 5

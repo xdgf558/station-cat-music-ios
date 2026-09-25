@@ -34,7 +34,7 @@ private struct PlaybackEntitlements: Decodable, Sendable {
     struct Music: Decodable, Sendable { let canPlayVipFull: Bool }
     let music: Music
 }
-actor NativeMusicAPI: CatalogProviding, PlaybackAuthorizing {
+actor NativeMusicAPI: CatalogProviding, OfflineMusicProviding {
     let configuration: NativeAuthConfiguration
     private let transport: any HTTPTransport
     private let auth: NativeAuthenticationService?
@@ -128,6 +128,16 @@ actor NativeMusicAPI: CatalogProviding, PlaybackAuthorizing {
         let result = AuthorizedPlayback(grant: response.data, serverNow: response.serverNow, context: context, scope: scope)
         guard await isCurrent(result) else { throw APIError.staleResponse }
         return result
+    }
+    func offlinePermission(for track: Track) async throws -> OfflinePermission {
+        guard UUID(uuidString: track.id) != nil, track.offlineEligible == true, track.access == .free else { throw APIError.invalidRequest }
+        let clock = ContinuousClock(), sent = ContinuousClock.now
+        let body = try JSONSerialization.data(withJSONObject: ["audioVersion": track.audioVersion])
+        let response = try await request("/music/tracks/" + track.id + "/offline-permit", body: body, as: OfflinePermit.self)
+        try response.data.validate(track: track, serverNow: response.serverNow)
+        let elapsed = sent.duration(to: clock.now).components
+        return OfflinePermission(permit: response.data, serverNow: response.serverNow,
+            requestSeconds: Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18)
     }
     func isCurrent(_ authorization: AuthorizedPlayback) async -> Bool {
         if let context = authorization.context { return await auth?.isCurrent(context) == true }

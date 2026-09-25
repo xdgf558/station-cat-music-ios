@@ -27,7 +27,7 @@ import UIKit
         register(commands.togglePlayPauseCommand, .toggle); register(commands.nextTrackCommand, .next)
         register(commands.previousTrackCommand, .previous)
         let seek = commands.changePlaybackPositionCommand
-        let token = seek.addTarget { [weak self] event in
+        let token = seek.addTarget { @Sendable [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent, event.positionTime.isFinite else { return .commandFailed }
             let position = event.positionTime
             Task { @MainActor [weak self] in guard let self, self.active else { return }; self.playback?.handle(.seek(position)) }
@@ -53,7 +53,7 @@ import UIKit
         publish(nil)
     }
     private func register(_ command: MPRemoteCommand, _ action: PlaybackCommand) {
-        let token = command.addTarget { [weak self] _ in
+        let token = command.addTarget { @Sendable [weak self] _ in
             Task { @MainActor [weak self] in guard let self, self.active else { return }; self.playback?.handle(action) }
             return .success
         }
@@ -90,7 +90,9 @@ import UIKit
                               let image = try await loader.load(url, allowedHost: self?.artworkHost ?? ""),
                               !Task.isCancelled, let self, self.active, self.artworkURL == url else { return }
                         let thumbnail = UIImage(cgImage: image)
-                        self.artwork = MPMediaItemArtwork(boundsSize: thumbnail.size) { _ in thumbnail }; self.writeInfo()
+                        // MediaPlayer requests the immutable thumbnail on its own
+                        // access queue. Do not inherit this Task's MainActor isolation.
+                        self.artwork = MPMediaItemArtwork(boundsSize: thumbnail.size) { @Sendable _ in thumbnail }; self.writeInfo()
                     } catch { /* Artwork never gates or retries audio. */ }
                 }
             }

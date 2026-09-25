@@ -24,6 +24,7 @@ nonisolated struct Track: Codable, Identifiable, Equatable, Sendable {
     let audioVersion: Int
     let access: AccessPolicy
     var coverUrl: URL? = nil
+    var offlineEligible: Bool? = nil
 }
 nonisolated struct Catalog: Codable, Sendable { let items: [Track]; let nextCursor: String? }
 nonisolated struct APIEnvelope<T: Codable & Sendable>: Codable, Sendable {

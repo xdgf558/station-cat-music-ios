@@ -4,6 +4,11 @@ import XCTest
 // uses its ASWebAuthenticationSession, and enters only the synthetic R2 account.
 // No product methods, browser replacement, token injection or HTTP shortcuts.
 @MainActor final class R2SystemLoginUITests: XCTestCase {
+    #if targetEnvironment(simulator)
+    private let physicalDevice = false
+    #else
+    private let physicalDevice = true
+    #endif
     private enum Failure: Error { case input, checkpoint }
     private struct Identity: Decodable { let username: String; let password: String }
     private struct Input: Decodable { let origin: String; let free: Identity }
@@ -75,6 +80,7 @@ import XCTest
             app.launch()
             let tab = app.tabBars.buttons["You"]
             try ready(tab); tab.tap()
+            try ready(app.buttons["accountEntry"]); app.buttons["accountEntry"].tap()
             guard app.staticTexts["Isolated authentication test environment"].waitForExistence(timeout: 15) else { throw Failure.checkpoint }
             // The runner checks the exact compiled origin before launch. A restored
             // synthetic Staging session is signed out before exercising a fresh flow.
@@ -185,6 +191,7 @@ import XCTest
                 }
                 let tab = app.tabBars.buttons["You"]
                 try ready(tab); tab.tap()
+                if app.buttons["accountEntry"].isHittable { app.buttons["accountEntry"].tap() }
                 let signOut = app.buttons["Sign out"]
                 if signOut.waitForExistence(timeout: 5) { try ready(signOut); signOut.tap() }
                 try ready(app.buttons["Sign in with Station Cat"])
@@ -194,7 +201,7 @@ import XCTest
             } catch { failedPhase = failedPhase ?? "signout_cleanup" }
         }
         if success && cleanupConfirmed && failedPhase == nil {
-            print("R2_SYSTEM_LOGIN_PASSED: actual_ASWebAuthenticationSession=true HTTPS_callback=true authenticated_UI=true signed_out=true physical_device=false")
+            print("R2_SYSTEM_LOGIN_PASSED: actual_ASWebAuthenticationSession=true HTTPS_callback=true authenticated_UI=true signed_out=true physical_device=\(physicalDevice)")
         } else {
             if launched, app.state == .runningForeground, !app.webViews.firstMatch.exists,
                !app.otherElements["TopBrowserBar"].exists {

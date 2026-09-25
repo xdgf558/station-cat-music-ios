@@ -75,6 +75,132 @@ private final class RemovalObserver: @unchecked Sendable {
         for _ in 0..<100 { if check() { return }; try await Task.sleep(for: .milliseconds(50)) }
         XCTFail("Player did not reach expected state")
     }
+    private func reached(_ barrier: SealBarrier) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !(await barrier.reached) {
+            guard ContinuousClock.now < deadline else { throw APIError.unavailable }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+    }
+    func testUnchangedCatalogAndUnrelatedRemovalDoNotCancelDownload() async throws {
+        let base = root(), source = try fixture(), other = try fixture(), track = await source.track, second = await other.track
+        defer { try? FileManager.default.removeItem(at: base) }
+        let initial = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source)
+        try await initial.download(second, source: other)
+        let barrier = SealBarrier()
+        let cache = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source, beforePublication: { await barrier.wait() })
+        let task = Task { try await cache.download(track, source: source) }
+        try await reached(barrier)
+        for _ in 0..<3 {
+            let candidates = try await cache.reconciliationCandidates([track, second])
+            XCTAssertTrue(candidates.isEmpty)
+        }
+        try await cache.remove(second.id)
+        try await cache.remove(second.id) // An already missing, unrelated save is a no-op.
+        await barrier.release(); try await task.value
+        let saved = try await cache.playable(track); XCTAssertNotNil(saved)
+    }
+    func testRemovingExpiredCopyDuringCatalogRefreshPreservesEligibleReplacement() async throws {
+        let base = root(), source = try fixture(), track = await source.track
+        defer { try? FileManager.default.removeItem(at: base) }
+        let initial = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source)
+        try await initial.download(track, source: source)
+        let local = try await initial.playable(track), original = try XCTUnwrap(local)
+        let expired = OfflineSong(track: track, permit: original.song.permit, savedAt: Date().addingTimeInterval(-8 * 86400), expiresAt: Date().addingTimeInterval(-86400))
+        try JSONEncoder().encode(expired).write(to: original.url.deletingLastPathComponent().appending(path: "receipt.json"))
+        let barrier = SealBarrier()
+        let cache = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source, beforePublication: { await barrier.wait() })
+        let task = Task { try await cache.download(track, source: source) }
+        try await reached(barrier)
+        let candidates = try await cache.reconciliationCandidates([track]); XCTAssertEqual(candidates, [track.id])
+        let result = await cache.removeInvalidated(candidates); XCTAssertEqual(result.removed, [track.id])
+        await barrier.release(); try await task.value
+        let restored = try await cache.playable(track); XCTAssertNotNil(restored)
+    }
+    func testRevokedDownloadFailsVisiblyEvenIfLaterCatalogRestoresEligibility() async throws {
+        for change in 0..<3 {
+            let base = root(), source = try fixture(), track = await source.track, barrier = SealBarrier()
+            defer { try? FileManager.default.removeItem(at: base) }
+            let cache = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source, beforePublication: { await barrier.wait() })
+            let task = Task { try await cache.download(track, source: source) }
+            try await reached(barrier)
+            let changed = Track(id: track.id, title: track.title, artist: track.artist, durationSeconds: track.durationSeconds,
+                audioVersion: change == 1 ? track.audioVersion + 1 : track.audioVersion,
+                access: .free, offlineEligible: change != 2)
+            _ = try await cache.reconciliationCandidates(change == 0 ? [] : [changed])
+            _ = try await cache.reconciliationCandidates([track])
+            await barrier.release()
+            do { try await task.value; XCTFail("Revoked download published") }
+            catch { XCTAssertEqual(error as? APIError, .staleResponse, "Policy invalidation must not be swallowed as user cancellation") }
+            let saved = try await cache.songs(); XCTAssertTrue(saved.isEmpty)
+        }
+    }
+    func testClockRollbackRetainsIntactSaveAndRecoversAfterClockRestored() async throws {
+        let base = root(), source = try fixture(), track = await source.track
+        defer { try? FileManager.default.removeItem(at: base) }
+        let cache = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source)
+        try await cache.download(track, source: source)
+        let original = try await cache.playable(track), url = try XCTUnwrap(original?.url)
+        let bytes = try Data(contentsOf: url), rollback = Date().addingTimeInterval(-60)
+        let denied = try await cache.playable(track, now: rollback); XCTAssertNil(denied)
+        let listed = try await cache.songs(now: rollback); XCTAssertEqual(listed.first?.unavailable, true)
+        let candidates = try await cache.reconciliationCandidates([track], now: rollback)
+        XCTAssertTrue(candidates.isEmpty)
+        let removed = await cache.removeInvalidated(candidates); XCTAssertTrue(removed.removed.isEmpty)
+        XCTAssertEqual(try Data(contentsOf: url), bytes)
+        let restored = try await cache.playable(track); XCTAssertNotNil(restored)
+        let expired = try await cache.reconciliationCandidates([track], now: Date().addingTimeInterval(8 * 86400))
+        XCTAssertEqual(expired, [track.id])
+    }
+    func testClockRollbackDoesNotProtectRevokedOrDamagedSave() async throws {
+        for damaged in [false, true] {
+            let base = root(), source = try fixture(), track = await source.track
+            defer { try? FileManager.default.removeItem(at: base) }
+            let cache = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source)
+            try await cache.download(track, source: source)
+            if damaged {
+                let local = try await cache.playable(track)
+                try Data([0]).write(to: XCTUnwrap(local?.url))
+            }
+            let candidates = try await cache.reconciliationCandidates(damaged ? [track] : [], now: Date().addingTimeInterval(-60))
+            XCTAssertEqual(candidates, [track.id])
+        }
+    }
+    func testMissingInvalidatedSaveClearsBookkeepingWithoutCancellingItsReplacement() async throws {
+        let base = root(), source = try fixture(), track = await source.track
+        defer { try? FileManager.default.removeItem(at: base) }
+        let initial = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source)
+        try await initial.download(track, source: source)
+        let local = try await initial.playable(track), file = try XCTUnwrap(local?.url)
+        let barrier = SealBarrier()
+        let cache = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source, beforePublication: { await barrier.wait() })
+        _ = try await cache.reconciliationCandidates([])
+        try FileManager.default.removeItem(at: file.deletingLastPathComponent())
+        let task = Task { try await cache.download(track, source: source) }
+        try await reached(barrier)
+        try await cache.remove(track.id)
+        let candidates = try await cache.reconciliationCandidates([track]); XCTAssertTrue(candidates.isEmpty)
+        await barrier.release(); try await task.value
+        let restored = try await cache.playable(track); XCTAssertNotNil(restored)
+    }
+    func testClearForgetsInvalidationsAndVerifiedFiles() async throws {
+        let base = root(), source = try fixture(), track = await source.track
+        defer { try? FileManager.default.removeItem(at: base) }
+        let cache = OfflineMusicCache(origin: origin, baseDirectory: base, transport: source)
+        try await cache.download(track, source: source)
+        let local = try await cache.playable(track), file = try XCTUnwrap(local?.url), folder = file.deletingLastPathComponent()
+        // Preserve the inode outside the cache, then restore it after clear. Both
+        // invalidation and verified identity must be forgotten, even for that file.
+        let backup = base.appending(path: "backup")
+        _ = try await cache.reconciliationCandidates([])
+        try FileManager.default.moveItem(at: folder, to: backup)
+        try await cache.clear()
+        let candidates = try await cache.reconciliationCandidates([track]); XCTAssertTrue(candidates.isEmpty)
+        try FileManager.default.moveItem(at: backup, to: folder)
+        let checks = await cache.integrityChecks
+        let restored = try await cache.playable(track); XCTAssertNotNil(restored)
+        let after = await cache.integrityChecks; XCTAssertEqual(after, checks + 1)
+    }
     func testExpiredRollbackAndDamagedSavesRemainVisibleAndIndividuallyRemovable() async throws {
         let base = root(), source = try fixture(), track = await source.track
         defer { try? FileManager.default.removeItem(at: base) }

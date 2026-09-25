@@ -58,6 +58,7 @@ search|Search sample tracks|搜索示例歌曲|搜尋示例歌曲|サンプル�
 loading|Loading…|正在载入…|正在載入…|読み込み中…
 unavailable|Unable to load|暂时无法载入|暫時無法載入|読み込めません
 unavailableDetail|Try again later. Your membership status has not changed.|请稍后重试，会员状态没有因此改变。|請稍後重試，會員狀態沒有因此改變。|後でもう一度お試しください。会員資格は変更されていません。
+refreshRetained|Refresh failed. Showing the previous list.|刷新失败，暂时显示上次的列表。|重新整理失敗，暫時顯示上次的清單。|更新できませんでした。前回のリストを表示しています。
 retry|Try again|重试|重試|再試行
 empty|No tracks yet|还没有歌曲|還沒有歌曲|曲はまだありません
 sampleTrack|Sample · no audio|示例 · 无音频|示例 · 無音訊|サンプル · 音源なし

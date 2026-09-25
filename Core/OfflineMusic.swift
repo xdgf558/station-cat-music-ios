@@ -63,6 +63,7 @@ actor OfflineMusicCache {
     private let transport: any MediaHTTPTransport
     private var generation = 0
     private var downloading = false
+    private var downloadingTrack: Track?
     private var invalidated = Set<String>()
     private struct Verified: Equatable { let inode: UInt64; let size: Int; let modified: Date; let changed: Date; let hash: String }
     private var verified: [String: Verified] = [:]
@@ -118,10 +119,10 @@ actor OfflineMusicCache {
         guard UUID(uuidString: value.id) != nil, path(value.id).lastPathComponent == url.lastPathComponent else { return nil }
         return value
     }
-    private func entry(_ url: URL, now: Date) throws -> OfflineSong? {
+    private func entry(_ url: URL, now: Date, allowClockRollback: Bool = false) throws -> OfflineSong? {
         guard let value = try owned(url), !invalidated.contains(value.id) else { return nil }
         let audio = url.appending(path: "audio.mp3")
-        guard try regular(audio, limit: 33_554_432), value.savedAt <= now.addingTimeInterval(2), value.expiresAt > now,
+        guard try regular(audio, limit: 33_554_432), (allowClockRollback || value.savedAt <= now.addingTimeInterval(2)), value.expiresAt > now,
               value.expiresAt.timeIntervalSince(value.savedAt) <= 7 * 86400 else { return nil }
         try value.permit.validate(track: value.track, serverNow: value.permit.validUntil.addingTimeInterval(-7 * 86400))
         guard try audio.resourceValues(forKeys: [.fileSizeKey]).fileSize == value.permit.byteSize else { return nil }
@@ -185,8 +186,8 @@ actor OfflineMusicCache {
         try Task.checkCancellation()
         guard !downloading, track.access == .free, track.offlineEligible == true else { throw APIError.unavailable }
         try prepare()
-        downloading = true; let ticket = generation
-        defer { downloading = false }
+        downloading = true; downloadingTrack = track; let ticket = generation
+        defer { downloading = false; downloadingTrack = nil }
         let permission = try await source.offlinePermission(for: track)
         try permission.permit.validate(track: track, serverNow: permission.serverNow)
         let permit = permission.permit
@@ -210,7 +211,7 @@ actor OfflineMusicCache {
         guard size == Int64(permit.byteSize) else { throw APIError.invalidPayload }
         var data = Data(); data.reserveCapacity(permit.byteSize)
         while data.count < permit.byteSize {
-            try Task.checkCancellation(); guard generation == ticket else { throw CancellationError() }
+            try Task.checkCancellation(); guard generation == ticket else { throw APIError.staleResponse }
             data.append(try await channel.read(start: Int64(data.count), length: min(NativeMediaLimits.rangeBytes, permit.byteSize - data.count), total: size))
         }
         guard Self.digest(data) == permit.sha256 else { throw APIError.invalidPayload }
@@ -220,7 +221,7 @@ actor OfflineMusicCache {
         try confirmation.permit.validate(track: track, serverNow: confirmation.serverNow)
         guard confirmation.permit.sha256 == permit.sha256, confirmation.permit.policyVersion == permit.policyVersion,
               confirmation.permit.byteSize == permit.byteSize else { throw APIError.staleResponse }
-        try Task.checkCancellation(); guard generation == ticket else { throw CancellationError() }
+        try Task.checkCancellation(); guard generation == ticket else { throw APIError.staleResponse }
         let spent = start.duration(to: clock.now).components
         let remaining = lease - Double(spent.seconds) - Double(spent.attoseconds) / 1e18
         guard remaining > 0, Date() >= started.addingTimeInterval(-2) else { throw APIError.requiresAuthentication }
@@ -233,7 +234,7 @@ actor OfflineMusicCache {
         // Allow cancellation/catalog invalidation while the completed files await sealing.
         if let beforePublication { try await beforePublication() }
         await Task.yield()
-        try Task.checkCancellation(); guard generation == ticket else { throw CancellationError() }
+        try Task.checkCancellation(); guard generation == ticket else { throw APIError.staleResponse }
         guard clock.now < start.advanced(by: .seconds(lease)), Date() < value.expiresAt,
               Date() >= started.addingTimeInterval(-2) else { throw APIError.requiresAuthentication }
         let destination = path(track.id)
@@ -242,10 +243,14 @@ actor OfflineMusicCache {
         invalidated.remove(track.id)
         verified[track.id] = try? fingerprint(destination.appending(path: "audio.mp3"), hash: permit.sha256)
     }
-    func remove(_ id: String) throws {
-        generation += 1; try prepare()
+    func remove(_ id: String) throws { try remove(id, cancellingDownload: true) }
+    private func remove(_ id: String, cancellingDownload: Bool) throws {
+        try prepare()
         let target = path(id)
-        guard FileManager.default.fileExists(atPath: target.path) else { return }
+        guard FileManager.default.fileExists(atPath: target.path) else {
+            verified.removeValue(forKey: id); invalidated.remove(id); return
+        }
+        if cancellingDownload, downloadingTrack?.id == id { generation += 1 }
         try safeDirectory(target)
         try removeFiles(target)
         verified.removeValue(forKey: id); invalidated.remove(id)
@@ -256,12 +261,21 @@ actor OfflineMusicCache {
             guard (try? safeDirectory(folder)) != nil else { continue }
             try FileManager.default.removeItem(at: folder)
         }
+        invalidated.removeAll(); verified.removeAll()
     }
-    func reconciliationCandidates(_ catalog: [Track]) throws -> Set<String> {
-        generation += 1 // An in-flight download cannot publish an older policy after this snapshot.
+    func reconciliationCandidates(_ catalog: [Track], now: Date = Date()) throws -> Set<String> {
         let map = Dictionary(uniqueKeysWithValues: catalog.map { ($0.id, $0) })
-        for song in try songs() {
-            if song.unavailable == true || map[song.id].map({ $0.offlineEligible != true || $0.access != .free || $0.audioVersion != song.track.audioVersion }) ?? true {
+        func revoked(_ track: Track) -> Bool {
+            guard let current = map[track.id] else { return true }
+            return current.offlineEligible != true || current.access != .free || current.audioVersion != track.audioVersion
+        }
+        // Unrelated refreshes/removals must not cancel an eligible download. Once
+        // revoked, its ticket stays invalid even if a later snapshot restores it.
+        if let downloadingTrack, revoked(downloadingTrack) { generation += 1 }
+        for song in try songs(now: now) {
+            // A backward wall clock temporarily denies playback, not ownership.
+            // Expired, damaged and explicitly revoked saves are still removable.
+            if revoked(song.track) || (try? entry(path(song.id), now: now, allowClockRollback: true)) == nil {
                 invalidated.insert(song.id)
             }
         }
@@ -272,7 +286,7 @@ actor OfflineMusicCache {
     func removeInvalidated(_ ids: Set<String>) -> OfflineRemovalResult {
         var result = OfflineRemovalResult()
         for id in ids.sorted() where invalidated.contains(id) {
-            do { try remove(id); result.removed.insert(id) }
+            do { try remove(id, cancellingDownload: false); result.removed.insert(id) }
             catch { result.failed.insert(id) }
         }
         return result

@@ -94,10 +94,16 @@ private actor StartupMusicTransport: HTTPTransport {
         await Task.yield()
         let after = await transport.paths.count
         XCTAssertEqual(before, after)
-        await transport.fail(); await model.load()
+        await transport.fail(); model.locale = "ja"; await model.load()
         XCTAssertEqual(model.tracks, tracks); XCTAssertEqual(model.featuredTracks, featured)
         XCTAssertEqual(model.phase, .loaded); XCTAssertEqual(model.discoveryPhase, .loaded)
-        XCTAssertNotNil(model.catalogFailure)
+        XCTAssertEqual(model.catalogFailure, .service)
+        XCTAssertEqual(model.discoveryFailure, .service)
+        XCTAssertEqual(model.startupPhase, .ready)
+        await transport.succeed(); await model.load()
+        XCTAssertNil(model.catalogFailure); XCTAssertNil(model.discoveryFailure)
+        let locales = await transport.catalogLocales; XCTAssertEqual(locales.suffix(2), ["ja", "ja"])
+        XCTAssertEqual(model.phase, .loaded); XCTAssertEqual(model.discoveryPhase, .loaded)
     }
     func testMixedStartupFailuresPreferCatalogDiagnosis() async throws {
         let transport = StartupMusicTransport(holdCatalog: false, catalogStatus: 503, featuredStatus: 401), model = try model(transport)

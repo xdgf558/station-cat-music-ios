@@ -103,6 +103,9 @@ struct RootView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 header
+                if model.discoveryPhase != .unavailable, let failure = model.discoveryFailure {
+                    refreshFailure(failure, identifier: "discoveryRefreshFailure")
+                }
                 if let track = featuredTrack {
                     VStack(spacing: 8) {
                         HStack(alignment: .top) {
@@ -204,10 +207,24 @@ struct RootView: View {
                 if let collection = model.activeCollection, !collection.description.isEmpty {
                     Text(collection.description).font(.subheadline).lineSpacing(4).foregroundStyle(Palette.muted)
                 }
+                if model.phase != .unavailable, let failure = model.catalogFailure {
+                    refreshFailure(failure, identifier: "catalogRefreshFailure")
+                }
                 LazyVStack(spacing: 0) { trackContent(phase: model.phase, tracks: model.results, search: true) }
             }.padding(.horizontal, 22).padding(.bottom, 24)
         }.background { OrbitBackground() }.accessibilityIdentifier("catalogScreen")
             .navigationTitle(model.t("catalog")).searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: Text(model.t("search")))
+    }
+    private func refreshFailure(_ failure: CatalogFailure, identifier: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(model.t("refreshRetained"), systemImage: "exclamationmark.circle")
+                .font(.subheadline.weight(.semibold))
+            Text(model.t(failure.messageKey)).font(.caption).foregroundStyle(Palette.muted)
+            Button(model.t("retry")) { Task { await model.load() } }
+                .frame(minHeight: 44).accessibilityIdentifier(identifier + ".retry")
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(14)
+            .background(Palette.panel, in: RoundedRectangle(cornerRadius: 14))
+            .accessibilityIdentifier(identifier)
     }
     @ViewBuilder private func trackContent(phase: AppModel.Phase, tracks: [Track], search: Bool) -> some View {
         switch phase {

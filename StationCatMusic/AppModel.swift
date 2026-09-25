@@ -51,6 +51,7 @@ import Observation
     private(set) var featuredPhase: Phase = .loading
     var discoveryTracks: [Track] { nativeMusic == nil ? tracks : featuredTracks }
     var discoveryPhase: Phase { nativeMusic == nil ? phase : featuredPhase }
+    var discoveryFailure: CatalogFailure? { nativeMusic == nil ? catalogFailure : featuredFailure }
     var activeCollection: MusicCollection?
     var nativeMusic: NativeMusicAPI? { client as? NativeMusicAPI }
     @ObservationIgnored private var detailTask: Task<Void, Never>?
@@ -301,7 +302,7 @@ import Observation
     }
     func cancelOfflineDownload() { offlineTicket?.cancel(); offlineTask?.cancel() }
     func removeOffline(_ id: String? = nil) async {
-        cancelOfflineDownload()
+        if id == nil || id == offlineDownloading { cancelOfflineDownload() }
         if playback.isOfflinePlayback && (id == nil || playback.selectedTrack?.id == id) { playback.pause() }
         do { if let id { try await offlineCache?.remove(id) } else { try await offlineCache?.clear() }; offlineStatus = "" }
         catch { offlineStatus = "offlineFailed" }

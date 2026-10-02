@@ -38,4 +38,12 @@ R1 第二批本地进展见 [隔离生命周期与账号回收报告](R1-lifecyc
 
 ### 2026-09-24 — free offline development increment
 
-See [R3 artwork, resume, offline and version evidence](R3-offline-artwork-version-20260924.md). Development 0.1.0 (2) adds permanent-free-only offline saves, optional auto-cache, storage management and explicit interrupted playback resume. VIP/limited-free remain online. Installed on the intended iPhone Air on 2026-09-25; physical transport-denied offline playback and resume passed. User-observed airplane-mode acceptance remains pending. No production native enablement or StoreKit sale is included.
+See [R3 artwork, resume, offline and version evidence](R3-offline-artwork-version-20260924.md). Development 0.1.0 (2) adds permanent-free-only offline saves, optional auto-cache, storage management and explicit interrupted playback resume. VIP/limited-free remain online. Installed on the intended iPhone Air on 2026-09-25; physical transport-denied offline playback and resume passed. User-confirmed physical offline acceptance is complete as of 2026-10-02; the confirmation is recorded in the linked evidence report. No production native enablement or StoreKit sale is included.
+
+### 2026-10-02 — 当前进度与下一步
+
+用户确认 R3 真机离线验收已经验证，该离线验收项记为完成。当前手机安装的 Staging 版本为 0.1.0 (4)，已核对版本并成功启动；本次更新的四语说明已补齐。版本变更必须同步更新说明的要求已写入项目 AGENTS.md。
+
+原生界面、缓存与刷新修复已随 iOS #11 合并；配套网站 #181 也已合并，合并前对应最新 CI 均通过。更新说明与版本维护规则保存在独立本地分支，待后续小 PR 审查。
+
+下一研发重点是完整销户闭环与正式账号/曲库接入，完成后进入 R4 发布候选、TestFlight 和送审材料准备。此次用户确认仅关闭真机离线验收项；最低支持 iOS、Keychain 锁定、耳机/AirPlay、中断及其他实机项目仍按各自证据验收，不将整个 R3 或生产发布自动标记完成。

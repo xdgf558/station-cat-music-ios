@@ -412,7 +412,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "2";
+				"CURRENT_PROJECT_VERSION" = "4";
 			};
 		};
 		"FBFB519E017124AD6A05AD21" = {
@@ -443,7 +443,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "2";
+				"CURRENT_PROJECT_VERSION" = "4";
 			};
 		};
 		"0E4CA93122EFD27B46D9D173" = {
@@ -474,7 +474,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "2";
+				"CURRENT_PROJECT_VERSION" = "4";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 			};
@@ -507,7 +507,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "2";
+				"CURRENT_PROJECT_VERSION" = "4";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 			};
 		};

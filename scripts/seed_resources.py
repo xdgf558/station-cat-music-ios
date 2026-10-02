@@ -97,7 +97,7 @@ deletion.accepted|Deletion accepted. You can check progress here.|删除已受�
 deletion.processing|Deletion is being processed.|正在处理删除。|正在處理刪除。|削除を処理中です。
 deletion.retrying|Processing will be retried; deletion is not complete.|处理将重试，删除尚未完成。|處理將重試，刪除尚未完成。|再試行を待っています。削除は未完了です。
 deletion.attention_required|Further processing is required. Your account is blocked; deletion is not complete.|需要进一步处理。账号已停止访问，删除尚未完成。|需要進一步處理。帳號已停止存取，刪除尚未完成。|追加の処理が必要です。アカウントへのアクセスは停止中ですが、削除は未完了です。
-deletion.completed|Account deletion completed.|账号删除已完成。|帳號刪除已完成。|アカウント削除が完了しました。'''
+deletion.completed|Server account deletion is complete.|服务器账号删除已完成。|伺服器帳號刪除已完成。|サーバー側のアカウント削除が完了しました。'''
 rows+='''
 isolatedMusic|Isolated test catalog|隔离测试曲库|隔離測試曲庫|隔離テストライブラリ
 albums|Albums|专辑|專輯|アルバム
@@ -176,6 +176,27 @@ rows += (
  'releaseOffline|Resume interrupted playback after tapping play. Save permanently free songs for offline listening and manage downloads.|播放中断后点击播放可从原进度继续；支持长期免费歌曲离线缓存及空间管理。|播放中斷後點擊播放可從原進度繼續；支援長期免費歌曲離線快取及空間管理。|中断後は再生をタップすると元の位置から再開。常時無料曲のオフライン保存と容量管理に対応。\n'
 )
 rows += '\nofflineUnavailable|Expired or unavailable · Remove to free space|已过期或不可用 · 可删除以释放空间|已過期或無法使用 · 可刪除以釋放空間|期限切れ・利用不可 · 削除して空き容量を確保\n'
+
+rows += '\n'.join(['',
+'deleteRetention|Public comments remain anonymously. Balances and disputes are reviewed separately; deletion does not automatically refund or reset them.|公开评论匿名保留；余额和交易争议另行处理，删除账号不会自动退款或清零。|公開評論匿名保留；餘額和交易爭議另行處理，刪除帳號不會自動退款或歸零。|公開コメントは匿名で残ります。残高・取引の問題は別途確認し、削除による自動返金や残高のリセットは行いません。',
+'deletion.previous|Earlier deletion requests|先前的删除申请|先前的刪除申請|以前の削除リクエスト',
+'deletion.previousResult|Showing an earlier deletion request.|正在显示先前删除申请的结果。|正在顯示先前刪除申請的結果。|以前の削除リクエストの結果です。',
+'deletion.receiptUntil|Progress lookup available until|可查询至|可查詢至|進行状況の照会期限',
+'deletion.local.completed|This account’s favorites and listening history have been cleared from this device.|该账号在本机的收藏与播放历史已清理。|該帳號在本機的收藏與播放歷史已清理。|このアカウントのお気に入りと再生履歴を端末から削除しました。',
+'deletion.local.retry|Confirmed account deletions still need local cleanup. Check deletion progress to retry.|已确认删除的账号资料尚未在本机全部清理完成，请点击查询删除进度重试。|已確認刪除的帳號資料尚未在本機全部清理完成，請點擊查詢刪除進度重試。|削除確認済みのアカウントデータが端末に一部残っています。進行状況を確認して再試行してください。',
+'deletion.stage.queued|Waiting to start account cleanup.|等待开始账号清理。|等待開始帳號清理。|アカウントの削除開始を待っています。',
+'deletion.stage.credentials|Removing sign-in credentials and sessions.|正在清理登录凭据和会话。|正在清理登入憑據與連線階段。|ログイン情報とセッションを削除しています。',
+'deletion.stage.private_data|Removing private account data.|正在清理账号私人资料。|正在清理帳號私人資料。|アカウントの個人データを削除しています。',
+'deletion.stage.comments|Removing author associations from retained comments.|正在移除保留评论的作者关联。|正在移除保留評論的作者關聯。|残すコメントと投稿者の関連を解除しています。',
+'deletion.stage.identity|Removing account identity details.|正在清理账号身份资料。|正在清理帳號身分資料。|アカウントの識別情報を削除しています。',
+'deletion.stage.verify|Checking the account cleanup result.|正在核验账号清理结果。|正在核驗帳號清理結果。|アカウントの削除結果を確認しています。',
+'deletion.stage.retention_policy_review|Required retention review remains pending. Deletion is not complete.|必要的保留规则仍待核验，删除尚未完成。|必要的保留規則仍待核驗，刪除尚未完成。|必要な保持ルールの確認が残っています。削除は未完了です。',
+'deletion.stage.financial_review|Reviewing the required transaction records.|正在核验必要的交易记录。|正在核驗必要的交易紀錄。|必要な取引記録を確認しています。',
+'deletion.stage.external_cleanup|Processing related service cleanup.|正在处理关联服务清理。|正在處理關聯服務清理。|関連サービスのデータ削除を処理しています。',
+'deletion.stage.backup_review|Checking backup cleanup requirements.|正在核验备份清理要求。|正在核驗備份清理要求。|バックアップの削除要件を確認しています。',
+'deletion.stage.completed|All required server cleanup checks have passed.|服务器必要清理检查已通过。|伺服器必要清理檢查已通過。|サーバー側の必要な削除確認を完了しました。',
+''])
+
 # Embedded hero newlines are restored from escaped markers after splitting rows.
 rows=rows.replace('A little music.\nA slower day.','A little music.\\nA slower day.').replace('听一点音乐，\n让日常慢下来。','听一点音乐，\\n让日常慢下来。').replace('聽一點音樂，\n讓日常慢下來。','聽一點音樂，\\n讓日常慢下來。').replace('音楽とともに、\nゆっくり過ごす。','音楽とともに、\\nゆっくり過ごす。')
 translations={x:{} for x in ['en','zh-Hans','zh-Hant','ja']}

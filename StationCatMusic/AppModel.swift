@@ -74,6 +74,10 @@ import Observation
             self.libraryGeneration += 1; self.syncTask?.cancel(); self.libraryBusy = false; self.scopeTransition = false
             self.favorites = []; self.recent = []; self.playback.clear()
         }
+        account.onDeleteLocalAccount = { [weak self] deletedScope in
+            guard let self else { throw APIError.storageUnavailable }
+            try await self.library.removeDeletedAccountData(scope: deletedScope)
+        }
         playback.onListen = { [weak self] track, variant, audible, position, eventID in
             guard let self else { return }; let scope = self.scope, generation = self.libraryGeneration
             if self.autoCacheFreeSongs, variant == "full", track.offlineEligible == true,

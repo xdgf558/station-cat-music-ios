@@ -106,4 +106,8 @@ nonisolated struct DeletionRecoveryEnvelope: Codable, Equatable, Sendable {
     var confirmRequestID: String?
     var confirmAttempted: Bool
     var lastKnownStatus: String
+    // Optional fields keep the original Keychain envelope readable.
+    var confirmedAt: Date?
+    var completedAt: Date?
+    var localCleanupCompleted: Bool?
 }

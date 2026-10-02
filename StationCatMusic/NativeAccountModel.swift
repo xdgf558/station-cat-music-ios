@@ -6,9 +6,15 @@ import Observation
     let deletion: NativeDeletionService?
     var scope: AccountScope = .guest
     var onInvalidate: (@MainActor () -> Void)?
+    var onDeleteLocalAccount: (@MainActor (AccountScope) async throws -> Void)?
     var busy = false
     var messageKey = ""
     var deletionStatus = ""
+    var deletionStageKey = ""
+    var deletionLocalStatusKey = ""
+    var deletionHistory: [DeletionReceiptSummary] = []
+    var deletionQueryIsArchived = false
+    private var displayedDeletionRequestID: String?
     var confirmationReady = false
     var enabled: Bool { auth != nil }
     init(auth: NativeAuthenticationService? = nil, deletion: NativeDeletionService? = nil) { self.auth = auth; self.deletion = deletion }
@@ -33,7 +39,37 @@ import Observation
         catch { messageKey = "authRetry" }
         await updateScope()
     }
-    func restore() async { await run { try await auth?.restore(); if let status = try await deletion?.queryRecovery() { deletionStatus = status.status } } }
+    private func accept(_ status: NativeDeletionStatus) {
+        displayedDeletionRequestID = status.deletionRequestId
+        deletionStatus = status.status; deletionStageKey = status.stageMessageKey ?? ""
+    }
+    private func cleanConfirmedLocalData() async {
+        guard let deletion else { return }
+        do {
+            deletionHistory = try await deletion.earlierReceipts()
+            guard let onDeleteLocalAccount else { return }
+            if displayedDeletionRequestID == nil { displayedDeletionRequestID = try await deletion.currentReceiptID() }
+            let records = try await deletion.confirmedRecords()
+            var failed = false
+            for record in records {
+                guard let accountID = record.accountID else { continue }
+                // Reassert the write barrier after every process restart, even after an earlier cleanup.
+                do {
+                    try await onDeleteLocalAccount(AccountScope(environment: record.environment, accountID: accountID))
+                    if record.localCleanupCompleted != true { try await deletion.recordLocalCleanup(id: record.deletionRequestID) }
+                } catch { failed = true }
+            }
+            deletionLocalStatusKey = failed ? "deletion.local.retry" : records.contains(where: { $0.deletionRequestID == displayedDeletionRequestID }) ? "deletion.local.completed" : ""
+        } catch { deletionLocalStatusKey = "deletion.local.retry" }
+    }
+    func restore() async {
+        await run {
+            await cleanConfirmedLocalData()
+            try await auth?.restore()
+            if let status = try await deletion?.queryRecovery() { accept(status) }
+            await cleanConfirmedLocalData()
+        }
+    }
     func signIn(locale: String) async { await run { onInvalidate?(); confirmationReady = false; try await auth?.signIn(locale: locale) } }
     func signOut() async { await run { onInvalidate?(); confirmationReady = false; try await auth?.signOut() } }
     func prepareDeletion(password: String, totp: String) async {
@@ -41,18 +77,31 @@ import Observation
             confirmationReady = false
             try await auth?.reauthenticate(password: password, totp: totp)
             guard let result = try await deletion?.prepare() else { throw APIError.unavailable }
-            deletionStatus = result.status; confirmationReady = result.status == "prepared"
+            accept(result); deletionQueryIsArchived = false; confirmationReady = result.status == "prepared"
+            await cleanConfirmedLocalData()
         }
     }
     func confirmDeletion() async {
         await run {
             confirmationReady = false
             onInvalidate?()
-            guard let result = try await deletion?.explicitlyConfirm() else { throw APIError.unavailable }
-            deletionStatus = result.status
+            do {
+                guard let result = try await deletion?.explicitlyConfirm() else { throw APIError.unavailable }
+                accept(result)
+            } catch {
+                await cleanConfirmedLocalData()
+                throw error
+            }
+            await cleanConfirmedLocalData()
         }
     }
-    func queryDeletion() async {
-        await run { if let result = try await deletion?.queryRecovery() { deletionStatus = result.status } }
+    func queryDeletion(id: String? = nil) async {
+        await run {
+            if id != nil { confirmationReady = false }
+            // An already-confirmed cleanup is independent of a later network outage/expired receipt.
+            await cleanConfirmedLocalData()
+            if let result = try await deletion?.queryRecovery(id: id) { accept(result); deletionQueryIsArchived = id != nil }
+            await cleanConfirmedLocalData()
+        }
     }
 }

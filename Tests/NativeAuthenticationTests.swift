@@ -22,19 +22,30 @@ actor AuthFixtureTransport {
     var receiptExpires = Date().addingTimeInterval(86400)
     var prepareExpires = Date().addingTimeInterval(600)
     var failConfirm = false
+    var deletionConfirmedAt: Date?
+    var deletionReplyStatus = "accepted"
+    var deletionReplyAccepted = true
+    var deletionCompletionOffset: TimeInterval?
+    var deletionOmitConfirmation = false
     var failLogout = false
+    var failStatus = false
     func setFailRefresh(_ value: Bool) { failRefresh = value }
     func setMismatch(_ value: Bool) { mismatch = value }
     func setHold(_ value: Bool) { holdRefresh = value }
     func setAccount(_ value: String) { account = value }
     func setFailConfirm(_ value: Bool) { failConfirm = value }
+    func setDeletionReply(_ status: String, accepted: Bool = true, completionOffset: TimeInterval? = nil, omitConfirmation: Bool = false) {
+        deletionReplyStatus = status; deletionReplyAccepted = accepted; deletionCompletionOffset = completionOffset; deletionOmitConfirmation = omitConfirmation
+    }
     func setFailLogout(_ value: Bool) { failLogout = value }
+    func setFailStatus(_ value: Bool) { failStatus = value }
     func release() { waiter?.resume(); waiter = nil }
     func clearRequests() { requests = [] }
     private func date(_ value: Date) -> String { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f.string(from: value) }
     func send(_ request: URLRequest) async throws -> HTTPResult {
         requests.append(request)
         let path = request.url!.path
+        if path.hasSuffix("/status"), failStatus { throw URLError(.notConnectedToInternet) }
         if path.hasSuffix("/auth/logout"), failLogout { throw URLError(.notConnectedToInternet) }
         let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
         let now = Date()
@@ -57,8 +68,12 @@ actor AuthFixtureTransport {
             deletionID = body["deletionRequestId"] as! String
             data = ["deletionRequestId": deletionID, "status": "prepared", "confirmAccepted": false, "scopeVersion": "station-account-v1", "prepareExpiresAt": date(prepareExpires), "receiptExpiresAt": date(receiptExpires)]
         } else if path.hasSuffix("/confirm") || path.hasSuffix("/status") {
+            if deletionConfirmedAt == nil { deletionConfirmedAt = now }
             if path.hasSuffix("/confirm"), failConfirm { throw URLError(.networkConnectionLost) }
-            data = ["deletionRequestId": deletionID, "status": "accepted", "confirmAccepted": true, "receiptExpiresAt": date(receiptExpires), "stage": "queued"]
+            data = ["deletionRequestId": deletionID, "status": deletionReplyStatus, "confirmAccepted": deletionReplyAccepted,
+                "receiptExpiresAt": date(receiptExpires), "stage": deletionReplyStatus == "completed" ? "completed" : "queued",
+                "confirmedAt": deletionOmitConfirmation ? NSNull() : date(deletionConfirmedAt!),
+                "completedAt": deletionCompletionOffset.map { date(deletionConfirmedAt!.addingTimeInterval($0)) } ?? (NSNull() as Any)]
         } else { data = ["accepted": true] }
         return HTTPResult(status: 200, data: try JSONSerialization.data(withJSONObject: ["data": data, "serverNow": date(now), "requestId": UUID().uuidString]))
     }

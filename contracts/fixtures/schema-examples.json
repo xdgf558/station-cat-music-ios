@@ -235,7 +235,7 @@
     "confirmAccepted": true,
     "stage": "fixture-only",
     "confirmedAt": "2026-09-16T00:00:00Z",
-    "completedAt": "2026-09-16T00:00:00Z",
+    "completedAt": null,
     "receiptExpiresAt": "2026-09-16T00:10:00Z"
   },
   "DeleteExpired": {
@@ -544,7 +544,7 @@
       "confirmAccepted": true,
       "stage": "fixture-only",
       "confirmedAt": "2026-09-16T00:00:00Z",
-      "completedAt": "2026-09-16T00:00:00Z",
+      "completedAt": null,
       "receiptExpiresAt": "2026-09-16T00:10:00Z"
     },
     "requestId": "fixture-only",

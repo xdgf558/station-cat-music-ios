@@ -349,9 +349,35 @@ struct RootView: View {
                         Button(model.t("deleteAccount"), role: .destructive) { showDeletion = true }.disabled(model.account.busy)
                     }
                     Button(model.t("queryDeletion")) { Task { await model.account.queryDeletion() } }.disabled(model.account.busy)
+                    if model.account.deletionQueryIsArchived { Text(model.t("deletion.previousResult")).font(.caption).foregroundStyle(Palette.muted) }
                     if !model.account.deletionStatus.isEmpty { Text(model.t("deletion." + model.account.deletionStatus)).font(.footnote) }
+                    if !model.account.deletionStageKey.isEmpty { Text(model.t(model.account.deletionStageKey)).font(.footnote).foregroundStyle(Palette.muted) }
+                    if !model.account.deletionLocalStatusKey.isEmpty { Text(model.t(model.account.deletionLocalStatusKey)).font(.footnote) }
+                    deletionHistory
                 }.listRowBackground(Palette.panel)
             }
+        }
+    }
+    @ViewBuilder private var deletionHistory: some View {
+        if !model.account.deletionHistory.isEmpty {
+            DisclosureGroup(model.t("deletion.previous")) {
+                ForEach(model.account.deletionHistory) { receipt in
+                    Button {
+                        Task { await model.account.queryDeletion(id: receipt.id) }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(model.t("deletion." + receipt.status)).font(.footnote)
+                            Text("#" + String(receipt.id.prefix(8))).font(.caption2).foregroundStyle(Palette.muted)
+                            if let date = receipt.completedAt ?? receipt.confirmedAt {
+                                Text(date, format: .dateTime.year().month().day().hour().minute()).font(.caption).foregroundStyle(Palette.muted)
+                            }
+                            if let expiry = receipt.receiptExpiresAt {
+                                HStack { Text(model.t("deletion.receiptUntil")); Text(expiry, format: .dateTime.year().month().day()) }.font(.caption2).foregroundStyle(Palette.muted)
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }.disabled(model.account.busy).accessibilityIdentifier("deletionReceipt." + receipt.id)
+                }
+            }.accessibilityIdentifier("deletionHistory")
         }
     }
     private var favoritesPage: some View {
@@ -461,9 +487,15 @@ struct RootView: View {
         libraryPage("releaseNotes", id: "releaseNotesPage") {
             Section {
                 Text("Station Cat Music · " + appVersion).font(.headline)
-                Text("2026-09-24").font(.caption).foregroundStyle(Palette.muted)
+                Text("2026-09-25").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("releaseSaveStability"), systemImage: "arrow.down.circle")
+                Label(model.t("releaseClockProtection"), systemImage: "clock.badge.checkmark")
+                Label(model.t("releaseCacheCleanup"), systemImage: "externaldrive")
+                Label(model.t("releaseRefreshRetry"), systemImage: "arrow.clockwise")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 2026-09-24") {
                 Label(model.t("releaseArtwork"), systemImage: "photo")
                 Label(model.t("releasePlayback"), systemImage: "play.circle")
                 Label(model.t("releaseInterface"), systemImage: "person.crop.circle")
@@ -483,7 +515,7 @@ struct RootView: View {
     private var deletionSheet: some View {
         NavigationStack {
             Form {
-                Section { Text(model.t("deleteScope")); Text(model.t("deleteSubscription")).font(.footnote) }
+                Section { Text(model.t("deleteScope")); Text(model.t("deleteRetention")).font(.footnote); Text(model.t("deleteSubscription")).font(.footnote) }
                 Section(model.t("verifyIdentity")) {
                     SecureField(model.t("password"), text: $deletionPassword).textContentType(.password)
                     TextField(model.t("totpCode"), text: $deletionTotp).keyboardType(.numberPad).textContentType(.oneTimeCode)
@@ -496,6 +528,9 @@ struct RootView: View {
                     Section { Text(model.t("deleteConfirmDetail")); Button(model.t("confirmDelete"), role: .destructive) { confirmDeletion = true }.disabled(model.account.busy) }
                 }
                 if !model.account.deletionStatus.isEmpty { Text(model.t("deletion." + model.account.deletionStatus)) }
+                if !model.account.deletionStageKey.isEmpty { Text(model.t(model.account.deletionStageKey)).font(.footnote) }
+                if !model.account.deletionLocalStatusKey.isEmpty { Text(model.t(model.account.deletionLocalStatusKey)).font(.footnote) }
+                deletionHistory
                 if !model.account.messageKey.isEmpty { Text(model.t(model.account.messageKey)) }
                 Button(model.t("queryDeletion")) { Task { await model.account.queryDeletion() } }.disabled(model.account.busy)
             }.navigationTitle(model.t("deleteAccount"))

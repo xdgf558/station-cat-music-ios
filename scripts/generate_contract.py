@@ -49,6 +49,7 @@ s['DeletePrepareRequest']=obj({'deletionRequestId':ID,'deletionReceiptHash':{'ty
 s['DeleteConfirmRequest']=obj({'confirmedScopeVersion':{'const':'station-account-v1'}},closed=True)
 s['DeletePrepared']=obj({'deletionRequestId':ID,'status':{'const':'prepared'},'scopeVersion':{'const':'station-account-v1'},'prepareExpiresAt':D,'receiptExpiresAt':D,'confirmAccepted':{'const':False}})
 s['DeleteAccepted']=obj({'deletionRequestId':ID,'status':enum('accepted','processing','retrying','attention_required','completed'),'confirmAccepted':{'const':True},'stage':S,'confirmedAt':D,'completedAt':nullableD,'receiptExpiresAt':D})
+s['DeleteAccepted']['allOf']=[{'if':{'properties':{'status':{'const':'completed'}}},'then':{'properties':{'completedAt':D,'stage':{'const':'completed'}}},'else':{'properties':{'completedAt':{'type':'null'}}}}]
 s['DeleteExpired']=obj({'deletionRequestId':ID,'status':{'const':'preparation_expired'},'confirmAccepted':{'const':False},'receiptExpiresAt':D})
 s['DeleteStatus']={'oneOf':[ref('DeletePrepared'),ref('DeleteAccepted'),ref('DeleteExpired')]}
 # Status output is a minimal receipt-scoped projection: prohibit account/financial data.
@@ -124,6 +125,7 @@ def sample(schema):
   for k in ['expiresAt','playbackValidUntil','accessValidUntil','accessExpiresAt','refreshExpiresAt','absoluteExpiresAt','receiptExpiresAt','prepareExpiresAt','replayUntil']:
    if k in value: value[k]='2026-09-16T00:10:00Z'
   if 'revalidateAt' in value:value['revalidateAt']='2026-09-16T00:01:00Z'
+  if value.get('status') in ['accepted','processing','retrying','attention_required']:value['completedAt']=None
   return value
  if t=='array':return []
  if t=='boolean':return False

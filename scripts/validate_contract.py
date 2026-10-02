@@ -11,6 +11,7 @@ def check(name,value):
  Draft202012Validator(schema,format_checker=FormatChecker()).validate(value)
 fixtures=json.loads((r/'contracts/fixtures/schema-examples.json').read_text())
 for name,value in fixtures.items():check(name,value)
+completed=deepcopy(fixtures['DeleteAccepted']);completed.update(status='completed',stage='completed',completedAt='2026-09-16T00:00:00Z');check('DeleteAccepted',completed)
 check('CatalogResponse',json.loads((r/'contracts/fixtures/catalog.json').read_text()))
 # Fail closed for security enums, bound identities, confirmation and request field injection.
 negative=[]
@@ -20,6 +21,10 @@ for name,key,value in [('PlaybackGrant','authMode','unknown'),('DeleteConfirmReq
  bad=deepcopy(fixtures[name]);bad[key]=value;negative.append((name,bad))
 bad=deepcopy(fixtures['PlaybackGrant']);bad.update(authMode='session_bearer',accountId=None);negative.append(('PlaybackGrant',bad))
 bad=deepcopy(fixtures['DeletePrepared']);bad['accountId']='leaked';negative.append(('DeletePrepared',bad))
+bad=deepcopy(fixtures['DeleteAccepted']);bad.update(status='completed',completedAt=None);negative.append(('DeleteAccepted',bad))
+bad=deepcopy(fixtures['DeleteAccepted']);bad['completedAt']='2026-09-16T00:00:00Z';negative.append(('DeleteAccepted',bad))
+bad=deepcopy(fixtures['DeleteAccepted']);bad.update(status='completed',confirmAccepted=False,completedAt='2026-09-16T00:00:00Z');negative.append(('DeleteAccepted',bad))
+bad=deepcopy(completed);bad['stage']='processing';negative.append(('DeleteAccepted',bad))
 bad=deepcopy(fixtures['GrantRequest']);bad['authMode']='public';negative.append(('GrantRequest',bad))
 bad=deepcopy(fixtures['PlaybackGrant']);bad['playbackUrl']+='?accessToken=fixture';negative.append(('PlaybackGrant',bad))
 bad=deepcopy(fixtures['ListenRequest']);bad.pop('occurredAt');negative.append(('ListenRequest',bad))
@@ -40,4 +45,4 @@ for name in ['prepare','{id}/confirm']:
 assert not any('/subscriptions/' in path for path in paths)
 assert '/auth/mobile/authorize' in paths
 assert sum(len(p) for p in paths.values())==26
-print(f'OpenAPI valid: 26 operations, {len(fixtures)+1} positive fixtures, {len(negative)} negative fixtures; four-language error keys and receipt hash verified.')
+print(f'OpenAPI valid: 26 operations, {len(fixtures)+2} positive fixtures, {len(negative)} negative fixtures; four-language error keys and receipt hash verified.')

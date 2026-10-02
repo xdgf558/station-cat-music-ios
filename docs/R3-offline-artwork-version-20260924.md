@@ -31,7 +31,7 @@ Backend: [caption-ai-landing-site #181](https://github.com/xdgf558/caption-ai-la
 
 ## Remaining physical acceptance
 
-The initial device-unavailable installation blocker was resolved on 2026-09-25; installation and physical transport-denied tests are recorded below. A user-observed airplane-mode/background check remains pending. Other production and real-device release boundaries remain unchanged.
+The initial device-unavailable installation blocker was resolved on 2026-09-25; installation and physical transport-denied tests are recorded below. The user confirmed completion of the physical offline acceptance on 2026-10-02; see the confirmation below. Other production and real-device release boundaries remain unchanged.
 
 The synthetic short MP3 used for deterministic tests is documented in `Resources/TestAudio/README.md` and is bundled only with XCTest, not the shipping App.
 
@@ -40,7 +40,7 @@ The synthetic short MP3 used for deterministic tests is documented in `Resources
 
 The intended `拉沙的 iPhone` / iPhone Air reconnected. Installed signed Staging `org.stationcat.music.staging` version **0.1.0 (2)** in place with CoreDevice (no uninstall or data reset). Physical opt-in XCTest `.build/r3-offline-device-20260925.xcresult` passed 1/1 in 28.245 s. Downloaded the actual permanent-free track, verified SHA-256, reopened the cache through a new instance, then used a denying authorization/media transport: **zero audio network calls**, offline playback, seek past 42 seconds, failure/manual resume from **44.118 s**, pause/resume, final progress **46.371 s**. Offline playback reached progress >1 s in **1.346 s**. The saved song remains available in My → Offline music for the user's own airplane-mode check.
 
-Physical artwork timing: cold **1.475 s**, memory reuse **0.000088 s**, reopened disk **0.01056 s**. This proves cache reuse on the device; actual first-load speed still depends on the network. This test disabled audio-network transports rather than switching the phone radio. A user-observed airplane-mode/background test remains separate.
+Physical artwork timing: cold **1.475 s**, memory reuse **0.000088 s**, reopened disk **0.01056 s**. This proves cache reuse on the device; actual first-load speed still depends on the network. This test disabled audio-network transports rather than switching the phone radio. The subsequent user confirmation of physical offline acceptance is recorded below, separately from this transport-denied automated test.
 
 Xcode 27 beta emitted an AVAudioSession synchronous-activation warning and, after the passing XCTest summary, a result-collection `xcrun devicectl` lookup warning caused by the default CLI tool selection. Neither is recorded as a test failure. Normal launch was checked separately with explicit `DEVELOPER_DIR` and CoreDevice.
 
@@ -73,3 +73,9 @@ Both failed runs for `bbfab617` were retained locally: PR `36078000344` and push
 This review does not deploy a Worker, change production switches, install a device build, or merge either PR. The approved backend dependency remains `d9bc56650fb73d192ce99774b7f014e0e0bbcbbb` (website #181); the long-media fixture remains its existing fixed `4d51e1a` revision.
 
 Validation: 41 targeted Swift tests (23 offline + 18 catalog/startup/link) passed in `.build/review2-offline-final.xcresult`; the seven new offline cases cover unchanged refresh, unrelated deletion, removal of an expired predecessor, revoked/revised downloads, clock rollback/recovery, missing-file bookkeeping and clear. The extended language-reload case verifies retained rows, surfaced failures and successful retry. The independent fixed-backend real AVPlayer suite passed all 12 tests in `evidence/M3-media-integration.log` (542.319 seconds), including two real renewals with four unique grants, no measured backward progress, a maximum sampled stall of 0.203 seconds, and >315-second real authentication rotation. Both are local Xcode 27.0 beta results, not pinned Xcode 26.4.1 CI or new physical-iPhone acceptance. Generated files were regenerated, the 26-operation contract with 66 positive/17 negative fixtures passed, source/four-language guards and `git diff --check` passed. New-head remote CI remains required.
+
+## User-confirmed physical offline acceptance — 2026-10-02
+
+The user explicitly confirmed that the R3 physical offline acceptance had already been verified ("R3 真机离线验收 这个我已经验证"). Record the physical offline acceptance item as complete based on this user confirmation. The current Staging installation was independently verified as 0.1.0 (4) and launched successfully on 2026-10-02. Earlier automated evidence remains intact; this confirmation is user acceptance rather than a newly executed XCTest or instrumented radio-switch run.
+
+This closes the pending user offline check. Minimum-supported-iOS, locked Keychain, interruption/AirPlay and the remaining R3/release items retain their individual evidence/status. Complete account deletion and production account/catalog integration are the next development priorities before the R4 release candidate.

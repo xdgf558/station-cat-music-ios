@@ -56,9 +56,9 @@ import XCTest
         app.navigationBars.buttons.firstMatch.tap()
         for _ in 0..<4 { if app.buttons["helpEntry"].isHittable { break }; app.swipeUp() }
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (2)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (4)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (2)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (4)"].waitForExistence(timeout: 5))
         let release = XCTAttachment(screenshot: app.screenshot()); release.name = "Version-Release-Notes"; release.lifetime = .keepAlways; add(release)
     }
     func testThreeTabsAndPlayerNeverAutoPlays() {

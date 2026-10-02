@@ -43,9 +43,23 @@ actor ScopedLibrary {
     private enum WritePurpose { case ordinary, control }
     private var scopes: [AccountScope: LibraryFile] = [:]
     private var syncing = Set<AccountScope>()
+    private var deletedScopes = Set<AccountScope>()
     // UI scope changes and reclamation serialize on this actor.
     private var selectedScope: AccountScope?
     func selectScope(_ scope: AccountScope) { selectedScope = scope }
+
+    /// Only a receipt-confirmed account deletion may call this. The receipt remains in Keychain.
+    /// Block late synchronization/local writes before removing the precise private file.
+    func removeDeletedAccountData(scope: AccountScope) throws {
+        guard scope.accountID != nil else { throw APIError.invalidRequest }
+        deletedScopes.insert(scope); scopes.removeValue(forKey: scope)
+        guard let directory, let url = file(scope), FileManager.default.fileExists(atPath: directory.path) else { return }
+        try prepareDirectory(directory)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let info = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+        guard info.isRegularFile == true, info.isSymbolicLink != true else { throw APIError.storageUnavailable }
+        try FileManager.default.removeItem(at: url)
+    }
 
     init(directory: URL? = nil, maximumStorageBytes: Int = 100 * 1024 * 1024, maximumScopeFiles: Int = 64) {
         self.directory = directory; self.maximumStorageBytes = maximumStorageBytes; self.maximumScopeFiles = maximumScopeFiles
@@ -111,6 +125,7 @@ actor ScopedLibrary {
         return directory?.appending(path: key + ".json")
     }
     private func state(_ scope: AccountScope) throws -> LibraryFile {
+        guard !deletedScopes.contains(scope) else { throw APIError.requiresAuthentication }
         if let value = scopes[scope] { return value }
         var value = LibraryFile(scope: scope)
         if let url = file(scope), FileManager.default.fileExists(atPath: url.path) {
@@ -140,6 +155,7 @@ actor ScopedLibrary {
         scopes[scope] = value; return value
     }
     private func save(_ value: LibraryFile, purpose: WritePurpose = .ordinary) throws {
+        guard !deletedScopes.contains(value.scope) else { throw APIError.requiresAuthentication }
         var data = try JSONEncoder().encode(value)
         let payloadBytes = data.count
         guard payloadBytes <= 20 * 1024 * 1024 else { throw APIError.storageUnavailable }

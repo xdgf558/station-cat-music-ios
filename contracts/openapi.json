@@ -3026,7 +3026,36 @@
           "completedAt",
           "receiptExpiresAt"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "completed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "completedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "stage": {
+                  "const": "completed"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "completedAt": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
       },
       "DeleteExpired": {
         "type": "object",

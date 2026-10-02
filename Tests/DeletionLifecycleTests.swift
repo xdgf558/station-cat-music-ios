@@ -31,6 +31,15 @@ private actor DeletionWaitingRemote: LibraryRemote {
             prepareUntil: now.addingTimeInterval(600), receiptUntil: now.addingTimeInterval(86400))
         return try await journal.explicitlyConfirm(scopeVersion: record.scopeVersion, now: now)
     }
+    private func unacceptedStatus(_ record: DeletionRecoveryEnvelope, state: String) throws -> NativeDeletionStatus {
+        var json: [String: Any] = ["deletionRequestId": record.deletionRequestID, "status": state, "confirmAccepted": false,
+            "receiptExpiresAt": text(record.receiptExpiresAt ?? now.addingTimeInterval(86400))]
+        if state == "prepared" {
+            json["scopeVersion"] = record.scopeVersion
+            json["prepareExpiresAt"] = text(record.prepareExpiresAt ?? now.addingTimeInterval(600))
+        }
+        return try NativeJSON.decoder().decode(NativeDeletionStatus.self, from: JSONSerialization.data(withJSONObject: json))
+    }
     private func setup(_ store: MemorySecureStore = MemorySecureStore()) throws -> (NativeAccountModel, NativeAuthenticationService, NativeDeletionService, DeletionJournal, AuthFixtureTransport) {
         let configuration = try NativeAuthConfiguration(environment: .development, origin: URL(string: "https://native.example.test")!, explicitlyEnabled: true)
         let transport = AuthFixtureTransport(), api = NativeAuthAPI(configuration: configuration, transport: transport)
@@ -130,6 +139,33 @@ private actor DeletionWaitingRemote: LibraryRemote {
         do { try await journal.recordStatus(changed, serverNow: now.addingTimeInterval(2), expected: record); XCTFail("Changed terminal completion time") } catch {}
         let unchanged = try await journal.read(); XCTAssertEqual(unchanged?.completedAt, saved?.completedAt)
     }
+    func testConfirmedAcceptanceCannotRegressAndJournalBytesRemainUnchanged() async throws {
+        for acceptedState in ["accepted", "processing", "retrying", "attention_required"] {
+            let store = MemorySecureStore(), journal = DeletionJournal(store: store, environment: .development)
+            let stale = try await confirmed(journal)
+            try await journal.recordStatus(status(stale, state: acceptedState), serverNow: now, expected: stale)
+            let acceptedRecord = try await journal.read(), accepted = try XCTUnwrap(acceptedRecord)
+            let originalBytes = await store.read("deletion.development")
+            for state in ["prepared", "preparation_expired"] {
+                let downgrade = try unacceptedStatus(accepted, state: state)
+                XCTAssertNoThrow(try downgrade.validate(record: stale, serverNow: now)) // Otherwise-valid stale response.
+                XCTAssertThrowsError(try downgrade.validate(record: accepted, serverNow: now))
+                do {
+                    // A query started before acceptance must still check the latest durable record.
+                    try await journal.recordStatus(downgrade, serverNow: now, expected: stale)
+                    XCTFail("Removed durable acceptance using \(state)")
+                } catch {}
+                let bytes = await store.read("deletion.development"), unchanged = try await journal.read()
+                XCTAssertEqual(bytes, originalBytes); XCTAssertEqual(unchanged, accepted)
+                XCTAssertEqual(unchanged?.receipt, stale.receipt); XCTAssertEqual(unchanged?.confirmRequestID, stale.confirmRequestID)
+                XCTAssertEqual(unchanged?.confirmedAt, accepted.confirmedAt)
+            }
+            try await journal.recordStatus(status(accepted, state: "processing"), serverNow: now, expected: accepted)
+            let resumed = try await journal.read()
+            XCTAssertEqual(resumed?.lastKnownStatus, "processing"); XCTAssertEqual(resumed?.confirmedAt, accepted.confirmedAt)
+            XCTAssertEqual(resumed?.receipt, stale.receipt)
+        }
+    }
     func testConfirmedLocalCleanupPreservesOtherScopesAndPublicFiles() async throws {
         let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let library = ScopedLibrary(directory: dir), staging = AccountScope(environment: .staging, accountID: "fixture-A")
@@ -164,6 +200,41 @@ private actor DeletionWaitingRemote: LibraryRemote {
         let retried = try await journal.read(); XCTAssertEqual(retried?.receipt, failed?.receipt); XCTAssertEqual(retried?.localCleanupCompleted, true)
         XCTAssertEqual(relaunch.deletionLocalStatusKey, "deletion.local.completed"); XCTAssertFalse(FileManager.default.fileExists(atPath: privateFile.path))
         XCTAssertFalse(relaunch.messageKey.isEmpty) // Failed network status query stays visible.
+    }
+    func testRejectedAcceptanceDowngradePreservesFailedCleanupAcrossRelaunch() async throws {
+        let dir = try directory(), outside = try directory()
+        defer { try? FileManager.default.removeItem(at: dir); try? FileManager.default.removeItem(at: outside) }
+        let store = MemorySecureStore(), journal = DeletionJournal(store: store, environment: .development), pending = try await confirmed(journal)
+        try await journal.recordStatus(status(pending, state: "accepted"), serverNow: now, expected: pending)
+        let library = ScopedLibrary(directory: dir)
+        try await library.setFavorite("favorite", value: true, scope: a)
+        let privateFile = file(a, in: dir), saved = try Data(contentsOf: privateFile), target = outside.appending(path: "keep.json")
+        try Data("outside".utf8).write(to: target); try FileManager.default.removeItem(at: privateFile)
+        try FileManager.default.createSymbolicLink(at: privateFile, withDestinationURL: target)
+        let (model, _, _, _, transport) = try setup(store)
+        model.onDeleteLocalAccount = { try await library.removeDeletedAccountData(scope: $0) }
+        await transport.setFailStatus(true); await model.restore()
+        XCTAssertEqual(model.deletionLocalStatusKey, "deletion.local.retry")
+        let failedRecord = try await journal.read(), failed = try XCTUnwrap(failedRecord)
+        let originalBytes = await store.read("deletion.development")
+        XCTAssertNotNil(failed.confirmedAt); XCTAssertNotEqual(failed.localCleanupCompleted, true)
+        for state in ["prepared", "preparation_expired"] {
+            do { try await journal.recordStatus(unacceptedStatus(failed, state: state), serverNow: now, expected: failed); XCTFail("Removed cleanup basis") } catch {}
+            let bytes = await store.read("deletion.development"); XCTAssertEqual(bytes, originalBytes)
+        }
+        try FileManager.default.removeItem(at: privateFile); try saved.write(to: privateFile)
+        let freshLibrary = ScopedLibrary(directory: dir), (relaunch, _, _, _, offlineTransport) = try setup(store)
+        relaunch.onDeleteLocalAccount = { try await freshLibrary.removeDeletedAccountData(scope: $0) }
+        await offlineTransport.setFailStatus(true); await relaunch.restore()
+        let retried = try await journal.read()
+        XCTAssertEqual(retried?.confirmedAt, failed.confirmedAt); XCTAssertEqual(retried?.receipt, failed.receipt)
+        XCTAssertEqual(retried?.confirmRequestID, failed.confirmRequestID); XCTAssertEqual(retried?.localCleanupCompleted, true)
+        XCTAssertEqual(relaunch.deletionLocalStatusKey, "deletion.local.completed")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: privateFile.path))
+        XCTAssertEqual(try Data(contentsOf: target), Data("outside".utf8))
+        try await journal.recordStatus(status(failed, state: "processing"), serverNow: now, expected: failed)
+        let continued = try await journal.read(); XCTAssertEqual(continued?.lastKnownStatus, "processing")
+        XCTAssertEqual(continued?.localCleanupCompleted, true); XCTAssertEqual(continued?.confirmedAt, failed.confirmedAt)
     }
     func testArchivedConfirmedCleanupIsRetriedAfterNewAccountPreparation() async throws {
         let store = MemorySecureStore(), journal = DeletionJournal(store: store, environment: .development), record = try await confirmed(journal)

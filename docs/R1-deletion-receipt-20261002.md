@@ -24,6 +24,12 @@ DeletionJournal 在同一个原子 Keychain item 中保存当前申请与已验�
 
 ## 本机验证
 
-使用 Xcode 27 beta 6、指定 iPhone 模拟器，未触碰实体手机。最新局部测试结果见 `.build/r1-deletion-tests-terminal.xcresult` 与 `.build/r1-deletion-tests-terminal.log`：69/69 通过，包括 16 项本批销户生命周期测试、30 项 Core、8 项本机账号清理、15 项既有认证回归。范围包括严格时间/状态、错误响应保持原回执、终态原子归档、旧格式迁移、不同账号下一申请、归档查询、精确私有文件清理、损坏/符号链接拒绝、离线新客户端重开、在途同步清理屏障及既有认证/核心/清理回归。
+使用 Xcode 27 beta 6、指定 iPhone 模拟器，未触碰实体手机。首次提交的局部测试结果见 `.build/r1-deletion-tests-terminal.xcresult` 与 `.build/r1-deletion-tests-terminal.log`：69/69 通过，包括 16 项本批销户生命周期测试、30 项 Core、8 项本机账号清理、15 项既有认证回归。范围包括严格时间/状态、错误响应保持原回执、终态原子归档、旧格式迁移、不同账号下一申请、归档查询、精确私有文件清理、损坏/符号链接拒绝、离线新客户端重开、在途同步清理屏障及既有认证/核心/清理回归。下方记录复审修复后的最新结果。
 
 OpenAPI 校验通过：26 个操作、67 个正例、21 个反例；四语资源和源码边界守卫通过。当前没有为模拟器注入认证产品配置来截图归档入口，归档按钮和布局已由产品编译检查，列表/选择/receipt-only 查询模型由确定性测试执行。完整远端固定工具链、真实 Keychain 锁定和实体机仍须后续验收，不沿用旧结果宣称本轮已通过。
+
+## PR #12 复审修复 — 确认状态单向保护
+
+已持久化 confirmedAt 的申请不能被 prepared 或 preparation_expired 响应改回未受理。公共校验要求后续响应仍为 confirmAccepted=true 且使用相同 confirmedAt；这项不变量既检查请求开始时的记录，也由 journal 在写入前检查最新记录，拒绝查询在途期间迟到的降级结果。拒绝响应不改写 Keychain 字节、receipt、确认操作 ID 或本机清理标记，也不允许借此创建新申请。
+
+新增两项回归覆盖 accepted/processing/retrying/attention_required 到两种未受理状态的拒绝、原 journal 字节不变、合法 processing 仍可继续，以及本机清理失败后收到降级响应、重开资料库和客户端、离线重新清理成功的完整路径。该次指定模拟器测试 `.build/r1-deletion-confirmation-invariant.xcresult` / `.log` 为 71/71 通过（18 项销户生命周期、30 项 Core、8 项本机账号清理、15 项认证回归）。契约、源码/四语守卫及 diff 检查通过。模拟器的 SecureStore 替身与文件重开不能替代实体 Keychain 锁定或生产销户验收；本次没有安装实体手机、生成新版本包或启用生产。

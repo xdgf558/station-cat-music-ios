@@ -55,6 +55,10 @@ nonisolated struct NativeDeletionStatus: Decodable, Sendable {
         guard deletionRequestId == record.deletionRequestID, receiptExpiresAt > serverNow,
               receiptExpiresAt <= serverNow.addingTimeInterval(14 * 86400),
               record.receiptExpiresAt == nil || record.receiptExpiresAt == receiptExpiresAt else { throw APIError.invalidPayload }
+        // Once accepted, confirmation is irreversible, including while local cleanup is pending.
+        if let previousConfirmation = record.confirmedAt {
+            guard confirmAccepted, confirmedAt == previousConfirmation else { throw APIError.invalidPayload }
+        }
         switch status {
         case "prepared":
             guard !confirmAccepted, confirmedAt == nil, completedAt == nil, stage == nil,

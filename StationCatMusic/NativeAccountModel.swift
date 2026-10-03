@@ -17,19 +17,24 @@ import Observation
     private var displayedDeletionRequestID: String?
     var confirmationReady = false
     var enabled: Bool { auth != nil }
-    init(auth: NativeAuthenticationService? = nil, deletion: NativeDeletionService? = nil) { self.auth = auth; self.deletion = deletion }
-    static func configured(environment: AppEnvironment) -> NativeAccountModel {
-        // No configured host or entitlement is shipped. A separate approved isolated configuration is required.
-        guard Bundle.main.object(forInfoDictionaryKey: "StationNativeAuthEnabled") as? String == "YES",
-              let value = Bundle.main.object(forInfoDictionaryKey: "StationNativeAuthOrigin") as? String, let origin = URL(string: value),
-              let config = try? NativeAuthConfiguration(environment: environment, origin: origin, explicitlyEnabled: true) else { return NativeAccountModel() }
+    var deletionEnabled: Bool { deletion != nil }
+    let environment: AppEnvironment
+    var isolatedAuthentication: Bool { environment == .development || environment == .staging }
+    init(auth: NativeAuthenticationService? = nil, deletion: NativeDeletionService? = nil, environment: AppEnvironment = .mock) {
+        self.auth = auth; self.deletion = deletion; self.environment = environment
+        scope = AccountScope(environment: environment, accountID: nil)
+    }
+    static func configured(runtime: NativeRuntimeConfiguration) -> NativeAccountModel {
+        let environment = runtime.environment
+        guard let config = runtime.authentication else { return NativeAccountModel(environment: environment) }
         let store = KeychainStore(service: "org.stationcat.music.native.\(environment.rawValue)")
         let api = NativeAuthAPI(configuration: config, transport: URLSessionTransport())
         let auth = NativeAuthenticationService(configuration: config, api: api, journal: AuthJournal(store: store, environment: environment), browser: SystemAuthenticationBrowser())
-        return NativeAccountModel(auth: auth, deletion: NativeDeletionService(journal: DeletionJournal(store: store, environment: environment), auth: auth, api: api))
+        let deletion = config.accountDeletionAllowed ? NativeDeletionService(journal: DeletionJournal(store: store, environment: environment), auth: auth, api: api) : nil
+        return NativeAccountModel(auth: auth, deletion: deletion, environment: environment)
     }
     private func updateScope() async {
-        if case let .authenticated(value) = await auth?.state() { scope = value } else { scope = .guest }
+        if case let .authenticated(value) = await auth?.state() { scope = value } else { scope = AccountScope(environment: environment, accountID: nil) }
     }
     private func run(_ action: () async throws -> Void) async {
         guard !busy, enabled else { return }; busy = true; messageKey = ""; defer { busy = false }
@@ -73,6 +78,7 @@ import Observation
     func signIn(locale: String) async { await run { onInvalidate?(); confirmationReady = false; try await auth?.signIn(locale: locale) } }
     func signOut() async { await run { onInvalidate?(); confirmationReady = false; try await auth?.signOut() } }
     func prepareDeletion(password: String, totp: String) async {
+        guard deletionEnabled else { return }
         await run {
             confirmationReady = false
             try await auth?.reauthenticate(password: password, totp: totp)
@@ -82,6 +88,7 @@ import Observation
         }
     }
     func confirmDeletion() async {
+        guard deletionEnabled else { return }
         await run {
             confirmationReady = false
             onInvalidate?()
@@ -96,6 +103,7 @@ import Observation
         }
     }
     func queryDeletion(id: String? = nil) async {
+        guard deletionEnabled else { return }
         await run {
             if id != nil { confirmationReady = false }
             // An already-confirmed cleanup is independent of a later network outage/expired receipt.

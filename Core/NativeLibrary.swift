@@ -5,7 +5,7 @@ actor NativeLibraryAPI: LibraryRemote {
     private let auth: NativeAuthenticationService
     private let transport: any HTTPTransport
     init(configuration: NativeAuthConfiguration, explicitlyEnabled: Bool, auth: NativeAuthenticationService, transport: any HTTPTransport) throws {
-        guard explicitlyEnabled else { throw APIError.networkDisabled }
+        guard explicitlyEnabled, configuration.personalSyncAllowed else { throw APIError.networkDisabled }
         self.configuration = configuration; self.auth = auth; self.transport = transport
     }
     private func request<T: Decodable & Sendable>(_ path: String, method: String = "GET", body: [String: Any]? = nil, scope: AccountScope, as type: T.Type) async throws -> T {

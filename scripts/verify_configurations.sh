@@ -17,6 +17,8 @@ assert info['MinimumOSVersion']=='18.0'
 assert info['StationNativeAuthEnabled']=='NO'
 assert info['StationNativeMusicEnabled']=='NO'
 assert info['StationPersonalSyncEnabled']=='NO'
+assert info['StationProductionActivationEnabled']=='NO'
+assert not info.get('StationProductionActivationProfile')
 assert info['StationLegalOrigin']=='https://wwwstationcat.org'
 assert not info.get('StationNativeAuthOrigin')
 assert not info.get('StationMusicWebOrigin')

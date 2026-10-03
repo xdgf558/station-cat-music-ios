@@ -78,6 +78,12 @@
 			"path" = "Core/NativeMusic.swift";
 			"sourceTree" = "<group>";
 		};
+		"6D60F2CCAF9978DD23A99CB6" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/NativeRuntimeConfiguration.swift";
+			"sourceTree" = "<group>";
+		};
 		"EF1760F643E607959BA7F5EA" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -286,6 +292,12 @@
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
 			"path" = "Tests/PlaybackSystemTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"18720FEFCF6273D7155FD674" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/ProductionActivationTests.swift";
 			"sourceTree" = "<group>";
 		};
 		"3EFD110F6B79006D08168CEC" = {
@@ -515,6 +527,7 @@
 				"MARKETING_VERSION" = "0.1.0";
 				"CURRENT_PROJECT_VERSION" = "4";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
+				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 			};
 		};
 		"B80656714F79C31C84EF4560" = {
@@ -575,6 +588,10 @@
 		"7FC3EFBE93039ABA0CE134E8" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "B3123633B2BB0062538C343F";
+		};
+		"D4AD15350C84B21A186141A5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "6D60F2CCAF9978DD23A99CB6";
 		};
 		"598F26289E0042BF6AAF33F9" = {
 			"isa" = "PBXBuildFile";
@@ -652,6 +669,7 @@
 				"EEA9A91AEF18C7FF84148B13",
 				"F17992623C1262D89EBFAD67",
 				"7FC3EFBE93039ABA0CE134E8",
+				"D4AD15350C84B21A186141A5",
 				"598F26289E0042BF6AAF33F9",
 				"057B834ED0A3AF3CFA7959FB",
 				"7280D6AC381817C510257B57",
@@ -927,6 +945,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "6E8677A3077EAB96C41ADD4E";
 		};
+		"CE7987F93FB10DA8ADFBCAF0" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "18720FEFCF6273D7155FD674";
+		};
 		"BC65502FB22F5B6124E72CA9" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "3EFD110F6B79006D08168CEC";
@@ -963,6 +985,7 @@
 				"7472ED539B3C608927F67B42",
 				"0D7684FFE629AAA1849F91DF",
 				"12E6D5D52A8902F6CA7206E0",
+				"CE7987F93FB10DA8ADFBCAF0",
 				"BC65502FB22F5B6124E72CA9",
 				"A19CC34297FE27DE06D705C5",
 				"0A858BA7F459D32678B526A1"
@@ -1214,6 +1237,7 @@
 				"58485AE5DE2BEF61EF7390CB",
 				"EC391E389F195A166427FE6A",
 				"B3123633B2BB0062538C343F",
+				"6D60F2CCAF9978DD23A99CB6",
 				"EF1760F643E607959BA7F5EA",
 				"AFDC51AFC58C7BC440756FD2",
 				"DB0038DCEB72EA8E315F2AD2",
@@ -1249,6 +1273,7 @@
 				"130E5AA169095C631F85CE49",
 				"F2CB60849A2B9EE9E199DFA4",
 				"6E8677A3077EAB96C41ADD4E",
+				"18720FEFCF6273D7155FD674",
 				"3EFD110F6B79006D08168CEC",
 				"E430A6983A1E1BF1BBD55E14",
 				"88C3AD6BA91A898123D82801",

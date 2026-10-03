@@ -54,6 +54,10 @@ import Observation
     var discoveryFailure: CatalogFailure? { nativeMusic == nil ? catalogFailure : featuredFailure }
     var activeCollection: MusicCollection?
     var nativeMusic: NativeMusicAPI? { client as? NativeMusicAPI }
+    var catalogNoticeKey: String? {
+        if let nativeMusic { return nativeMusic.configuration.environment == .production ? nil : "isolatedMusic" }
+        return scope.environment == .mock ? "mockExplanation" : nil
+    }
     @ObservationIgnored private var detailTask: Task<Void, Never>?
     @ObservationIgnored private var initializationTask: Task<Void, Never>?
     @ObservationIgnored private var pendingMusicLink: URL?

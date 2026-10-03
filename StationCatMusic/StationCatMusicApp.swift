@@ -3,8 +3,8 @@ import SwiftUI
 @main struct StationCatMusicApp: App {
     @State private var model: AppModel
     init() {
-        let configured = Bundle.main.object(forInfoDictionaryKey: "StationEnvironment") as? String ?? "production"
-        let environment = AppEnvironment(rawValue: configured) ?? .production
+        let runtime = NativeRuntimeConfiguration(info: Bundle.main.infoDictionary ?? [:])
+        let environment = runtime.environment
         let data = Bundle.main.url(forResource: "catalog", withExtension: "json").flatMap { try? Data(contentsOf: $0) } ?? Data()
         var previewDelay: Duration = .zero
         var previewStatus = 200
@@ -17,17 +17,14 @@ import SwiftUI
         }
         #endif
         let transport = MockTransport(data: data, delay: previewDelay, status: previewStatus)
-        let account = NativeAccountModel.configured(environment: environment)
+        let account = NativeAccountModel.configured(runtime: runtime)
         var client: any CatalogProviding = APIClient(environment: environment, transport: transport)
-        if Bundle.main.object(forInfoDictionaryKey: "StationNativeMusicEnabled") as? String == "YES",
-           let raw = Bundle.main.object(forInfoDictionaryKey: "StationNativeAuthOrigin") as? String,
-           let origin = URL(string: raw),
-           let configuration = try? NativeAuthConfiguration(environment: environment, origin: origin, explicitlyEnabled: account.enabled),
+        if runtime.musicEnabled, let configuration = runtime.authentication, account.enabled,
            let native = try? NativeMusicAPI(configuration: configuration, explicitlyEnabled: true, transport: URLSessionTransport(), auth: account.auth) { client = native }
-        let webOrigin = (Bundle.main.object(forInfoDictionaryKey: "StationMusicWebOrigin") as? String).flatMap(URL.init(string:))
+        let webOrigin = runtime.musicWebOrigin
         let directory = URL.applicationSupportDirectory.appending(path: "PersonalMusic")
         var libraryRemote: NativeLibraryAPI?
-        if Bundle.main.object(forInfoDictionaryKey: "StationPersonalSyncEnabled") as? String == "YES", let native = client as? NativeMusicAPI, let auth = account.auth {
+        if runtime.personalSyncEnabled, let native = client as? NativeMusicAPI, let auth = account.auth {
             libraryRemote = try? NativeLibraryAPI(configuration: native.configuration, explicitlyEnabled: true, auth: auth, transport: URLSessionTransport())
         }
         let artwork = ArtworkLoader(cacheDirectory: URL.cachesDirectory.appending(path: "PublicMusicArtwork-v1"))

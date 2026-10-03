@@ -1,16 +1,22 @@
-// M1: all remote networking disabled in APIClient.
+// A clean checkout cannot activate a production service.
 STATION_ENVIRONMENT = production
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited)
 
-// M2 activation requires a separately approved isolated host and signed callback.
+// Authentication requires a reviewed production profile and signed callback.
 STATION_NATIVE_AUTH_ENABLED = NO
 STATION_NATIVE_AUTH_ORIGIN =
 
-// M3 isolated music activation is separate and remains disabled.
+// Music activation is separate and remains disabled.
 STATION_NATIVE_MUSIC_ENABLED = NO
 
 // Public share/link origin is configured separately from the authentication API.
 STATION_MUSIC_WEB_ORIGIN =
 
-// M5 isolated personal sync remains opt-in.
+// Personal sync remains independently opt-in.
 STATION_PERSONAL_SYNC_ENABLED = NO
+
+// Independent reviewed profile; never include Staging/R2 settings here.
+STATION_PRODUCTION_ACTIVATION_ENABLED = NO
+STATION_PRODUCTION_ACTIVATION_PROFILE =
+STATION_APP_ENTITLEMENTS =
+#include? "Production.local.xcconfig"

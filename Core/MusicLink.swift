@@ -10,9 +10,12 @@ nonisolated enum MusicLink: Equatable, Sendable {
         return value
     }
     init?(_ url: URL, allowedHost: String) {
+        let rootPaths = ["/music/", "/music"]
+        let productionPaths = ["en", "ja", "zh-hans", "zh-hant"].flatMap { ["/\($0)/music", "/\($0)/music/"] }
+        let paths = allowedHost == URL(string: ProductionActivationProfile.origin)?.host ? rootPaths + productionPaths : rootPaths
         guard let c = URLComponents(url: url, resolvingAgainstBaseURL: false), c.scheme == "https",
               c.host == allowedHost, c.user == nil, c.password == nil, c.fragment == nil,
-              c.port == nil || c.port == 443, ["/music/", "/music"].contains(c.path),
+              c.port == nil || c.port == 443, paths.contains(c.percentEncodedPath),
               let items = c.queryItems, items.count == 1, let value = items[0].value else { return nil }
         if items[0].name == "track", UUID(uuidString: value) != nil { self = .track(value) }
         else if items[0].name == "collection", value.range(of: "^[a-z0-9-]{1,100}$", options: .regularExpression) != nil { self = .collection(value) }

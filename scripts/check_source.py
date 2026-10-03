@@ -10,11 +10,23 @@ for p in files:
  if p.name!='check_source.py':assert not any(re.search(pattern,text) for pattern in patterns),f'Potential credential: {p}'
  if p.suffix=='.swift' and p.parent.name in ['Core','StationCatMusic']:
   assert 'http://' not in text and 'NSAllowsArbitraryLoads' not in text,p
-  assert 'wwwstationcat.org' not in text,p
+  if p.name == 'NativeRuntimeConfiguration.swift':
+   assert text.count('wwwstationcat.org') == 1 and 'static let origin = "https://wwwstationcat.org"' in text,p
+  else:assert 'wwwstationcat.org' not in text,p
 source='\n'.join(p.read_text() for p in (root/'Core').glob('*.swift'))
 assert source.count('AVPlayer()')==1
 assert 'case mock, development, staging, production' in source
 assert 'guard environment == .mock else' in source
+assert 'guard configuration.accountDeletionAllowed else' in source
+profile=json.loads((root/'Config/ProductionActivation.example.json').read_text())
+assert profile['enabled'] is False and not any(profile['capabilities'].values())
+for name in ['Mock','Development','Staging','Production']:
+ config=(root/'Config'/(name+'.xcconfig')).read_text()
+ for key in ['STATION_NATIVE_AUTH_ENABLED','STATION_NATIVE_MUSIC_ENABLED','STATION_PERSONAL_SYNC_ENABLED','STATION_PRODUCTION_ACTIVATION_ENABLED']:
+  assert re.search(r'^'+key+r' = NO$',config,re.M), (name,key)
+ for key in ['STATION_NATIVE_AUTH_ORIGIN','STATION_MUSIC_WEB_ORIGIN','STATION_PRODUCTION_ACTIVATION_PROFILE']:
+  assert re.search(r'^'+key+r' =\s*$',config,re.M), (name,key)
+assert 'R2.local' not in (root/'Config/Production.xcconfig').read_text()
 assert 'kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly' in source
 assert 'kSecAttrSynchronizable as String: false' in source
 locales=json.loads((root/'Resources/Localizations.json').read_text())

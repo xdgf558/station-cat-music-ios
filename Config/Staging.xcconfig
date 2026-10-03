@@ -14,6 +14,8 @@ STATION_MUSIC_WEB_ORIGIN =
 
 // M5 isolated personal sync remains opt-in.
 STATION_PERSONAL_SYNC_ENABLED = NO
+STATION_PRODUCTION_ACTIVATION_ENABLED = NO
+STATION_PRODUCTION_ACTIVATION_PROFILE =
 
 // Generated only after explicit R2 opt-in; absent in clean checkouts and CI.
 STATION_APP_ENTITLEMENTS =

@@ -132,8 +132,9 @@ struct RootView: View {
                     trackContent(phase: model.discoveryPhase, tracks: model.discoveryTracks, search: false)
                 }
                 discoveryShelf
-                Text(model.t(model.nativeMusic == nil ? "mockExplanation" : "isolatedMusic"))
-                    .font(.caption2).foregroundStyle(Palette.muted).padding(.top, 4)
+                if let notice = model.catalogNoticeKey {
+                    Text(model.t(notice)).font(.caption2).foregroundStyle(Palette.muted).padding(.top, 4)
+                }
             }.padding(.horizontal, 22).padding(.top, 10).padding(.bottom, 24)
         }.background { OrbitBackground() }.toolbar(.hidden, for: .navigationBar)
             .accessibilityIdentifier("discoverScreen")
@@ -186,8 +187,9 @@ struct RootView: View {
     private var catalog: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text(model.t(model.nativeMusic == nil ? "mockExplanation" : "isolatedMusic"))
-                    .font(.caption).foregroundStyle(Palette.muted)
+                if let notice = model.catalogNoticeKey {
+                    Text(model.t(notice)).font(.caption).foregroundStyle(Palette.muted)
+                }
                 if !model.collections.isEmpty || model.activeCollection != nil {
                     HStack {
                         Menu {
@@ -334,7 +336,7 @@ struct RootView: View {
             Section {
                 Label(model.t(model.account.scope.accountID == nil ? "guest" : "signedIn"), systemImage: "person.crop.circle").font(.headline)
                 if model.account.enabled {
-                    Text(model.t("isolatedAuth")).font(.caption).foregroundStyle(Palette.muted)
+                    if model.account.isolatedAuthentication { Text(model.t("isolatedAuth")).font(.caption).foregroundStyle(Palette.muted) }
                     if model.account.scope.accountID == nil {
                         Button(model.t("signIn")) { Task { await model.account.signIn(locale: model.locale) } }.disabled(model.account.busy)
                     } else {
@@ -343,7 +345,7 @@ struct RootView: View {
                     if !model.account.messageKey.isEmpty { Text(model.t(model.account.messageKey)).font(.footnote).accessibilityIdentifier("authMessage") }
                 } else { Text(model.t("authNotReady")).font(.footnote).foregroundStyle(Palette.muted) }
             }.listRowBackground(Palette.panel)
-            if model.account.enabled {
+            if model.account.deletionEnabled {
                 Section(model.t("accountDeletion")) {
                     if model.account.scope.accountID != nil {
                         Button(model.t("deleteAccount"), role: .destructive) { showDeletion = true }.disabled(model.account.busy)
@@ -465,7 +467,7 @@ struct RootView: View {
                 Label("Station Cat Music", systemImage: "music.note").font(.headline)
                 Text(model.t("yourMusicSpace")).foregroundStyle(Palette.muted)
                 LabeledContent(model.t("appVersion"), value: appVersion).accessibilityIdentifier("appVersion")
-                Text(model.t(model.nativeMusic == nil ? "mockExplanation" : "isolatedMusic")).font(.caption).foregroundStyle(Palette.muted)
+                if let notice = model.catalogNoticeKey { Text(model.t(notice)).font(.caption).foregroundStyle(Palette.muted) }
             }.listRowBackground(Palette.panel)
             Section {
                 NavigationLink { releaseNotesPage } label: { Label(model.t("releaseNotes"), systemImage: "sparkles") }

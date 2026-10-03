@@ -41,7 +41,7 @@ actor NativeMusicAPI: CatalogProviding, OfflineMusicProviding {
     private var locale = "en"
     func setLocale(_ value: String) { locale = ["en", "zh-Hans", "zh-Hant", "ja"].contains(value) ? value : "en" }
     init(configuration: NativeAuthConfiguration, explicitlyEnabled: Bool, transport: any HTTPTransport, auth: NativeAuthenticationService? = nil) throws {
-        guard explicitlyEnabled else { throw APIError.networkDisabled }
+        guard explicitlyEnabled, configuration.musicAllowed else { throw APIError.networkDisabled }
         self.configuration = configuration; self.transport = transport; self.auth = auth
     }
     private func request<T: Decodable & Sendable>(_ path: String, query: [URLQueryItem] = [], body: Data? = nil, context: NativeAuthContext? = nil, as: T.Type) async throws -> NativeResponse<T> {

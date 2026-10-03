@@ -16,6 +16,7 @@ jobs:
       - run: python scripts/generate_contract.py && python scripts/seed_resources.py && python scripts/generate_project.py
       - run: git diff --exit-code
       - run: python scripts/validate_contract.py && python scripts/check_source.py
+      - run: python scripts/configure_production.py --check && python scripts/test_configure_production.py
       - run: python scripts/test_crash_probe_runner.py
       - run: python scripts/test_probe_evidence.py
       - run: python scripts/test_probe_preparation.py

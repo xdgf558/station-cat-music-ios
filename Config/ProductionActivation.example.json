@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "profileId": "station-native-production-v1",
+  "enabled": false,
+  "environment": "production",
+  "apiOrigin": "https://wwwstationcat.org",
+  "webOrigin": "https://wwwstationcat.org",
+  "callback": "https://wwwstationcat.org/auth/mobile/callback",
+  "applicationIdentifier": "2AM5S7BM2N.org.stationcat.music",
+  "capabilities": {
+    "nativeAuthentication": false,
+    "musicCatalog": false,
+    "musicPlayback": false,
+    "personalSync": false,
+    "accountDeletion": false
+  }
+}

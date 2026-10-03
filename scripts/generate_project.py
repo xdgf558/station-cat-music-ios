@@ -33,7 +33,7 @@ def configlist(label,values):
    suffix='' if label=='StationCatMusic' else ('.uitests' if label.endswith('UITests') else '.tests')
    settings['PRODUCT_BUNDLE_IDENTIFIER']='org.stationcat.music'+('.staging' if n=='Staging' else '')+suffix
    settings['DEVELOPMENT_TEAM']='2AM5S7BM2N'
-   if label=='StationCatMusic' and n=='Staging':settings['CODE_SIGN_ENTITLEMENTS']='$(STATION_APP_ENTITLEMENTS)'
+   if label=='StationCatMusic':settings['CODE_SIGN_ENTITLEMENTS']='$(STATION_APP_ENTITLEMENTS)'
   items.append(obj(label+n,'XCBuildConfiguration',name=n,baseConfigurationReference=configrefs[n],buildSettings=settings))
  return obj(label+'configs','XCConfigurationList',buildConfigurations=items,defaultConfigurationIsVisible=0,defaultConfigurationName='Mock')
 def phase(label,kind,refs):

@@ -4,13 +4,22 @@ import CryptoKit
 nonisolated struct NativeAuthConfiguration: Sendable {
     let environment: AppEnvironment
     let origin: URL
+    private let productionActivation: ProductionActivationProfile?
     var callback: URL { origin.appending(path: "auth/mobile/callback") }
-    init(environment: AppEnvironment, origin: URL, explicitlyEnabled: Bool) throws {
-        guard explicitlyEnabled, [.development, .staging].contains(environment), origin.scheme == "https",
+    var musicAllowed: Bool { environment != .production || productionActivation?.capabilities.musicPlayback == true }
+    var personalSyncAllowed: Bool { environment != .production || productionActivation?.capabilities.personalSync == true }
+    var accountDeletionAllowed: Bool { environment == .development || environment == .staging }
+    init(environment: AppEnvironment, origin: URL, explicitlyEnabled: Bool, productionActivation: ProductionActivationProfile? = nil) throws {
+        let normalizedHost = (origin.host ?? "").lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let reservedHosts = [URL(string: ProductionActivationProfile.origin)?.host ?? "", "stationcat.org"]
+        let isolated = [.development, .staging].contains(environment) && productionActivation == nil &&
+            !reservedHosts.contains(normalizedHost)
+        let production = environment == .production && productionActivation?.apiOrigin == origin.absoluteString
+        guard explicitlyEnabled, isolated || production, origin.scheme == "https",
               let host = origin.host, !host.isEmpty, origin.user == nil, origin.password == nil,
               origin.query == nil, origin.fragment == nil, origin.path.isEmpty || origin.path == "/",
               origin.port == nil || origin.port == 443 else { throw APIError.networkDisabled }
-        self.environment = environment; self.origin = origin
+        self.environment = environment; self.origin = origin; self.productionActivation = productionActivation
     }
 }
 nonisolated struct PKCEFlow: Sendable {
@@ -95,6 +104,10 @@ actor NativeAuthAPI {
         let allowed = ["/auth/token", "/auth/refresh", "/auth/logout", "/auth/reauth", "/me", "/me/deletion-requests/prepare"]
         let dynamic = path.range(of: "^/(me/)?deletion-requests/[A-Za-z0-9_-]{16,128}/(confirm|status)$", options: .regularExpression) != nil
         guard allowed.contains(path) || dynamic else { throw APIError.invalidRequest }
+        // Production account activation does not authorize freezing/deleting an account.
+        if path.contains("deletion-requests") || path == "/auth/reauth" {
+            guard configuration.accountDeletionAllowed else { throw APIError.networkDisabled }
+        }
         let url = configuration.origin.appending(path: "api/mobile/v1" + path)
         var request = URLRequest(url: url); request.httpMethod = method; request.timeoutInterval = 5
         if var payload = body?.mapValues({ $0 as Any }) {

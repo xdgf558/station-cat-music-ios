@@ -11,7 +11,7 @@
 ## 本轮内容
 
 - SwiftUI 原生工程，最低 iOS 18；简体中文、繁体中文、English、日本語；动态字体、语义标签及至少 44pt 操作目标。
-- 默认 Mock。Development、Staging、Production 分别写入环境字段，当前全部关闭真实网络。M2 新增系统认证窗口、PKCE、持久化刷新恢复和账号删除进度；仅 Development / Staging 可通过后续隔离配置启用，当前没有配置域名。缺失或未知环境也按关闭处理。
+- 默认 Mock。Development、Staging、Production 分别写入环境字段，干净检出全部关闭真实网络。Development / Staging 保留独立隔离配置；Production 新增固定正式身份、逐项能力上限的[关闭态接入配置](docs/production-activation.md)，尚未启用，生产销户路径保持关闭。缺失或未知环境也按关闭处理。
 - 25 个首版 API 操作、OpenAPI 3.1、请求与响应样例、四语错误键。认证与删除任务接口已有配套本地隔离 Worker 实现；M3 已接入隔离目录、专辑、歌词、资格与授权媒体；M5 已实现隔离个人收藏、最近播放与偏好同步，不能按接口数量视为上线验收完成。
 - M3 的实际 AVPlayer + ResourceLoader 用独立 Bearer 读取小块音频，支持播放/暂停/拖动/切歌与歌词，续期更换 URL 和硬截止。只在独立测试配置中可用，默认仍关闭；详见 [M3 首批交付记录](docs/M3-report.md)及 [长曲续期验收](docs/M3-stability-report.md)。
 - M4 新增音频后台能力、Now Playing、远程指令、中断/耳机断开处理、顺序/随机/循环队列与睡眠定时；仍须通过独立开关才接入，默认 Mock 无音频。详见 [M4 实现与验收边界](docs/M4-report.md)。

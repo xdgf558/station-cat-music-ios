@@ -36,6 +36,10 @@
 	<string>$(STATION_NATIVE_MUSIC_ENABLED)</string>
 	<key>StationPersonalSyncEnabled</key>
 	<string>$(STATION_PERSONAL_SYNC_ENABLED)</string>
+	<key>StationProductionActivationEnabled</key>
+	<string>$(STATION_PRODUCTION_ACTIVATION_ENABLED)</string>
+	<key>StationProductionActivationProfile</key>
+	<string>$(STATION_PRODUCTION_ACTIVATION_PROFILE)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

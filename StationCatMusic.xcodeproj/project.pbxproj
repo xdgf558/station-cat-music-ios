@@ -300,6 +300,12 @@
 			"path" = "Tests/ProductionActivationTests.swift";
 			"sourceTree" = "<group>";
 		};
+		"1D1DE98D0DE612D9A97FBE94" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/ProductionLocalFixture.swift";
+			"sourceTree" = "<group>";
+		};
 		"A8121C03A7C6A05B1EE4FD26" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -328,12 +334,6 @@
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
 			"path" = "TestsSupport/NativeCrashScenario.swift";
-			"sourceTree" = "<group>";
-		};
-		"6A93FC9875E51A540BEA4BF8" = {
-			"isa" = "PBXFileReference";
-			"lastKnownFileType" = "sourcecode.swift";
-			"path" = "TestsSupport/ProductionLocalFixture.swift";
 			"sourceTree" = "<group>";
 		};
 		"AC2AB77181D707D00C92E57A" = {
@@ -973,6 +973,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "18720FEFCF6273D7155FD674";
 		};
+		"DEA6E9BCDA777F93AB2E275A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "1D1DE98D0DE612D9A97FBE94";
+		};
 		"23B6FE4ED756F3D6F344081C" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "A8121C03A7C6A05B1EE4FD26";
@@ -992,10 +996,6 @@
 		"0A858BA7F459D32678B526A1" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "88C3AD6BA91A898123D82801";
-		};
-		"95E3AA43D91F2BAB6BE32512" = {
-			"isa" = "PBXBuildFile";
-			"fileRef" = "6A93FC9875E51A540BEA4BF8";
 		};
 		"73E264473066D2907348DB86" = {
 			"isa" = "PBXSourcesBuildPhase";
@@ -1022,12 +1022,12 @@
 				"0D7684FFE629AAA1849F91DF",
 				"12E6D5D52A8902F6CA7206E0",
 				"CE7987F93FB10DA8ADFBCAF0",
+				"DEA6E9BCDA777F93AB2E275A",
 				"23B6FE4ED756F3D6F344081C",
 				"3489C2A80C985F14F92C0346",
 				"BC65502FB22F5B6124E72CA9",
 				"A19CC34297FE27DE06D705C5",
-				"0A858BA7F459D32678B526A1",
-				"95E3AA43D91F2BAB6BE32512"
+				"0A858BA7F459D32678B526A1"
 			);
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};
@@ -1318,12 +1318,12 @@
 				"F2CB60849A2B9EE9E199DFA4",
 				"6E8677A3077EAB96C41ADD4E",
 				"18720FEFCF6273D7155FD674",
+				"1D1DE98D0DE612D9A97FBE94",
 				"A8121C03A7C6A05B1EE4FD26",
 				"6AA2EF29DC7EA17303E61B69",
 				"3EFD110F6B79006D08168CEC",
 				"E430A6983A1E1BF1BBD55E14",
 				"88C3AD6BA91A898123D82801",
-				"6A93FC9875E51A540BEA4BF8",
 				"AC2AB77181D707D00C92E57A",
 				"29F4B9F9E997A6078032077A",
 				"7DB33EFE4E031BB44D5BA9B1",

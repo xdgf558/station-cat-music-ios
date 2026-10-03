@@ -8,7 +8,7 @@
 
 网站 helper 使用完整网站、mobile、music migrations 与候选 marker，在临时 Miniflare 数据库和桶内建立合成普通/VIP 账号、密码、曲库和 MP3。仅监听随机 `127.0.0.1` 端口；临时目录为 0700，ready 文件为 0600，随机 proof 只存在于临时文件和测试进程。Worker 所有出站网络均由 fixture 拒绝。
 
-`TestsSupport/ProductionLocalFixture.swift` 只属于测试 target。它拒绝非正式原始 origin，然后把原始请求通过带 proof 的 JSON envelope 交给 loopback `/request`；Worker 仍按正式 HTTPS URL 执行。URLSession 禁止重定向，不能回退为公网请求。Bootstrap 返回的合成密码不会写入日志，临时 xctestrun 为 0600，结束后删除。只对原生单测 target 注入连接信息。
+`Tests/ProductionLocalFixture.swift` 只属于 XCTest target，不进入独立恢复探针。它拒绝非正式原始 origin，然后把原始请求通过带 proof 的 JSON envelope 交给 loopback `/request`；Worker 仍按正式 HTTPS URL 执行。URLSession 禁止重定向，不能回退为公网请求。Bootstrap 返回的合成密码不会写入日志，临时 xctestrun 为 0600，结束后删除。只对原生单测 target 注入连接信息。
 
 浏览器 test double 请求真实授权表单，处理真实 flow/cookie 并提交合成账号密码；PKCE、state、token 兑换和 refresh 均由真实原生认证服务与 Worker 处理。覆盖普通账号两会话/VIP 隔离、guest 免费完整音频、普通账号 VIP 完整播放被拒但可 preview、VIP 完整播放、真实 MP3 HEAD/Range、收藏与合成收听事件同步、refresh、logout 会话和 grant 撤销。这里的合成收听事件只验证同步协议，不证明音频播放了五秒，也不重跑长时间 AVPlayer 探针。
 
@@ -41,5 +41,11 @@ driver 只接受已安装的 iPhone simulator UUID，并使用 `platform=iOS Sim
 本地实际工具链为 Xcode 27.0 beta 6（`27A5252f`）、Node `24.15.0`、Python `3.9.6`，目标仅为 iPhone 17 Pro / iOS 26.5 模拟器（`6E0EA9FF-E886-45F4-B752-79C6F60B0235`）。本轮显式使用 `M1_ALLOW_LOCAL_TOOLCHAIN=1`，因此不计作固定 Xcode 26.4.1 的稳定 CI 验收。最终聚合 JSON 与三份日志保留在本地忽略的 `evidence/production-local-*`；提交中只保留以上脱敏结果与可重复运行的脚本。
 
 网站本批另有 `docs/mobile-ios-production/resource-ownership-20261003.md`，记录平台账号可见资源与已部署版本绑定的只读比对；它与此处的合成 marker 检查分别提供证据，不能互相替代。
+
+## PR CI 编译边界修复
+
+旧 head `8a000a0` 的 CI run `37126315229` 在编译独立恢复探针时失败，原始日志为 `TestsSupport/ProductionLocalFixture.swift:2:18: error: no such module 'StationCatMusic'`。恢复脚本把 `Core`、`TestsSupport` 和 `IntegrationProbes` 合编为 `BoundaryProbe`，其中没有可导入的 App 模块。此 helper 只供 XCTest 使用，因此将其移至 `Tests` 并重新生成项目；没有修改 helper 内容、产品代码、恢复脚本、时间限额或后端 pin。
+
+2026-10-03 使用恢复脚本相同的 22 个源码输入与 `swiftc` 参数实际编译 `BoundaryProbe` 成功，日志保留在本地 `evidence/M2-boundaries-build-pr14-fix.log`。随后严格跨仓 driver 重跑 33 项 XCTest 全部通过，runId 为 `32bc7893-6345-4735-9c5f-127d02df0757`，UTC 为 `2026-10-03T13:54:40.603Z` 至 `2026-10-03T13:55:11.851Z`；固定网站版本未变，仍为 71 次请求、3 个撤销会话、1 次刷新、1 条收藏与 1 条最近收听、零出站请求。13 项 Python driver 回归及源码 guard 也通过。这次修复验证仍使用上述本地 Xcode beta override；没有重跑整个 A11–A13 行为链，最新提交的稳定 CI 结果需另行核对。
 
 稳定 Xcode CI、正式 HTTPS/AASA 的响应与系统关联缓存、真实设备冷暖 Universal Link 投递、真实账号/曲库与生产 schema，以及未来发布候选绑定的再次核对仍须分别完成；此 PR 不把这些项目标为已验收，也不授权生产启用。

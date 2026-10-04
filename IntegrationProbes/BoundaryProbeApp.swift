@@ -10,8 +10,11 @@ import Darwin
         return config
     }
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        do { try ProbeReporter.lifecycle(.delegateEntered) }
+        catch { try? ProbeReporter.failure(error); _exit(1) }
         Task { @MainActor in
             do {
+                try ProbeReporter.lifecycle(.scenarioTaskEntered)
                 let config = try CrashProbeConfiguration.load()
                 try ProbeReporter.emit("M2_PROBE_STARTED:\(config.stage):\(config.mode):pid=\(getpid())")
                 let scenario = NativeCrashScenario()

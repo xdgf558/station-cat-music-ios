@@ -51,29 +51,73 @@ struct ProbeDiagnostic: Error, Sendable {
     var fields: String { "step=\(phase.rawValue):category=\(category)" + (code.map { ":code=\($0)" } ?? "") }
 }
 
-// Test-only durable evidence. No credential values are written here.
+// Diagnostics are atomically visible; only terminal/boundary records need an
+// explicit durability barrier. The actual product Keychain journal is unchanged.
+enum ProbeLogPublication {
+    static func publish(_ line: String, to path: URL, synchronize: (URL) throws -> Void = syncFile) throws {
+        let prior = FileManager.default.fileExists(atPath: path.path) ? try Data(contentsOf: path) : Data()
+        var bytes = prior; bytes.append(Data((line + "\n").utf8))
+        guard bytes.count <= 8192 else { throw APIError.invalidPayload }
+        if ["M2_BOUNDARY_REACHED:", "M2_BOUNDARY_RECOVERED:", "M2_PROBE_FINISHED:", "M2_PROBE_FAILED:"].contains(where: line.hasPrefix) {
+            // A failed sync must not leave a success marker visible to the driver.
+            // Sync a private sibling before atomically publishing the terminal record.
+            let pending = path.deletingLastPathComponent().appendingPathComponent(".probe-" + UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: pending) }
+            try bytes.write(to: pending, options: .atomic)
+            try synchronize(pending)
+            guard rename(pending.path, path.path) == 0 else { throw APIError.storageUnavailable }
+        } else { try bytes.write(to: path, options: .atomic) }
+    }
+    private static func syncFile(_ path: URL) throws {
+        let file = try FileHandle(forWritingTo: path)
+        defer { try? file.close() }; try file.synchronize()
+    }
+}
+
+enum ProbeLifecycle: String { case delegateEntered, scenarioTaskEntered }
 enum ProbeReporter {
     private static let lock = NSLock()
-    static func phase(_ phase: ProbePhase) throws { try emit("M2_PROBE_STEP:\(phase.rawValue):pid=\(getpid()):at=\(Int64(Date().timeIntervalSince1970 * 1000))") }
+    private static var stamp: String {
+        "at=\(Int64(Date().timeIntervalSince1970 * 1000)):uptimeMs=\(Int64(ProcessInfo.processInfo.systemUptime * 1000))"
+    }
+    static func lifecycle(_ event: ProbeLifecycle) throws { try emit("M2_PROBE_LIFECYCLE:\(event.rawValue):pid=\(getpid())") }
+    static func phase(_ phase: ProbePhase) throws { try emit("M2_PROBE_STEP:\(phase.rawValue):pid=\(getpid())") }
     static func failure(_ error: Error) throws {
         let diagnostic = ProbeDiagnostic.capture(error, phase: .configuration)
-        try emit("M2_PROBE_FAILED:\(diagnostic.fields):pid=\(getpid()):at=\(Int64(Date().timeIntervalSince1970 * 1000))")
+        try emit("M2_PROBE_FAILED:\(diagnostic.fields):pid=\(getpid())")
     }
     static func emit(_ line: String) throws {
+        // Capture before the lock and I/O, so timestamps do not hide their wait.
+        let stamped = line + ":" + stamp
+        let started = ProcessInfo.processInfo.systemUptime
         lock.lock(); defer { lock.unlock() }
         if let runID = ProcessInfo.processInfo.environment["M2_PROBE_RUN_ID"] {
             guard UUID(uuidString: runID) != nil else { throw APIError.invalidRequest }
             let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let path = directory.appendingPathComponent("M2-" + runID + ".log")
-            let prior = FileManager.default.fileExists(atPath: path.path) ? try Data(contentsOf: path) : Data()
-            guard prior.count < 8192 else { throw APIError.invalidPayload }
-            var bytes = prior; bytes.append(Data((line + "\n").utf8))
-            try bytes.write(to: path, options: .atomic)
-            let file = try FileHandle(forWritingTo: path)
-            defer { try? file.close() }; try file.synchronize()
+            // Timings are diagnostic only. They never substitute for a boundary,
+            // FINISHED, or the driver's independent actual-process-exit check.
+            let timingPath = directory.appendingPathComponent("M2-" + runID + "-timing.log")
+            func timing(_ event: String) {
+                let elapsed = Int64((ProcessInfo.processInfo.systemUptime - started) * 1000)
+                let record = "M2_PROBE_WRITE:\(event):pid=\(getpid()):\(stamp):elapsedMs=\(elapsed)\n"
+                if !FileManager.default.fileExists(atPath: timingPath.path) {
+                    FileManager.default.createFile(atPath: timingPath.path, contents: nil)
+                }
+                if let file = try? FileHandle(forWritingTo: timingPath) {
+                    defer { try? file.close() }
+                    if let size = try? file.seekToEnd(), size < 16384 { try? file.write(contentsOf: Data(record.utf8)) }
+                }
+            }
+            timing("begin")
+            do { try ProbeLogPublication.publish(stamped, to: path); timing("complete") }
+            catch { timing("failed"); throw error }
+            // File evidence is authoritative in the standalone host. Do not add
+            // stdout/fflush(nil) as another barrier before process termination.
+            return
         }
-        print(line); fflush(nil)
+        print(stamped); fflush(stdout)
     }
 }
 
@@ -225,7 +269,6 @@ private func exitAtBoundary(_ config: CrashProbeConfiguration, store: KeychainSt
           try await store.read("expected-request") != nil,
           try await store.read("expected-receipt") != nil else { throw APIError.invalidPayload }
     try ProbeReporter.emit("M2_BOUNDARY_REACHED:\(config.stage):durable-state-verified:pid=\(getpid())")
-    fflush(nil)
     _exit(73)
     } catch { throw ProbeDiagnostic.capture(error, phase: .boundaryValidation) }
 }

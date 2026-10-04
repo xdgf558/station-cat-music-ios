@@ -123,3 +123,55 @@ extension NativeCrashBoundaryTests {
         }
     }
 }
+
+extension NativeCrashBoundaryTests {
+    func testRoutineDiagnosticPublicationDoesNotForceStorageSync() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("evidence.log")
+        for record in ["M2_PROBE_STARTED:A11:CRASH:pid=123", "M2_PROBE_STEP:recoveryRead:pid=123", "M2_PROBE_LIFECYCLE:delegateEntered:pid=123"] {
+            try ProbeLogPublication.publish(record, to: path, synchronize: { _ in
+                XCTFail("Routine diagnostics must not add a force-sync barrier")
+                throw APIError.storageUnavailable
+            })
+            XCTAssertTrue(try String(contentsOf: path, encoding: .utf8).contains(record))
+        }
+    }
+    func testEveryTerminalBoundaryIsSyncedBeforeAtomicPublication() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("evidence.log")
+        var synced = 0
+        for prefix in ["M2_BOUNDARY_REACHED:", "M2_BOUNDARY_RECOVERED:", "M2_PROBE_FINISHED:", "M2_PROBE_FAILED:"] {
+            let record = prefix + "A11:pid=123"
+            try ProbeLogPublication.publish(record, to: path, synchronize: { written in
+                XCTAssertNotEqual(written, path)
+                XCTAssertTrue(try String(contentsOf: written, encoding: .utf8).contains(record))
+                XCTAssertFalse((try? String(contentsOf: path, encoding: .utf8))?.contains(record) == true)
+                synced += 1
+            })
+            XCTAssertTrue(try String(contentsOf: path, encoding: .utf8).contains(record))
+        }
+        XCTAssertEqual(synced, 4)
+    }
+    func testBoundarySyncFailureCannotReturnSuccess() throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: path) }
+        try ProbeLogPublication.publish("M2_PROBE_STARTED:A11:CRASH:pid=123", to: path, synchronize: { _ in })
+        let before = try Data(contentsOf: path)
+        XCTAssertThrowsError(try ProbeLogPublication.publish("M2_BOUNDARY_REACHED:A11:pid=123", to: path, synchronize: { _ in
+            throw APIError.storageUnavailable
+        }))
+        XCTAssertEqual(try Data(contentsOf: path), before)
+    }
+    func testOversizedDiagnosticPreservesPreviousEvidence() throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: path) }
+        try ProbeLogPublication.publish("M2_PROBE_STARTED:A11:CRASH:pid=123", to: path, synchronize: { _ in })
+        let before = try Data(contentsOf: path)
+        XCTAssertThrowsError(try ProbeLogPublication.publish(String(repeating: "x", count: 8192), to: path, synchronize: { _ in }))
+        XCTAssertEqual(try Data(contentsOf: path), before)
+    }
+}

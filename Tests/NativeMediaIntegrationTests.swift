@@ -117,7 +117,9 @@ struct ProbeAuthorizer: PlaybackAuthorizing {
         await model.load()
         XCTAssertFalse(model.tracks.isEmpty); XCTAssertTrue(model.discoveryTracks.isEmpty)
         XCTAssertTrue(model.collections.isEmpty); XCTAssertEqual(model.discoveryPhase, .empty)
-        print("M3_FEATURED_PASSED: configured oldest primary reaches AppModel discovery; cleared recommendations stay empty")
+        if testRun?.totalFailureCount == 0 {
+            print("M3_FEATURED_PASSED: configured oldest primary reaches AppModel discovery; cleared recommendations stay empty")
+        }
     }
 
 }

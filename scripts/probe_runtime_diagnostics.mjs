@@ -9,7 +9,11 @@ export function routeLabel(path) {
  if(typeof path!=='string')return 'other';
  const pathname=path.split('?')[0];
  return new Map([['/fixture/prepare','prepare'],['/fixture/seed','seed'],
-  ['/fixture/evidence','evidence'],['/api/mobile/v1/auth/refresh','refresh']]).get(pathname)??'other';
+  ['/fixture/evidence','evidence'],['/api/mobile/v1/auth/refresh','refresh'],
+  ['/api/mobile/v1/music/catalog','catalog'],['/api/mobile/v1/music/featured','featured'],
+  ['/fixture/featured','fixture_featured'],['/fixture/featured-clear','fixture_featured_clear'],
+  ...['bootstrap','revoke','rotation','rotation-evidence','stability','stability/limited','stability/expiry','stability/revoke']
+   .map(route=>['/fixture/'+route,'fixture'])]).get(pathname)??'other';
 }
 
 export function startRuntimeDiagnostics(path,{interval=1000,budget=262144}={}) {
@@ -39,11 +43,13 @@ export function startRuntimeDiagnostics(path,{interval=1000,budget=262144}={}) {
   const value=incoming.get(request);if(value)write({event:'http_in_finish',...value,status:response.statusCode});
  });
  on('undici:request:create',({request})=>{
-  const id=++requestSequence;outgoing.set(request,id);write({event:'worker_http_start',id});
+  const value={id:++requestSequence,route:routeLabel(request.path)};outgoing.set(request,value);
+  write({event:'worker_http_start',...value});
  });
- on('undici:request:bodySent',({request})=>{const id=outgoing.get(request);if(id)write({event:'worker_http_sent',id});});
- on('undici:request:headers',({request,response})=>{const id=outgoing.get(request);if(id)write({event:'worker_http_headers',id,status:response.statusCode});});
- on('undici:request:error',({request})=>{const id=outgoing.get(request);if(id)write({event:'worker_http_error',id});});
+ on('undici:request:bodySent',({request})=>{const value=outgoing.get(request);if(value)write({event:'worker_http_sent',...value});});
+ on('undici:request:headers',({request,response})=>{const value=outgoing.get(request);if(value)write({event:'worker_http_headers',...value,status:response.statusCode});});
+ on('undici:request:trailers',({request})=>{const value=outgoing.get(request);if(value)write({event:'worker_http_finish',...value});});
+ on('undici:request:error',({request})=>{const value=outgoing.get(request);if(value)write({event:'worker_http_error',...value});});
  const timer=setInterval(()=>{
   const now=performance.now();write({event:'heartbeat',lagMs:Math.max(0,Math.round(now-lastTick-interval)),...cpu()});lastTick=now;
  },interval);timer.unref();
@@ -56,7 +62,8 @@ export function startRuntimeDiagnostics(path,{interval=1000,budget=262144}={}) {
  };
 }
 
-if(process.env.M2_RUNTIME_DIAGNOSTICS_FILE){
- const stop=startRuntimeDiagnostics(process.env.M2_RUNTIME_DIAGNOSTICS_FILE);
+const diagnosticsPath=process.env.M3_RUNTIME_DIAGNOSTICS_FILE||process.env.M2_RUNTIME_DIAGNOSTICS_FILE;
+if(diagnosticsPath){
+ const stop=startRuntimeDiagnostics(diagnosticsPath);
  process.once('exit',stop);
 }

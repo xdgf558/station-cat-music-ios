@@ -5,6 +5,10 @@ import re
 import signal
 import subprocess
 import time
+import errno
+import select
+import sys
+from pathlib import Path
 from contextlib import nullcontext
 
 
@@ -95,15 +99,90 @@ def reset_boundary_evidence(output):
         elif path.exists(): raise RuntimeError('Boundary artifact path is not a file')
 
 
-def host_exited(pid):
-    # Simulator processes share the host PID namespace; include zombies as exited.
-    try:
-        result = subprocess.run(['ps', '-p', str(pid), '-o', 'stat='], capture_output=True, text=True, timeout=2)
-    except subprocess.TimeoutExpired:
-        raise ProbeRunnerError('host_exit_check_timeout', 'Simulator host exit check timed out') from None
-    if result.returncode not in (0, 1) or (result.returncode == 0 and not result.stdout.strip()):
-        raise ProbeRunnerError('host_exit_check_failed', 'Simulator host exit check failed')
-    return result.returncode == 1 or (result.returncode == 0 and result.stdout.strip().startswith('Z'))
+class ProcessExitWatcher:
+    """Observe one PID without spawning a process on every polling iteration.
+
+    macOS uses a persistent, nonblocking EVFILT_PROC/NOTE_EXIT subscription.
+    Linux contract tests read the kernel's bounded /proc stat record. There is no
+    permission-error fallback; unknown results fail closed. The caller retains
+    the scenario deadline and its unchanged five-second post-marker exit budget.
+    """
+    def __init__(self, pid, *, system=None, kernel=None, proc_root=Path('/proc')):
+        if type(pid) is not int or pid <= 1:
+            raise ProbeRunnerError('invalid_host_pid', 'Invalid simulator host PID')
+        self.pid=pid;self.system=system or sys.platform;self.kernel=kernel or select
+        self.proc_root=proc_root;self.queue=None;self.registered=False
+        self.confirmation=None;self.closed=False
+
+    def exited(self):
+        if self.closed:raise ProbeRunnerError('host_exit_check_failed', 'Exit watcher is closed')
+        if self.confirmation is not None:return True
+        if self.system=='darwin':return self._darwin_exited()
+        if self.system.startswith('linux'):return self._linux_exited()
+        raise ProbeRunnerError('host_exit_check_failed', 'Unsupported host exit observer')
+
+    def _darwin_exited(self):
+        registering=not self.registered
+        try:
+            if self.queue is None:self.queue=self.kernel.kqueue()
+            changes=([self.kernel.kevent(self.pid,filter=self.kernel.KQ_FILTER_PROC,
+                      flags=self.kernel.KQ_EV_ADD|self.kernel.KQ_EV_ONESHOT,
+                      fflags=self.kernel.KQ_NOTE_EXIT)] if registering else None)
+            events=self.queue.control(changes,1,0)
+            self.registered=True
+        except OSError as error:
+            # ESRCH is an authoritative missing PID only while attaching its
+            # process filter; no other error can substitute for NOTE_EXIT.
+            if registering and self.queue is not None and error.errno==errno.ESRCH:
+                self.confirmation='kqueue-esrch';return True
+            raise ProbeRunnerError('host_exit_check_failed', 'Kernel exit observation failed') from None
+        if not events:return False
+        if len(events)!=1:raise ProbeRunnerError('host_exit_check_failed', 'Unexpected kernel exit events')
+        event=events[0]
+        if event.ident!=self.pid or event.filter!=self.kernel.KQ_FILTER_PROC:
+            raise ProbeRunnerError('host_exit_check_failed', 'Kernel exit event identity differs')
+        if event.flags & self.kernel.KQ_EV_ERROR:
+            if registering and event.data==errno.ESRCH:
+                self.confirmation='kqueue-esrch';return True
+            raise ProbeRunnerError('host_exit_check_failed', 'Kernel rejected exit observation')
+        if not event.fflags & self.kernel.KQ_NOTE_EXIT:
+            raise ProbeRunnerError('host_exit_check_failed', 'Kernel event does not confirm exit')
+        self.confirmation='kqueue-note-exit';return True
+
+    def _linux_exited(self):
+        if not self.proc_root.is_dir():
+            raise ProbeRunnerError('host_exit_check_failed', 'Kernel process directory unavailable')
+        try:
+            with (self.proc_root/str(self.pid)/'stat').open('rb') as source:data=source.read(4097)
+        except FileNotFoundError:
+            if (self.proc_root/str(self.pid)).exists():
+                raise ProbeRunnerError('host_exit_check_failed', 'Kernel process state unavailable') from None
+            self.confirmation='proc-missing';return True
+        except OSError:
+            raise ProbeRunnerError('host_exit_check_failed', 'Kernel process state unavailable') from None
+        prefix=(str(self.pid)+' (').encode()
+        _,separator,fields=data.rpartition(b') ')
+        parts=fields.split()
+        if len(data)>4096 or not data.startswith(prefix) or not separator or not parts or parts[0] not in (b'R',b'S',b'D',b'Z',b'T',b't',b'X',b'x',b'K',b'W',b'P',b'I'):
+            raise ProbeRunnerError('host_exit_check_failed', 'Kernel process state is invalid')
+        if parts[0] in (b'Z',b'X',b'x'):
+            self.confirmation='proc-exited';return True
+        return False
+
+    def close(self):
+        if not self.closed:
+            self.closed=True
+            if self.queue is not None:self.queue.close()
+
+    def __enter__(self):return self
+    def __exit__(self,*_):self.close()
+
+
+def host_exited(pid, watcher=None):
+    if watcher is not None:
+        if watcher.pid!=pid:raise ProbeRunnerError('host_exit_check_failed', 'Exit watcher PID differs')
+        return watcher.exited()
+    with ProcessExitWatcher(pid) as observer:return observer.exited()
 
 
 def stop_group(process):
@@ -128,7 +207,7 @@ def stop_group(process):
 def run_crash(args, logfile, stage, timeout=300, env=None):
     marker = re.compile(r'M2_BOUNDARY_REACHED:' + re.escape(stage) + r':durable-state-verified:pid=(\d+)')
     started = time.monotonic()
-    observed = None
+    observed = None;watcher=None
     with logfile.open('w') as log:
         process = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env=env)
         try:
@@ -140,7 +219,8 @@ def run_crash(args, logfile, stage, timeout=300, env=None):
                     pid = int(match.group(1))
                     if pid <= 1 or pid in (os.getpid(), process.pid):
                         raise RuntimeError('Invalid simulator host PID')
-                    if host_exited(pid):
+                    if watcher is None:watcher=ProcessExitWatcher(pid)
+                    if host_exited(pid,watcher):
                         stop_group(process)
                         return {'hostExitConfirmed': True, 'crashedHostPID': pid, 'orchestratorStoppedAfterMarkerSeconds': round(time.monotonic() - observed, 3)}
                     if time.monotonic() - observed > 5:
@@ -150,7 +230,9 @@ def run_crash(args, logfile, stage, timeout=300, env=None):
                 time.sleep(.05)
             raise RuntimeError('Crash boundary timed out')
         finally:
-            stop_group(process)
+            try:stop_group(process)
+            finally:
+                if watcher is not None:watcher.close()
 
 
 def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None,
@@ -165,7 +247,7 @@ def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None
     if stage not in ('A11', 'A12', 'A13') or mode not in ('CRASH', 'RECOVER'):
         raise ValueError('Invalid probe stage or mode')
     started=time.monotonic(); boundary_observed=None; exit_wait_started=None
-    pid=None; startup_observed=False; failure=None; process=None
+    pid=None; startup_observed=False; failure=None; process=None;watcher=None
     def record(event, **fields):
         if timeline is not None: timeline.record(event, **fields)
     def fail(category, message): raise ProbeRunnerError(category, message)
@@ -186,7 +268,7 @@ def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None
                     candidate=int(launched.group(1))
                     if candidate<=1 or candidate in (os.getpid(),process.pid): fail('invalid_host_pid', 'Invalid simulator host PID')
                     if pid is None:
-                        pid=candidate; record('pid_observed', pid=pid)
+                        pid=candidate;watcher=ProcessExitWatcher(pid);record('pid_observed', pid=pid)
                     elif pid != candidate: fail('evidence_pid_mismatch', 'Probe launch PID changed')
                 code=process.poll()
                 if code is not None and code!=0: fail('launch_failed', 'Probe launch command failed')
@@ -203,19 +285,20 @@ def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None
                     if boundary_observed is None:
                         boundary_observed=time.monotonic(); record('boundary_observed', pid=pid)
                     if mode=='RECOVER' and finished not in content:
-                        if host_exited(pid):
+                        if host_exited(pid,watcher):
                             if read_result()!=content: continue
                             fail('cleanup_missing', 'Recovery exited before final cleanup evidence')
                     else:
                         # RECOVER may still be cleaning Keychain after its boundary.
                         # Its five-second exit budget starts only after FINISHED.
                         if exit_wait_started is None: exit_wait_started=time.monotonic()
-                        if host_exited(pid):
+                        if host_exited(pid,watcher):
                             record('host_exit_confirmed', pid=pid)
                             return {'hostExitConfirmed':True,'hostPID':pid,'evidenceTransport':'unique simulator-container file',
-                                    'hostExitAfterMarkerSeconds':round(time.monotonic()-exit_wait_started,3)}
+                                    'hostExitAfterMarkerSeconds':round(time.monotonic()-exit_wait_started,3),
+                                    'hostExitObservation':watcher.confirmation}
                         if time.monotonic()-exit_wait_started > 5: fail('host_did_not_exit', 'Marked simulator host did not exit')
-                elif pid is not None and host_exited(pid):
+                elif pid is not None and host_exited(pid,watcher):
                     # The app can publish its final record between our read and ps.
                     if read_result()!=content: continue
                     fail('boundary_missing', 'Probe host exited without expected durable boundary')
@@ -242,6 +325,10 @@ def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None
                     try: record('launcher_stop_done')
                     except Exception as error:
                         if cleanup_failure is None: cleanup_failure=error
+                if watcher is not None:
+                    try:watcher.close()
+                    except Exception as error:
+                        if cleanup_failure is None:cleanup_failure=error
                 if cleanup_failure is not None:
                     try: record('failed', category=failure_category(cleanup_failure))
                     except Exception: pass

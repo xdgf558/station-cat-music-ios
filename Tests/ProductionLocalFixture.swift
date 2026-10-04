@@ -35,7 +35,14 @@ enum ProductionLocalFixture {
         if let error = error as? URLError { return "url_error_\(error.code.rawValue)" }
         if let error = error as? NativeFailure { return "native_http_\(error.status)" }
         if error is DecodingError { return "decoding" }
-        if error is Failure { return "fixture_assertion" }
+        if let error = error as? Failure {
+            switch error {
+            case .input: return "fixture_input"
+            case .boundary: return "fixture_boundary"
+            case .response: return "fixture_response"
+            case .assertion: return "fixture_assertion"
+            }
+        }
         if let error = error as? APIError {
             switch error {
             case .rejected(let status): return "api_http_\(status)"
@@ -73,6 +80,7 @@ actor ProductionLocalBridge {
     }
     private func local(_ path: String, body: Data? = nil) async throws -> Data {
         guard ["/request", "/fixture/bootstrap", "/fixture/evidence"].contains(path) else { throw ProductionLocalFixture.Failure.boundary }
+        let endpoint = path == "/request" ? "request" : path == "/fixture/bootstrap" ? "bootstrap" : "evidence"
         let url = URL(string: "http://127.0.0.1:\(port)" + path)!
         var request = URLRequest(url: url); request.httpMethod = body == nil ? "GET" : "POST"
         request.httpBody = body
@@ -80,13 +88,21 @@ actor ProductionLocalBridge {
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         let (bytes, response) = try await session.bytes(for: request)
         defer { bytes.task.cancel() }
-        guard let response = response as? HTTPURLResponse, response.url == url, response.statusCode == 200 else {
+        guard let response = response as? HTTPURLResponse else {
+            print("PRODUCTION_LOCAL_RESPONSE_REJECTED: endpoint=\(endpoint) httpResponse=false status=0 requestURLMatched=false")
+            throw ProductionLocalFixture.Failure.response
+        }
+        guard response.url == url, response.statusCode == 200 else {
+            print("PRODUCTION_LOCAL_RESPONSE_REJECTED: endpoint=\(endpoint) httpResponse=true status=\(response.statusCode) requestURLMatched=\(response.url == url)")
             throw ProductionLocalFixture.Failure.response
         }
         var result = Data()
         for try await byte in bytes {
             try Task.checkCancellation()
-            guard result.count < 1_048_576 else { throw ProductionLocalFixture.Failure.response }
+            guard result.count < 1_048_576 else {
+                print("PRODUCTION_LOCAL_RESPONSE_REJECTED: endpoint=\(endpoint) status=\(response.statusCode) responseWithinLimit=false")
+                throw ProductionLocalFixture.Failure.response
+            }
             result.append(byte)
         }
         return result
@@ -113,8 +129,14 @@ actor ProductionLocalBridge {
         dispatched += 1
         let response = try JSONDecoder().decode(ProductionLocalFixture.WireResponse.self,
             from: await local("/request", body: JSONSerialization.data(withJSONObject: body)))
-        guard (100...599).contains(response.status), let data = Data(base64Encoded: response.bodyBase64), data.count <= 655_360,
-              response.headers.keys.allSatisfy({ $0 == $0.lowercased() }) else { throw ProductionLocalFixture.Failure.response }
+        let data = Data(base64Encoded: response.bodyBase64)
+        let statusValid = (100...599).contains(response.status)
+        let bodyValid = data.map { $0.count <= 655_360 } ?? false
+        let headerNamesValid = response.headers.keys.allSatisfy({ $0 == $0.lowercased() })
+        guard statusValid, bodyValid, headerNamesValid, let data else {
+            print("PRODUCTION_LOCAL_ENVELOPE_REJECTED: status=\(response.status) statusValid=\(statusValid) bodyValid=\(bodyValid) headerNamesValid=\(headerNamesValid)")
+            throw ProductionLocalFixture.Failure.response
+        }
         return MediaHTTPResult(status: response.status, data: data, headers: response.headers)
     }
 }

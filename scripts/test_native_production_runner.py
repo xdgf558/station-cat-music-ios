@@ -4,6 +4,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import plistlib
 from pathlib import Path
 import subprocess
 import tempfile
@@ -114,11 +115,55 @@ class ProductionRunnerTests(unittest.TestCase):
     def test_failed_rerun_clears_previous_passed_report_and_logs(self):
         output = self.backend / 'evidence'; output.mkdir()
         names = ('production-local-summary.json', 'production-local-build.log',
-                 'production-local-integration.log', 'production-local-service.log')
+                 'production-local-integration.log', 'production-local-service.log', 'production-local-runtime.jsonl')
         for name in names: (output / name).write_text('previous successful run')
         with patch.object(runner, 'ROOT', self.backend), patch.dict(runner.os.environ, {}, clear=True), patch('builtins.print'):
             with self.assertRaises(runner.VerificationError): runner.main()
         self.assertTrue(all(not (output / name).exists() for name in names))
+
+    def test_failed_xctest_retains_runtime_and_original_log_with_matching_run_id(self):
+        contracts = self.backend / 'contracts'; contracts.mkdir()
+        (contracts / 'backend-production-fixture.json').write_text(json.dumps(self.manifest))
+        products = self.backend / '.build/production-e2e/Build/Products'; products.mkdir(parents=True)
+        source = {'TestConfigurations': [{'TestTargets': [{'BlueprintName': 'StationCatMusicTests'}]}]}
+        (products / 'StationCatMusic_fixture.xctestrun').write_bytes(plistlib.dumps(source))
+        simulator = 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE'
+        inventory = {'devices': {'com.apple.CoreSimulator.SimRuntime.iOS-26-4': [
+            {'udid': simulator, 'isAvailable': True, 'name': 'iPhone synthetic'}]}}
+        launches = []
+        class Server:
+            def terminate(self): pass
+            def wait(self, timeout): return 0
+        def launch(arguments, **options):
+            launches.append(arguments)
+            self.assertIn('--import', arguments)
+            directory = Path(arguments[-1]); ready = directory / 'ready.json'
+            ready.write_text(json.dumps({'schemaVersion': 1, 'port': 49152, 'key': 'K' * 43})); ready.chmod(0o600)
+            env = options['env']
+            Path(env['PRODUCTION_RUNTIME_DIAGNOSTICS_FILE']).write_text(json.dumps({
+                'event': 'observer_started', 'runId': env['PRODUCTION_RUNTIME_DIAGNOSTICS_RUN_ID']}) + '\n')
+            return Server()
+        def execute(arguments, **options):
+            failed = 'test-without-building' in arguments
+            if failed:
+                options['stdout'].write('PRODUCTION_NATIVE_LOCAL_FAILED stage=capability_request category=fixture_response\n')
+            return subprocess.CompletedProcess(arguments, 65 if failed else 0)
+        with patch.object(runner, 'ROOT', self.backend), patch.object(runner, 'verify_backend', return_value=self.manifest['commit']), \
+             patch.dict(runner.os.environ, {'PRODUCTION_BACKEND_PATH': str(self.backend), 'M1_SIMULATOR_ID': simulator}, clear=True), \
+             patch.object(runner.subprocess, 'check_output', return_value=json.dumps(inventory)), \
+             patch.object(runner.subprocess, 'run', side_effect=execute), patch.object(runner.subprocess, 'Popen', side_effect=launch), \
+             patch('builtins.print'):
+            with self.assertRaisesRegex(runner.VerificationError, 'production-local-integration.log'):
+                runner.main()
+        self.assertEqual(len(launches), 1)
+        output = self.backend / 'evidence'; runtime = output / 'production-local-runtime.jsonl'
+        diagnostic = json.loads(runtime.read_text())
+        log = (output / 'production-local-integration.log').read_text()
+        self.assertIn(diagnostic['runId'], log)
+        self.assertIn('stage=capability_request category=fixture_response', log)
+        self.assertEqual(runtime.stat().st_mode & 0o777, 0o600)
+        self.assertFalse((output / 'production-local-summary.json').exists())
+        self.assertFalse(list(products.glob('production-local-*.xctestrun')))
 
 
 if __name__ == '__main__': unittest.main()

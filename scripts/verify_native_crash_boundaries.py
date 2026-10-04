@@ -108,7 +108,9 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
                 crash_evidence={'hostExitConfirmed':True,'crashedHostPID':crash['hostPID'],
                                 'recoveredHostPID':recovery['hostPID'],
                                 'evidenceTransport':crash['evidenceTransport'],
-                                'hostExitAfterMarkerSeconds':crash['hostExitAfterMarkerSeconds']}
+                                'hostExitAfterMarkerSeconds':crash['hostExitAfterMarkerSeconds'],
+                                'hostExitObservations':{'crash':crash['hostExitObservation'],
+                                                        'recovery':recovery['hostExitObservation']}}
             print(stage+': two distinct host exits confirmed; deferred evidence archived',flush=True)
             evidence,read_stats=read_probe_evidence(connection,stage)
             (output/('M2-boundary-'+stage+'-server-evidence.json')).write_text(json.dumps(evidence,indent=2)+'\n')

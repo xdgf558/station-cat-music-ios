@@ -7,8 +7,10 @@ import unittest
 import json
 import subprocess
 import os
+import errno
+from types import SimpleNamespace
 from pathlib import Path
-from crash_probe_runner import (ProbeTimeline,ProbeRunnerError,host_exited,reset_boundary_evidence,run_crash,
+from crash_probe_runner import (ProcessExitWatcher,ProbeTimeline,ProbeRunnerError,host_exited,reset_boundary_evidence,run_crash,
                                 run_file_probe,run_file_probe_pair,stop_group,wait_ready)
 from unittest.mock import Mock,patch
 
@@ -121,7 +123,7 @@ class FileProbeRunnerTests(unittest.TestCase):
             def launch(*args,**kwargs):
                 log.write_text('org.stationcat.music.recoveryprobe: 333\n')
                 result.write_text(ready);return process
-            def exited(pid):
+            def exited(pid,watcher=None):
                 result.write_text(ready+'\n'+boundary);return True
             with patch('crash_probe_runner.subprocess.Popen',side_effect=launch), patch('crash_probe_runner.host_exited',side_effect=exited):
                 self.assertTrue(run_file_probe([],log,result,'A11','CRASH')['hostExitConfirmed'])
@@ -305,18 +307,143 @@ class BoundaryEvidenceResetTests(unittest.TestCase):
                 self.assertFalse(stale.exists());self.assertEqual(keep.read_text(),'unrelated')
 
 class HostExitTests(unittest.TestCase):
-    def test_ps_timeout_is_bounded_and_never_counts_as_exit(self):
-        with patch('crash_probe_runner.subprocess.run',side_effect=subprocess.TimeoutExpired('ps',2)) as run:
-            with self.assertRaisesRegex(ProbeRunnerError,'exit check timed out'):host_exited(333)
-            self.assertEqual(run.call_args.kwargs['timeout'],2)
-    def test_ps_error_and_empty_success_fail_closed(self):
-        for code,output in [(2,''),(0,'')]:
-            with patch('crash_probe_runner.subprocess.run',return_value=Mock(returncode=code,stdout=output)):
-                with self.assertRaisesRegex(ProbeRunnerError,'exit check failed'):host_exited(333)
-    def test_absent_and_zombie_are_exited_but_live_is_not(self):
-        for code,output,expected in [(1,'',True),(0,'Z',True),(0,'S<',False)]:
-            with patch('crash_probe_runner.subprocess.run',return_value=Mock(returncode=code,stdout=output)):
-                self.assertEqual(host_exited(333),expected)
+    # Explicit injected kernel API keeps the error contracts executable on Linux.
+    def kernel(self,results):
+        queue=Mock();queue.control.side_effect=results
+        kernel=SimpleNamespace(KQ_FILTER_PROC=-5,KQ_EV_ADD=1,KQ_EV_ONESHOT=16,
+                               KQ_NOTE_EXIT=0x80000000,KQ_EV_ERROR=0x4000,
+                               kqueue=Mock(return_value=queue),
+                               kevent=lambda ident,**fields:SimpleNamespace(ident=ident,**fields))
+        return kernel,queue
+    def event(self,**overrides):
+        fields={'ident':333,'filter':-5,'flags':0,'fflags':0x80000000,'data':0}
+        fields.update(overrides);return SimpleNamespace(**fields)
+    def test_persistent_kqueue_observes_exit_without_process_spawns(self):
+        kernel,queue=self.kernel([[],[],[self.event()]])
+        with patch('crash_probe_runner.subprocess.run',side_effect=AssertionError('ps must not run')):
+            with ProcessExitWatcher(333,system='darwin',kernel=kernel) as watcher:
+                self.assertFalse(host_exited(333,watcher));self.assertFalse(host_exited(333,watcher))
+                self.assertTrue(host_exited(333,watcher));self.assertTrue(host_exited(333,watcher))
+                self.assertEqual(watcher.confirmation,'kqueue-note-exit')
+        kernel.kqueue.assert_called_once();queue.close.assert_called_once()
+        self.assertEqual(len(queue.control.call_args_list),3)
+        registration=queue.control.call_args_list[0].args
+        self.assertEqual(registration[0][0].ident,333)
+        self.assertEqual(registration[0][0].fflags,0x80000000)
+        self.assertEqual(registration[0][0].flags,17)
+        self.assertEqual(registration[1:],(1,0))
+        self.assertEqual(queue.control.call_args_list[1].args,(None,1,0))
+
+    def test_missing_pid_on_registration_is_confirmed(self):
+        for result in ([self.event(flags=0x4000,data=errno.ESRCH)],OSError(errno.ESRCH,'gone')):
+            kernel,queue=self.kernel([result])
+            with ProcessExitWatcher(333,system='darwin',kernel=kernel) as watcher:
+                self.assertTrue(watcher.exited());self.assertEqual(watcher.confirmation,'kqueue-esrch')
+            queue.close.assert_called_once()
+
+    def test_permission_unknown_identity_and_nonexit_events_fail_closed(self):
+        results=[OSError(errno.EACCES,'denied'),OSError(errno.EPERM,'denied'),
+                 OSError(errno.EIO,'unknown'),[self.event(flags=0x4000,data=errno.EPERM)],
+                 [self.event(flags=0x4000,data=0)],[self.event(ident=334)],
+                 [self.event(filter=-1)],[self.event(fflags=0)],
+                 [self.event(),self.event()]]
+        for result in results:
+            with self.subTest(result=result):
+                kernel,queue=self.kernel([result])
+                with ProcessExitWatcher(333,system='darwin',kernel=kernel) as watcher:
+                    with self.assertRaises(ProbeRunnerError):watcher.exited()
+                    self.assertIsNone(watcher.confirmation)
+                queue.close.assert_called_once()
+
+    def test_esrch_during_queue_creation_or_after_registration_is_not_exit(self):
+        kernel,queue=self.kernel([]);kernel.kqueue.side_effect=OSError(errno.ESRCH,'not a PID lookup')
+        with ProcessExitWatcher(333,system='darwin',kernel=kernel) as watcher:
+            with self.assertRaises(ProbeRunnerError):watcher.exited()
+        for result in (OSError(errno.ESRCH,'unexpected'),[self.event(flags=0x4000,data=errno.ESRCH)]):
+            kernel,queue=self.kernel([[],result])
+            with ProcessExitWatcher(333,system='darwin',kernel=kernel) as watcher:
+                self.assertFalse(watcher.exited())
+                with self.assertRaises(ProbeRunnerError):watcher.exited()
+
+    def test_watcher_identity_mismatch_fails_without_kernel_query(self):
+        kernel,queue=self.kernel([])
+        with ProcessExitWatcher(333,system='darwin',kernel=kernel) as watcher:
+            with self.assertRaisesRegex(ProbeRunnerError,'PID differs'):host_exited(334,watcher)
+        kernel.kqueue.assert_not_called()
+
+    def test_live_events_remain_false_and_unknown_platform_is_rejected(self):
+        kernel,queue=self.kernel([[],[],[]])
+        with ProcessExitWatcher(333,system='darwin',kernel=kernel) as watcher:
+            self.assertFalse(watcher.exited());self.assertFalse(watcher.exited());self.assertFalse(watcher.exited())
+        with ProcessExitWatcher(333,system='unsupported') as watcher:
+            with self.assertRaisesRegex(ProbeRunnerError,'Unsupported'):watcher.exited()
+
+    def test_linux_kernel_stat_live_zombie_and_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'333').mkdir();stat=root/'333'/'stat'
+            for state,expected in [('S',False),('R',False),('Z',True),('X',True)]:
+                stat.write_text('333 (name with ) and spaces) '+state+' 1 2 3\n')
+                with ProcessExitWatcher(333,system='linux',proc_root=root) as watcher:
+                    self.assertEqual(watcher.exited(),expected)
+            stat.unlink();(root/'333').rmdir()
+            with ProcessExitWatcher(333,system='linux',proc_root=root) as watcher:self.assertTrue(watcher.exited())
+
+    def test_linux_invalid_or_unavailable_kernel_state_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'333').mkdir();stat=root/'333'/'stat'
+            for content in ('333 (name) ?','334 (name) S','invalid','x'*4097):
+                stat.write_text(content)
+                with ProcessExitWatcher(333,system='linux',proc_root=root) as watcher:
+                    with self.assertRaises(ProbeRunnerError):watcher.exited()
+            stat.unlink()
+            with ProcessExitWatcher(333,system='linux',proc_root=root) as watcher:
+                with self.assertRaises(ProbeRunnerError):watcher.exited()
+            with ProcessExitWatcher(333,system='linux',proc_root=root/'absent') as watcher:
+                with self.assertRaises(ProbeRunnerError):watcher.exited()
+            with ProcessExitWatcher(333,system='linux',proc_root=root) as watcher, patch('pathlib.Path.open',side_effect=PermissionError):
+                with self.assertRaises(ProbeRunnerError):watcher.exited()
+
+    def test_real_kernel_observes_live_child_then_exit(self):
+        child=subprocess.Popen([sys.executable,'-c','import sys;sys.stdin.read(1)'],stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        try:
+            with ProcessExitWatcher(child.pid) as watcher:
+                self.assertFalse(watcher.exited())
+                child.stdin.write(b'x');child.stdin.flush()
+                deadline=time.monotonic()+3
+                while not watcher.exited() and time.monotonic()<deadline:time.sleep(.01)
+                self.assertTrue(watcher.exited())
+                if sys.platform=='darwin':self.assertEqual(watcher.confirmation,'kqueue-note-exit')
+        finally:
+            child.stdin.close()
+            if child.poll() is None:child.kill()
+            child.wait()
+
+    def test_real_kernel_recognizes_unreaped_exit_and_already_reaped_pid(self):
+        child=subprocess.Popen([sys.executable,'-c','import os;os._exit(73)'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        try:
+            # Do not call wait/poll before observation: keep its zombie available.
+            time.sleep(.2)
+            with ProcessExitWatcher(child.pid) as watcher:
+                deadline=time.monotonic()+3
+                while not watcher.exited() and time.monotonic()<deadline:time.sleep(.01)
+                self.assertTrue(watcher.exited())
+            child.wait()
+            with ProcessExitWatcher(child.pid) as watcher:self.assertTrue(watcher.exited())
+        finally:
+            if child.poll() is None:child.kill()
+            child.wait()
+
+    def test_real_kernel_can_observe_same_user_nonchild(self):
+        source="import subprocess,sys; p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(.3)']);print(p.pid,flush=True);p.wait()"
+        launcher=subprocess.Popen([sys.executable,'-u','-c',source],stdout=subprocess.PIPE,text=True)
+        try:
+            pid=int(launcher.stdout.readline())
+            with ProcessExitWatcher(pid) as watcher:
+                deadline=time.monotonic()+3
+                while not watcher.exited() and time.monotonic()<deadline:time.sleep(.01)
+                self.assertTrue(watcher.exited())
+        finally:
+            launcher.wait(timeout=3);launcher.stdout.close()
 
 class ProbePairTests(unittest.TestCase):
     def plans(self):

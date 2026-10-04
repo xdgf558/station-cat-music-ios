@@ -8,6 +8,7 @@ import os
 from pathlib import Path, PurePosixPath
 import plistlib
 import re
+import shutil
 import subprocess
 import tempfile
 import time
@@ -133,7 +134,7 @@ def main():
     # Do this before even validating inputs/pins or invoking the toolchain.
     output = ROOT / 'evidence'; output.mkdir(exist_ok=True)
     for name in ('production-local-summary.json', 'production-local-build.log',
-                 'production-local-integration.log', 'production-local-service.log'):
+                 'production-local-integration.log', 'production-local-service.log', 'production-local-runtime.jsonl'):
         (output / name).unlink(missing_ok=True)
     run_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
@@ -159,8 +160,13 @@ def main():
         directory = str(Path(directory).resolve())  # The fixture rejects symlinked /var and /tmp aliases.
         with (output / 'production-local-service.log').open('w') as log:
             log.write('Local production run ' + run_id + '; started ' + started_at + '\n'); log.flush()
-            server = subprocess.Popen(['node', 'scripts/helpers/mobile-production-service.mjs', directory], cwd=backend,
-                                      stdout=log, stderr=subprocess.STDOUT)
+            runtime_file = Path(directory) / 'runtime-diagnostics.jsonl'
+            fixture_env = os.environ.copy()
+            fixture_env.update({'PRODUCTION_RUNTIME_DIAGNOSTICS_FILE': str(runtime_file),
+                                'PRODUCTION_RUNTIME_DIAGNOSTICS_RUN_ID': run_id})
+            server = subprocess.Popen(['node', '--import', str(ROOT / 'scripts/probe_runtime_diagnostics.mjs'),
+                                       'scripts/helpers/mobile-production-service.mjs', directory], cwd=backend,
+                                      stdout=log, stderr=subprocess.STDOUT, env=fixture_env)
             test_file = None
             try:
                 ready = Path(directory) / 'ready.json'; deadline = time.monotonic() + 90
@@ -206,6 +212,10 @@ def main():
                     server.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     server.kill(); server.wait()
+                if runtime_file.exists():
+                    runtime_destination = output / 'production-local-runtime.jsonl'
+                    shutil.copyfile(runtime_file, runtime_destination)
+                    runtime_destination.chmod(0o600)
                 if test_file:
                     test_file.unlink(missing_ok=True)
 

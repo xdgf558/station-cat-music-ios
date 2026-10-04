@@ -64,4 +64,5 @@ jobs:
             evidence/production-local-build.log
             evidence/production-local-integration.log
             evidence/production-local-service.log
+            evidence/production-local-runtime.jsonl
             evidence/production-local-summary.json

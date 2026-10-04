@@ -9,19 +9,21 @@ export function routeLabel(path) {
  if(typeof path!=='string')return 'other';
  const pathname=path.split('?')[0];
  return new Map([['/fixture/prepare','prepare'],['/fixture/seed','seed'],
+  ['/request','request'],['/fixture/bootstrap','bootstrap'],['/api/mobile/v1/config','config'],
   ['/fixture/evidence','evidence'],['/api/mobile/v1/auth/refresh','refresh'],
   ['/api/mobile/v1/music/catalog','catalog'],['/api/mobile/v1/music/featured','featured'],
   ['/fixture/featured','fixture_featured'],['/fixture/featured-clear','fixture_featured_clear'],
-  ...['bootstrap','revoke','rotation','rotation-evidence','stability','stability/limited','stability/expiry','stability/revoke']
+  ...['revoke','rotation','rotation-evidence','stability','stability/limited','stability/expiry','stability/revoke']
    .map(route=>['/fixture/'+route,'fixture'])]).get(pathname)??'other';
 }
 
-export function startRuntimeDiagnostics(path,{interval=1000,budget=262144}={}) {
+export function startRuntimeDiagnostics(path,{interval=1000,budget=262144,runId}={}) {
+ if(runId!==undefined&&(typeof runId!=='string'||!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(runId)))throw new Error('INVALID_DIAGNOSTIC_RUN_ID');
  const fd=fs.openSync(path,'wx',0o600),started=performance.now();
  let bytes=0,sequence=0,closed=false,lastTick=performance.now(),requestSequence=0;
  const write=entry=>{
   if(closed)return;
-  const line=JSON.stringify({sequence:++sequence,at:Date.now(),elapsedMs:Math.round(performance.now()-started),...entry})+'\n';
+  const line=JSON.stringify({sequence:++sequence,at:Date.now(),elapsedMs:Math.round(performance.now()-started),...(runId?{runId}:{}),...entry})+'\n';
   if(bytes+Buffer.byteLength(line)>budget)return;
   fs.writeSync(fd,line);bytes+=Buffer.byteLength(line);
  };
@@ -62,8 +64,9 @@ export function startRuntimeDiagnostics(path,{interval=1000,budget=262144}={}) {
  };
 }
 
-const diagnosticsPath=process.env.M3_RUNTIME_DIAGNOSTICS_FILE||process.env.M2_RUNTIME_DIAGNOSTICS_FILE;
+const productionPath=process.env.PRODUCTION_RUNTIME_DIAGNOSTICS_FILE;
+const diagnosticsPath=productionPath||process.env.M3_RUNTIME_DIAGNOSTICS_FILE||process.env.M2_RUNTIME_DIAGNOSTICS_FILE;
 if(diagnosticsPath){
- const stop=startRuntimeDiagnostics(diagnosticsPath);
+ const stop=startRuntimeDiagnostics(diagnosticsPath,productionPath?{runId:process.env.PRODUCTION_RUNTIME_DIAGNOSTICS_RUN_ID}:{});
  process.once('exit',stop);
 }

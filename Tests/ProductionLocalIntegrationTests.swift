@@ -16,6 +16,10 @@ import XCTest
         XCTAssertEqual(dispatched, 0)
         XCTAssertThrowsError(try ProductionLocalBridge(port: 80, key: String(repeating: "K", count: 43)))
         XCTAssertThrowsError(try ProductionLocalBridge(port: 49152, key: "invalid"))
+        XCTAssertEqual(ProductionLocalFixture.category(ProductionLocalFixture.Failure.input), "fixture_input")
+        XCTAssertEqual(ProductionLocalFixture.category(ProductionLocalFixture.Failure.boundary), "fixture_boundary")
+        XCTAssertEqual(ProductionLocalFixture.category(ProductionLocalFixture.Failure.response), "fixture_response")
+        XCTAssertEqual(ProductionLocalFixture.category(ProductionLocalFixture.Failure.assertion), "fixture_assertion")
     }
 
     func testProductionProfileWithRealLocalWorkerAuthenticationMusicAndLibrary() async throws {
@@ -40,13 +44,17 @@ import XCTest
                 try await service.signIn(locale: "en")
                 return service
             }
-            stage = "production_capabilities"
+            stage = "capability_request"
             let capabilityResponse = try await bridge.send(URLRequest(url: ProductionLocalFixture.origin.appending(path: "api/mobile/v1/config")))
+            stage = "capability_decode"
             struct Capabilities: Decodable, Sendable {
                 struct Flags: Decodable, Sendable { let nativeAuthentication: Bool; let musicCatalog: Bool; let musicPlayback: Bool; let personalSync: Bool; let accountDeletion: Bool }
                 let capabilities: Flags
             }
             let capabilities = try NativeJSON.decoder().decode(NativeResponse<Capabilities>.self, from: capabilityResponse.data).data.capabilities
+            stage = "capability_assert"
+            // Fixed scalar allowlist only: never print the response, headers, URLs or credentials.
+            print("PRODUCTION_CAPABILITIES_OBSERVED: status=\(capabilityResponse.status) nativeAuthentication=\(capabilities.nativeAuthentication) musicCatalog=\(capabilities.musicCatalog) musicPlayback=\(capabilities.musicPlayback) personalSync=\(capabilities.personalSync) accountDeletion=\(capabilities.accountDeletion) localAccountDeletionAllowed=\(config.accountDeletionAllowed)")
             try ProductionLocalFixture.require(capabilityResponse.status == 200 && capabilities.nativeAuthentication && capabilities.musicCatalog &&
                 capabilities.musicPlayback && capabilities.personalSync && !capabilities.accountDeletion && !config.accountDeletionAllowed)
             stage = "real_form_pkce_login"

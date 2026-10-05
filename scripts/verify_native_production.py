@@ -80,6 +80,19 @@ def validate_simulator(identifier, inventory):
     return matches[0]['name']
 
 
+def boot_simulator(identifier, inventory, run):
+    """Finish simulator cold boot before starting the resource-limited fixture."""
+    validate_simulator(identifier, inventory)
+    selected = next(row for runtime, rows in inventory['devices'].items() if 'iOS' in runtime
+                    for row in rows if row.get('udid') == identifier)
+    require(selected.get('state') in ('Shutdown', 'Booted'), 'Simulator boot state is not ready')
+    if selected['state'] == 'Shutdown':
+        run(['xcrun', 'simctl', 'boot', identifier], 'production-local-boot.log')
+    # Even an already booted device must finish its boot work before the server
+    # is initialized; a failed or timed-out boot never starts the fixture.
+    run(['xcrun', 'simctl', 'bootstatus', identifier, '-b'], 'production-local-bootstatus.log')
+
+
 def inject_connection(data, connection):
     targets = ([target for config in data['TestConfigurations'] for target in config['TestTargets']]
                if 'TestConfigurations' in data else [value for key, value in data.items() if key != '__xctestrun_metadata__'])
@@ -134,6 +147,7 @@ def main():
     # Do this before even validating inputs/pins or invoking the toolchain.
     output = ROOT / 'evidence'; output.mkdir(exist_ok=True)
     for name in ('production-local-summary.json', 'production-local-build.log',
+                 'production-local-boot.log', 'production-local-bootstatus.log',
                  'production-local-integration.log', 'production-local-service.log', 'production-local-runtime.jsonl'):
         (output / name).unlink(missing_ok=True)
     run_id = str(uuid.uuid4())
@@ -156,6 +170,9 @@ def main():
     destination = 'platform=iOS Simulator,id=' + sim
     run(['xcodebuild', '-project', 'StationCatMusic.xcodeproj', '-scheme', 'StationCatMusic', '-configuration', 'Mock',
          '-destination', destination, '-derivedDataPath', '.build/production-e2e', 'build-for-testing'], 'production-local-build.log')
+    # Re-read state after compilation: Xcode may already have booted this device.
+    boot_inventory = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '-j'], text=True))
+    boot_simulator(sim, boot_inventory, run)
     with tempfile.TemporaryDirectory(prefix='station-production-e2e-') as directory:
         directory = str(Path(directory).resolve())  # The fixture rejects symlinked /var and /tmp aliases.
         with (output / 'production-local-service.log').open('w') as log:

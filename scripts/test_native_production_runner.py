@@ -9,7 +9,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location('production_runner', Path(__file__).with_name('verify_native_production.py'))
 runner = importlib.util.module_from_spec(spec); spec.loader.exec_module(runner)
@@ -34,6 +34,17 @@ class ProductionRunnerTests(unittest.TestCase):
 
     def check(self, manifest=None):
         return runner.verify_backend(self.backend, manifest or self.manifest, self.matrix)
+
+    def prepare_driver_fixture(self, state='Shutdown'):
+        contracts = self.backend / 'contracts'; contracts.mkdir(exist_ok=True)
+        (contracts / 'backend-production-fixture.json').write_text(json.dumps(self.manifest))
+        products = self.backend / '.build/production-e2e/Build/Products'; products.mkdir(parents=True, exist_ok=True)
+        source = {'TestConfigurations': [{'TestTargets': [{'BlueprintName': 'StationCatMusicTests'}]}]}
+        (products / 'StationCatMusic_fixture.xctestrun').write_bytes(plistlib.dumps(source))
+        simulator = 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE'
+        inventory = {'devices': {'com.apple.CoreSimulator.SimRuntime.iOS-26-4': [
+            {'udid': simulator, 'isAvailable': True, 'name': 'iPhone synthetic', 'state': state}]}}
+        return simulator, inventory, products
 
     def test_reviewed_clean_source_passes(self):
         self.assertEqual(self.check(), self.manifest['commit'])
@@ -80,6 +91,19 @@ class ProductionRunnerTests(unittest.TestCase):
         rows['devices']['com.apple.CoreSimulator.SimRuntime.iOS-26-4'][0]['isAvailable'] = False
         with self.assertRaises(runner.VerificationError): runner.validate_simulator(identifier, rows)
 
+    def test_already_booted_simulator_still_waits_for_bootstatus(self):
+        simulator, inventory, _ = self.prepare_driver_fixture('Booted')
+        run = Mock()
+        runner.boot_simulator(simulator, inventory, run)
+        run.assert_called_once_with(['xcrun', 'simctl', 'bootstatus', simulator, '-b'], 'production-local-bootstatus.log')
+
+    def test_unknown_simulator_boot_state_fails_closed(self):
+        simulator, inventory, _ = self.prepare_driver_fixture('Shutting Down')
+        run = Mock()
+        with self.assertRaisesRegex(runner.VerificationError, 'boot state'):
+            runner.boot_simulator(simulator, inventory, run)
+        run.assert_not_called()
+
     def test_proof_injected_only_into_unit_target(self):
         data = {'TestConfigurations': [{'TestTargets': [
             {'BlueprintName': 'StationCatMusicTests'}, {'BlueprintName': 'StationCatMusicUITests'}]}]}
@@ -115,6 +139,7 @@ class ProductionRunnerTests(unittest.TestCase):
     def test_failed_rerun_clears_previous_passed_report_and_logs(self):
         output = self.backend / 'evidence'; output.mkdir()
         names = ('production-local-summary.json', 'production-local-build.log',
+                 'production-local-boot.log', 'production-local-bootstatus.log',
                  'production-local-integration.log', 'production-local-service.log', 'production-local-runtime.jsonl')
         for name in names: (output / name).write_text('previous successful run')
         with patch.object(runner, 'ROOT', self.backend), patch.dict(runner.os.environ, {}, clear=True), patch('builtins.print'):
@@ -122,19 +147,14 @@ class ProductionRunnerTests(unittest.TestCase):
         self.assertTrue(all(not (output / name).exists() for name in names))
 
     def test_failed_xctest_retains_runtime_and_original_log_with_matching_run_id(self):
-        contracts = self.backend / 'contracts'; contracts.mkdir()
-        (contracts / 'backend-production-fixture.json').write_text(json.dumps(self.manifest))
-        products = self.backend / '.build/production-e2e/Build/Products'; products.mkdir(parents=True)
-        source = {'TestConfigurations': [{'TestTargets': [{'BlueprintName': 'StationCatMusicTests'}]}]}
-        (products / 'StationCatMusic_fixture.xctestrun').write_bytes(plistlib.dumps(source))
-        simulator = 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE'
-        inventory = {'devices': {'com.apple.CoreSimulator.SimRuntime.iOS-26-4': [
-            {'udid': simulator, 'isAvailable': True, 'name': 'iPhone synthetic'}]}}
-        launches = []
+        simulator, inventory, products = self.prepare_driver_fixture()
+        launches = []; events = []
         class Server:
             def terminate(self): pass
             def wait(self, timeout): return 0
         def launch(arguments, **options):
+            self.assertEqual(events[-1], 'bootstatus_completed')
+            events.append('service_started')
             launches.append(arguments)
             self.assertIn('--import', arguments)
             directory = Path(arguments[-1]); ready = directory / 'ready.json'
@@ -145,6 +165,15 @@ class ProductionRunnerTests(unittest.TestCase):
             return Server()
         def execute(arguments, **options):
             failed = 'test-without-building' in arguments
+            if 'build-for-testing' in arguments: events.append('build_completed')
+            if arguments[:3] == ['xcrun', 'simctl', 'boot']:
+                self.assertEqual(events[-1], 'build_completed')
+                self.assertEqual(options['timeout'], 900)
+                events.append('boot_completed')
+            if arguments[:3] == ['xcrun', 'simctl', 'bootstatus']:
+                self.assertEqual(events[-1], 'boot_completed')
+                self.assertEqual(options['timeout'], 900)
+                events.append('bootstatus_completed')
             if failed:
                 options['stdout'].write('PRODUCTION_NATIVE_LOCAL_FAILED stage=capability_request category=fixture_response\n')
             return subprocess.CompletedProcess(arguments, 65 if failed else 0)
@@ -156,6 +185,7 @@ class ProductionRunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(runner.VerificationError, 'production-local-integration.log'):
                 runner.main()
         self.assertEqual(len(launches), 1)
+        self.assertEqual(events, ['build_completed', 'boot_completed', 'bootstatus_completed', 'service_started'])
         output = self.backend / 'evidence'; runtime = output / 'production-local-runtime.jsonl'
         diagnostic = json.loads(runtime.read_text())
         log = (output / 'production-local-integration.log').read_text()
@@ -164,6 +194,31 @@ class ProductionRunnerTests(unittest.TestCase):
         self.assertEqual(runtime.stat().st_mode & 0o777, 0o600)
         self.assertFalse((output / 'production-local-summary.json').exists())
         self.assertFalse(list(products.glob('production-local-*.xctestrun')))
+
+    def test_boot_or_bootstatus_failure_clears_old_green_and_never_starts_service(self):
+        simulator, inventory, _ = self.prepare_driver_fixture()
+        for failed_step in ('boot', 'bootstatus'):
+            with self.subTest(step=failed_step):
+                output = self.backend / 'evidence'; output.mkdir(exist_ok=True)
+                stale = ('production-local-summary.json', 'production-local-integration.log',
+                         'production-local-service.log', 'production-local-runtime.jsonl')
+                for name in stale: (output / name).write_text('previous successful run')
+                commands = []
+                def execute(arguments, **options):
+                    commands.append(arguments)
+                    failed = arguments[:3] == ['xcrun', 'simctl', failed_step]
+                    if failed: self.assertEqual(options['timeout'], 900)
+                    return subprocess.CompletedProcess(arguments, 1 if failed else 0)
+                with patch.object(runner, 'ROOT', self.backend), patch.object(runner, 'verify_backend', return_value=self.manifest['commit']), \
+                     patch.dict(runner.os.environ, {'PRODUCTION_BACKEND_PATH': str(self.backend), 'M1_SIMULATOR_ID': simulator}, clear=True), \
+                     patch.object(runner.subprocess, 'check_output', return_value=json.dumps(inventory)), \
+                     patch.object(runner.subprocess, 'run', side_effect=execute), patch.object(runner.subprocess, 'Popen') as launch, patch('builtins.print'):
+                    with self.assertRaisesRegex(runner.VerificationError, 'production-local-' + failed_step + '.log'):
+                        runner.main()
+                    launch.assert_not_called()
+                self.assertTrue(all(not (output / name).exists() for name in stale))
+                self.assertEqual(commands[-1][:3], ['xcrun', 'simctl', failed_step])
+                self.assertFalse(any('test-without-building' in command for command in commands))
 
 
 if __name__ == '__main__': unittest.main()

@@ -46,7 +46,7 @@ test('real HTTP and blocked event loop yield bounded numeric diagnostics, not se
   assert.ok(rows.filter(row=>['http_in_finish','worker_http_headers'].includes(row.event)).every(row=>row.status===200));
   assert.ok(rows.some(row=>row.event==='heartbeat'&&row.lagMs>=80));
   assert.equal(statSync(path).mode&0o777,0o600);
-  const allowed=new Set(['sequence','at','elapsedMs','event','id','route','status','lagMs','cpuUserMs','cpuSystemMs','durationMs']);
+  const allowed=new Set(['sequence','at','elapsedMs','event','id','route','status','lagMs','cpuUserMs','cpuSystemMs','durationMs','unlabelledIncoming','unlabelledOutgoing']);
   for(const row of rows){
    assert.ok(Object.keys(row).every(key=>allowed.has(key)));
    if(row.route!==undefined)assert.ok(['evidence','catalog','featured','fixture_featured','request','bootstrap','config'].includes(row.route));
@@ -112,4 +112,29 @@ test('diagnostics budget is finite and stopping restores fsync',async()=>{
   assert.ok(statSync(path).size<=512);
   const fd=openSync(join(dir,'plain'),'w');fsyncSync(fd);closeSync(fd);
  }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('unlabelled startup traffic cannot consume the request diagnostics budget',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'runtime-startup-')),path=join(dir,'runtime.jsonl');
+ const stop=startRuntimeDiagnostics(path,{interval:10000,budget:16384});
+ const server=createServer((req,res)=>{res.writeHead(200);res.end('private-body');});
+ try{
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const base=`http://127.0.0.1:${server.address().port}`;
+  for(let index=0;index<400;index++){
+   const result=await fetch(base+'/private-startup?credential=private');await result.text();
+  }
+  for(const route of ['/request','/api/mobile/v1/config']){const result=await fetch(base+route);await result.text();}
+  stop();
+  const text=readFileSync(path,'utf8'),rows=text.trim().split('\n').map(JSON.parse);
+  for(const route of ['request','config']){
+   assert.ok(rows.some(row=>row.event==='http_in_finish'&&row.route===route&&row.status===200));
+   assert.ok(rows.some(row=>row.event==='worker_http_finish'&&row.route===route));
+  }
+  assert.ok(!rows.some(row=>row.route==='other'));
+  const last=rows.at(-1);assert.equal(last.event,'observer_stopped');
+  assert.equal(last.unlabelledIncoming,400);assert.equal(last.unlabelledOutgoing,400);
+  assert.ok(statSync(path).size<8192);
+  for(const secret of ['private-startup','credential','private-body','127.0.0.1'])assert.ok(!text.includes(secret));
+ }finally{stop();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));rmSync(dir,{recursive:true,force:true});}
 });

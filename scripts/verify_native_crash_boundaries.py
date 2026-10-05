@@ -3,13 +3,16 @@
 No production configuration, ATS exception, fake clock, or extended replay deadline.
 """
 from pathlib import Path
-from crash_probe_runner import run_file_probe,wait_ready
+from crash_probe_runner import ProbeTimeline,reset_boundary_evidence,run_file_probe_pair,wait_ready
+from contextlib import ExitStack
 import hashlib,json,os,plistlib,platform,shutil,subprocess,tempfile,time,uuid
 from probe_evidence import read_probe_evidence, read_failure_evidence
 from probe_preparation import prepare_stage
 from probe_host_diagnostics import collect as collect_host_diagnostics
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
+output=root/'evidence'
+reset_boundary_evidence(output)
 backend=Path(os.environ['M2_BACKEND_PATH']).resolve()
 manifest=json.loads((root/'contracts/backend-recovery-fixture.json').read_text())
 assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=backend,text=True).strip()==manifest['commit'], 'Backend revision differs from reviewed fixture'
@@ -24,7 +27,6 @@ subprocess.run(['bash','scripts/check_toolchain.sh'],check=True)
 simulator=os.environ['M1_SIMULATOR_ID']
 node=os.environ.get('M2_NODE_BINARY') or shutil.which('node')
 assert node, 'Node.js is required'
-output=root/'evidence';output.mkdir(exist_ok=True)
 # Compile the exact product Core sources into a separate simulator-only probe App.
 # Install before any refresh commits; relaunch with simctl, never a second XCTest session.
 products=root/'.build/recovery-probe'
@@ -59,16 +61,28 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
             started=time.monotonic()
             preparation=prepare_stage(connection,stage)
             (output/('M2-boundary-'+stage+'-preparation.json')).write_text(json.dumps(preparation,indent=2)+'\n')
-            for mode in ['CRASH','RECOVER']:
-                run_id=str(uuid.uuid4())
-                resultfile=container/'Documents'/('M2-'+run_id+'.log')
-                env=os.environ.copy()
-                env.update({'SIMCTL_CHILD_'+key:value for key,value in {'M2_PROBE_RUN_ID':run_id,'M2_BOUNDARY_STAGE':stage,'M2_BOUNDARY_MODE':mode,'M2_PROBE_PORT':str(connection['port']),'M2_PROBE_KEY':connection['key']}.items()})
-                name='M2-boundary-'+stage+'-'+mode+'.log'
-                args=['xcrun','simctl','launch',simulator,bundle]
-                try:
-                    result=run_file_probe(args,output/name,resultfile,stage,mode,env=env)
-                except Exception:
+            with ExitStack() as prepared:
+                plans=[]
+                # No new files, credentials or launch environments are prepared between
+                # the crash and recovery hosts. Both launch exactly once.
+                for mode in ['CRASH','RECOVER']:
+                    run_id=str(uuid.uuid4())
+                    resultfile=container/'Documents'/('M2-'+run_id+'.log')
+                    assert not resultfile.exists(), 'Probe result path must be fresh'
+                    env=os.environ.copy()
+                    env.update({'SIMCTL_CHILD_'+key:value for key,value in {'M2_PROBE_RUN_ID':run_id,'M2_BOUNDARY_STAGE':stage,'M2_BOUNDARY_MODE':mode,'M2_PROBE_PORT':str(connection['port']),'M2_PROBE_KEY':connection['key']}.items()})
+                    name='M2-boundary-'+stage+'-'+mode
+                    timeline_path=output/(name+'-driver.jsonl')
+                    # Each invocation replaces its old artifact before any host starts.
+                    timeline_path.unlink(missing_ok=True)
+                    timeline=prepared.enter_context(ProbeTimeline(timeline_path,stage,mode))
+                    logfile=output/(name+'.log')
+                    launch_log=prepared.enter_context(logfile.open('w'))
+                    plans.append({'args':['xcrun','simctl','launch',simulator,bundle],
+                                  'logfile':logfile,'resultfile':resultfile,'stage':stage,
+                                  'mode':mode,'env':env,'timeline':timeline,'launch_log':launch_log})
+                def failed(plan):
+                    mode=plan['mode']
                     # Failure-only process states and fixed stack categories; never raw stacks.
                     # Collection cannot replace the original failure or retry the scenario.
                     try:
@@ -78,18 +92,26 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
                     # Retain the original failure. This single GET cannot turn a failed probe green.
                     diagnostic=read_failure_evidence(connection,stage)
                     (output/('M2-boundary-'+stage+'-'+mode+'-failure-state.json')).write_text(json.dumps(diagnostic,indent=2)+'\n')
-                    raise
-                finally:
-                    if resultfile.exists():
-                        shutil.copyfile(resultfile,output/('M2-boundary-'+stage+'-'+mode+'-durable.log'))
-                        resultfile.unlink()
-                if mode=='CRASH':
-                    crash_evidence={'hostExitConfirmed':True,'crashedHostPID':result['hostPID'],
-                                    'evidenceTransport':result['evidenceTransport'],'hostExitAfterMarkerSeconds':result['hostExitAfterMarkerSeconds']}
-                    print(stage+': probe host exit confirmed; launching new process directly',flush=True)
-                else:
-                    assert result['hostPID']!=crash_evidence['crashedHostPID'], 'Recovery must use a new process'
-                    crash_evidence['recoveredHostPID']=result['hostPID']
+                def archive(plan):
+                    resultfile=plan['resultfile'];mode=plan['mode']
+                    failure=None
+                    for source,suffix in [(resultfile,'durable'),
+                                          (resultfile.with_name(resultfile.stem+'-timing.log'),'write-timing')]:
+                        try:
+                            if source.exists():
+                                shutil.copyfile(source,output/('M2-boundary-'+stage+'-'+mode+'-'+suffix+'.log'))
+                                source.unlink()
+                        except Exception as error:
+                            if failure is None: failure=error
+                    if failure is not None: raise failure
+                crash,recovery=run_file_probe_pair(plans,archive=archive,on_failure=failed)
+                crash_evidence={'hostExitConfirmed':True,'crashedHostPID':crash['hostPID'],
+                                'recoveredHostPID':recovery['hostPID'],
+                                'evidenceTransport':crash['evidenceTransport'],
+                                'hostExitAfterMarkerSeconds':crash['hostExitAfterMarkerSeconds'],
+                                'hostExitObservations':{'crash':crash['hostExitObservation'],
+                                                        'recovery':recovery['hostExitObservation']}}
+            print(stage+': two distinct host exits confirmed; deferred evidence archived',flush=True)
             evidence,read_stats=read_probe_evidence(connection,stage)
             (output/('M2-boundary-'+stage+'-server-evidence.json')).write_text(json.dumps(evidence,indent=2)+'\n')
             requests=evidence['requests']

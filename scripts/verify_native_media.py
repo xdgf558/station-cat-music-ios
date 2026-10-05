@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Local isolated workerd + actual URLSession/AVPlayer. No production networking."""
-import os,json,plistlib,hashlib,subprocess,tempfile,time
+import os,json,plistlib,hashlib,subprocess,tempfile,time,shutil
 from pathlib import Path
 root=Path(__file__).resolve().parents[1];os.chdir(root)
+output=root/'evidence';output.mkdir(exist_ok=True)
+for name in ['M3-media-build.log','M3-media-integration.log','M3-media-service.log','M3-runtime-diagnostics.jsonl']:
+    (output/name).unlink(missing_ok=True)
 backend=Path(os.environ['M3_BACKEND_PATH']).resolve();sim=os.environ['M1_SIMULATOR_ID']
 manifest=json.loads((root/'contracts/backend-media-fixture.json').read_text())
 assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=backend,text=True).strip()==manifest['commit'], 'Backend media revision mismatch'
 for name,digest in manifest['sha256'].items():assert hashlib.sha256((backend/name).read_bytes()).hexdigest()==digest, 'Backend fixture changed: '+name
 assert not subprocess.check_output(['git','status','--porcelain','--untracked-files=all','--','src','scripts/helpers','migrations','migrations-mobile','migrations-music','tests/fixtures/music-mp3','package.json','package-lock.json'],cwd=backend,text=True).strip(), 'Media fixture sources must be clean'
-output=root/'evidence';output.mkdir(exist_ok=True)
 def run(args,name):
     with (output/name).open('w') as log:
         result=subprocess.run(args,stdout=log,stderr=subprocess.STDOUT,timeout=900)
@@ -17,7 +19,9 @@ subprocess.run(['bash','scripts/check_toolchain.sh'],check=True)
 run(['xcodebuild','-project','StationCatMusic.xcodeproj','-scheme','StationCatMusic','-configuration','Mock','-destination','platform=iOS Simulator,id='+sim,'-derivedDataPath','.build','build-for-testing'],'M3-media-build.log')
 with tempfile.TemporaryDirectory(prefix='station-m3-media-') as directory:
     with (output/'M3-media-service.log').open('w') as log:
-        server=subprocess.Popen(['node','scripts/helpers/mobile-music-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT)
+        runtime_file=Path(directory)/'runtime-diagnostics.jsonl'
+        fixture_env=os.environ.copy();fixture_env['M3_RUNTIME_DIAGNOSTICS_FILE']=str(runtime_file)
+        server=subprocess.Popen(['node','--import',str(root/'scripts/probe_runtime_diagnostics.mjs'),'scripts/helpers/mobile-music-service.mjs',directory],cwd=backend,stdout=log,stderr=subprocess.STDOUT,env=fixture_env)
         try:
             ready=Path(directory)/'ready.json';end=time.monotonic()+60
             while not ready.exists():
@@ -39,4 +43,8 @@ with tempfile.TemporaryDirectory(prefix='station-m3-media-') as directory:
             server.terminate()
             try:server.wait(timeout=10)
             except subprocess.TimeoutExpired:server.kill();server.wait()
+            # Preserve runtime diagnostics alongside the original XCTest log even on failure.
+            if runtime_file.exists():
+                destination=output/'M3-runtime-diagnostics.jsonl'
+                shutil.copyfile(runtime_file,destination);destination.chmod(0o600)
             if 'path' in locals():path.unlink(missing_ok=True)

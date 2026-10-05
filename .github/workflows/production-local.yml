@@ -1,0 +1,70 @@
+name: Production profile local implementation E2E
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  driver-guards:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python3 scripts/test_native_production_runner.py
+  production-simulator:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select pinned stable Xcode and an available simulator
+        run: |
+          test -d /Applications/Xcode_26.4.1.app
+          export DEVELOPER_DIR=/Applications/Xcode_26.4.1.app/Contents/Developer
+          echo DEVELOPER_DIR=$DEVELOPER_DIR >> "$GITHUB_ENV"
+          xcrun simctl list devices available -j > /tmp/production-simulators.json
+          python3 - <<'PY'
+          import json,os
+          devices=json.load(open('/tmp/production-simulators.json'))['devices']
+          available=[row for runtime,rows in sorted(devices.items(),reverse=True) if 'iOS' in runtime for row in rows if row.get('isAvailable') and row['name'].startswith('iPhone')]
+          assert available, 'No iPhone simulator installed'
+          with open(os.environ['GITHUB_ENV'],'a') as output:output.write('M1_SIMULATOR_ID='+available[0]['udid']+'\n')
+          PY
+      - name: Read independently reviewed production backend fixture revision
+        id: backend
+        run: |
+          python3 - <<'PY'
+          import json,os,re
+          manifest=json.load(open('contracts/backend-production-fixture.json'))
+          assert re.fullmatch('[0-9a-f]{40}',manifest['commit'])
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:output.write('revision='+manifest['commit']+'\n')
+          PY
+      - uses: actions/checkout@v4
+        with:
+          repository: xdgf558/caption-ai-landing-site
+          ref: ${{ steps.backend.outputs.revision }}
+          path: .backend-production
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install pinned local fixture dependencies
+        working-directory: .backend-production
+        run: npm ci
+      - name: Native services against real worker on proof-protected loopback
+        timeout-minutes: 20
+        env:
+          PRODUCTION_BACKEND_PATH: ${{ github.workspace }}/.backend-production
+        run: python3 scripts/verify_native_production.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-local-implementation-evidence
+          path: |
+            evidence/production-local-build.log
+            evidence/production-local-boot.log
+            evidence/production-local-bootstatus.log
+            evidence/production-local-integration.log
+            evidence/production-local-service.log
+            evidence/production-local-runtime.jsonl
+            evidence/production-local-summary.json

@@ -25,6 +25,7 @@ nonisolated struct Track: Codable, Identifiable, Equatable, Sendable {
     let access: AccessPolicy
     var coverUrl: URL? = nil
     var offlineEligible: Bool? = nil
+    var release: PlatformTrackRelease? = nil
 }
 nonisolated struct Catalog: Codable, Sendable { let items: [Track]; let nextCursor: String? }
 nonisolated struct APIEnvelope<T: Codable & Sendable>: Codable, Sendable {

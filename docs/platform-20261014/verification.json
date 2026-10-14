@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-14",
+  "timezone": "Asia/Singapore",
+  "localToolchain": "Xcode 27 beta 6 (27A5252f)",
+  "stableCI": "not run for this PR head yet",
+  "tests": {
+    "swiftExecuted": 277,
+    "swiftPassed": 254,
+    "specialProbeSkipped": 23,
+    "swiftFailed": 0,
+    "UITestsPassed": 12,
+    "UIFailed": 0
+  },
+  "websiteCacheDependency": {
+    "repository": "xdgf558/caption-ai-landing-site",
+    "commit": "75e092472a1bf9689510d3ef37fbcd3b310b3f4a",
+    "contract": "coverCacheVersion, size+v fingerprinted cover URLs, private max-age=86400, CDN no-store",
+    "localAffectedTestsPassed": 81,
+    "deployed": false
+  },
+  "candidatePackage": {
+    "CFBundleIdentifier": "org.stationcat.music.staging",
+    "CFBundleShortVersionString": "0.1.0",
+    "CFBundleVersion": "6",
+    "StationEnvironment": "staging",
+    "StationPublicReleasesEnabled": "YES",
+    "StationPublicReleaseOrigin": "https://wwwstationcat.org",
+    "StationNativeAuthEnabled": "NO",
+    "StationNativeMusicEnabled": "NO",
+    "StationPersonalSyncEnabled": "NO",
+    "StationProductionActivationEnabled": "NO"
+  },
+  "releaseNotes": {
+    "en": {
+      "releaseCoverCache": "Versioned covers can be reused from memory and local storage while valid. View usage and clear them in Privacy & storage.",
+      "releaseImageLoading": "Recommendations load in parallel, and music lists use smaller cover thumbnails.",
+      "releaseImageRetries": "Retrying a failed refresh also retries missing covers, while already displayed images stay visible."
+    },
+    "zh-Hans": {
+      "releaseCoverCache": "封面按版本缓存在本机，有效期内直接复用，可在“隐私与存储”查看占用并清理。",
+      "releaseImageLoading": "推荐信息并行载入，歌曲列表使用更轻的封面缩略图。",
+      "releaseImageRetries": "刷新失败后重试也会重新加载未显示的封面，已经显示的图片保持可见。"
+    },
+    "zh-Hant": {
+      "releaseCoverCache": "封面依版本快取於本機，有效期內直接重用，可在「隱私與儲存」查看空間並清理。",
+      "releaseImageLoading": "推薦資訊平行載入，歌曲清單使用更輕量的封面縮圖。",
+      "releaseImageRetries": "更新失敗後重試也會重新載入未顯示的封面，已顯示的圖片保持可見。"
+    },
+    "ja": {
+      "releaseCoverCache": "バージョンごとにカバー画像を端末へ保存し、有効期間内は再利用します。「プライバシーとストレージ」で容量の確認と削除ができます。",
+      "releaseImageLoading": "おすすめ情報を並列で読み込み、曲の一覧には軽量なカバー画像を表示します。",
+      "releaseImageRetries": "更新に失敗した後の再試行で未表示の画像も再読み込みします。表示済みの画像はそのまま保持します。"
+    }
+  },
+  "installedPhoneBuild": "5",
+  "candidateBuildInstalled": false,
+  "appStoreUploaded": false,
+  "sourceSHA256": {
+    "Core/ArtworkCache.swift": "f3e80989e73acf6faa66768f46e34c647eea1069fc46b6bd7a0cc2f514f761ed",
+    "Core/ArtworkLoader.swift": "808039ac8c926af9ceca49025b870267ebe7d4e141f30f1c5e634afeac21a45f",
+    "Core/PlatformConfiguration.swift": "d399790d29cd5c20431953d794e5b4331853de56aea2f78fc302b658df1b29a3",
+    "Core/PlatformMusic.swift": "5b68a8b109ef532ef195d4cc738a67342cbc4f09f75e751f0689b94bf350e9c1",
+    "StationCatMusic/AppModel.swift": "c8d1c01d6244bd5d79ee3d8f000cf9de5da45c0d5bc3ae3bd31435f1f83890ae",
+    "StationCatMusic/CachedArtwork.swift": "cf82b6ddca42fddf2a9193ee1e62a117888143a8a5ac92b32690253b8c12bbc7",
+    "StationCatMusic/PlatformMusicView.swift": "0ba6b49c426add7ca0721f526be3cff5c62290e552f86c80e6efa8da5e9421d9",
+    "StationCatMusic/RootView.swift": "8d80e6c7c0e62a88ac54d7726a2c4e5b1dde37e0801731c4d5b2f4c1ceb2f303",
+    "StationCatMusic/StationCatMusicApp.swift": "0e21fc159d9099c137139142f1c1a383893bfcdaf9c399672ec48f2505867bf9",
+    "Resources/Localizations.json": "fa0500e9298d9939bd878db24273d95e4e0cc0dcb81d72977c62e4e0a94aa450",
+    "scripts/generate_project.py": "0ac19cacba5d396fd05f47a2f4bb997a81abd54a856f085dbddc84b9d193c8bf",
+    "scripts/seed_resources.py": "98d4562eaa2a88c886bae3641709affff6f01e89d2d4110c1fea8d7d5242b724"
+  },
+  "previousEvidence": "platform-20261013/verification.json is a dated build-5 snapshot, not current build-6 verification",
+  "limits": [
+    "Local URLProtocol tests prove memory/disk cache request counts; not a live phone speed benchmark.",
+    "Device package was built and verified; installation awaits review.",
+    "All committed public metadata switches remain NO; candidate command override reads public metadata only.",
+    "No production native authentication, playback, personal sync, AASA or subscriptions activated."
+  ]
+}

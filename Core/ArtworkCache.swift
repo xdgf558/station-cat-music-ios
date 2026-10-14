@@ -5,6 +5,7 @@ import CryptoKit
 /// No URL, account identity, cookies, or authorization data is persisted.
 nonisolated struct ArtworkCache {
     struct Entry: Codable { let version: Int; let expires: Date; let data: Data }
+    struct Usage: Equatable, Sendable { let bytes: Int; let files: Int; let maximumBytes: Int }
     let directory: URL
     let maximumBytes: Int
     let maximumFiles: Int
@@ -38,6 +39,10 @@ nonisolated struct ArtworkCache {
         for entry in entries where total + bytes > maximumBytes || count + slots > maximumFiles {
             try FileManager.default.removeItem(at: entry.0); total -= entry.1; count -= 1
         }
+    }
+    func usage() throws -> Usage {
+        let entries = try files()
+        return Usage(bytes: entries.reduce(0) { $0 + $1.1 }, files: entries.count, maximumBytes: maximumBytes)
     }
     func read(_ url: URL, now: Date) throws -> Data? {
         try readEntry(url, now: now)?.data

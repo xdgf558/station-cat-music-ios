@@ -42,19 +42,37 @@ import Observation
     @ObservationIgnored private var offlineTask: Task<Void, Never>?
     @ObservationIgnored private var offlineTicket: OfflineDownloadTicket?
     let artwork: ArtworkLoader
+    private(set) var artworkRetryGeneration = 0
+    private(set) var artworkCacheUsage: ArtworkCache.Usage?
     let client: any CatalogProviding
     let account: NativeAccountModel
     let musicWebOrigin: URL?
     var detail: TrackDetail?
+    let platformMode: Bool
+    var platformDetail: PlatformTrackDetail?
+    var platformDetailFailure = false
+    private(set) var platformDetailGeneration = 0
+    var platformCatalog: (any PlatformMusicProviding)? { client as? any PlatformMusicProviding }
+    var artworkHost: String? { platformCatalog?.webOrigin.host ?? nativeMusic?.configuration.origin.host }
     var collections: [MusicCollection] = []
     private(set) var featuredTracks: [Track] = []
     private(set) var featuredPhase: Phase = .loading
-    var discoveryTracks: [Track] { nativeMusic == nil ? tracks : featuredTracks }
-    var discoveryPhase: Phase { nativeMusic == nil ? phase : featuredPhase }
-    var discoveryFailure: CatalogFailure? { nativeMusic == nil ? catalogFailure : featuredFailure }
+    var discoveryTracks: [Track] {
+        if platformMode { return featuredTracks.isEmpty ? tracks : featuredTracks }
+        return nativeMusic == nil ? tracks : featuredTracks
+    }
+    var discoveryPhase: Phase {
+        if platformMode { return !discoveryTracks.isEmpty ? .loaded : phase == .empty ? .empty : featuredPhase }
+        return nativeMusic == nil ? phase : featuredPhase
+    }
+    var discoveryFailure: CatalogFailure? {
+        if platformMode { return featuredFailure ?? catalogFailure }
+        return nativeMusic == nil ? catalogFailure : featuredFailure
+    }
     var activeCollection: MusicCollection?
     var nativeMusic: NativeMusicAPI? { client as? NativeMusicAPI }
     var catalogNoticeKey: String? {
+        if platformMode { return scope.environment == .mock ? "platformFixture" : nil }
         if let nativeMusic { return nativeMusic.configuration.environment == .production ? nil : "isolatedMusic" }
         return scope.environment == .mock ? "mockExplanation" : nil
     }
@@ -65,13 +83,13 @@ import Observation
     private var initialized = false
     private var operation = 0
     @ObservationIgnored private var catalogTask: Task<Void, Never>?
-    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader(), offlineStorage: OfflineMusicCache? = nil) { self.artwork = artwork; self.libraryRemote = libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.musicWebOrigin = MusicLink.webOrigin(musicWebOrigin)
-        if let native = client as? NativeMusicAPI {
+    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader(), offlineStorage: OfflineMusicCache? = nil, platformMode: Bool = false) { self.artwork = artwork; self.libraryRemote = platformMode ? nil : libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.platformMode = platformMode; self.musicWebOrigin = platformMode ? (client as? any PlatformMusicProviding)?.webOrigin : MusicLink.webOrigin(musicWebOrigin)
+        if !platformMode, let native = client as? NativeMusicAPI {
             let cache = offlineStorage ?? OfflineMusicCache(origin: native.configuration.origin)
             offlineCache = cache; playback.offlineCache = cache; playback.configure(authorizer: native)
             offlinePreferenceKey = "autoCacheFreeSongs." + native.configuration.origin.absoluteString
             autoCacheFreeSongs = UserDefaults.standard.bool(forKey: offlinePreferenceKey)
-        } else { offlineCache = offlineStorage; playback.offlineCache = offlineStorage }
+        } else { offlineCache = offlineStorage; playback.offlineCache = platformMode ? nil : offlineStorage }
         playback.onSelection = { [weak self] track in self?.loadDetail(track) }
         account.onInvalidate = { [weak self] in
             guard let self else { return }
@@ -140,7 +158,11 @@ import Observation
         startupPhase = .ready
     }
     func receiveMusicLink(_ url: URL) async {
-        guard nativeMusic != nil, let host = musicWebOrigin?.host, MusicLink(url, allowedHost: host) != nil else { return }
+        if platformMode {
+            guard platformLink(url) != nil else { return }
+        } else {
+            guard nativeMusic != nil, let host = musicWebOrigin?.host, MusicLink(url, allowedHost: host) != nil else { return }
+        }
         guard initialized else {
             // OS cold-launch delivery can precede the root view's task. Keep only
             // the latest valid navigation intent; malformed URLs cannot replace it.
@@ -165,6 +187,7 @@ import Observation
         await loadCatalog()
     }
     private func loadCatalog() async {
+        artworkRetryGeneration &+= 1
         operation += 1; let id = operation; let startedScope = scope
         if tracks.isEmpty { phase = .loading }
         if featuredTracks.isEmpty && collections.isEmpty { featuredPhase = .loading }
@@ -174,7 +197,13 @@ import Observation
         // The discovery endpoint is independent of the paginated catalog. Publish
         // each section as soon as it arrives; cancellation still owns both tasks.
         let work = Task { @MainActor in
-            if let native = client as? NativeMusicAPI {
+            if let platform = client as? any PlatformMusicProviding {
+                await platform.setLocale(locale)
+                guard id == self.operation, !Task.isCancelled else { return }
+                async let catalog: Void = self.loadCatalogSection(client, id: id, scope: startedScope, locale: locale)
+                async let featured: Void = self.loadPlatformFeaturedSection(platform, id: id, scope: startedScope, locale: locale)
+                _ = await (catalog, featured)
+            } else if let native = client as? NativeMusicAPI {
                 await native.setLocale(locale)
                 guard id == self.operation, !Task.isCancelled else { return }
                 async let catalog: Void = self.loadCatalogSection(client, id: id, scope: startedScope, locale: locale)
@@ -191,7 +220,7 @@ import Observation
         do {
             let catalog = try await client.catalog()
             guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
-            if let offlineCache {
+            if let offlineCache, !platformMode {
                 do {
                     let candidates = try await offlineCache.reconciliationCandidates(catalog.items)
                     guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
@@ -203,6 +232,13 @@ import Observation
             }
             guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
             tracks = catalog.items; phase = tracks.isEmpty ? .empty : .loaded
+            if platformMode, startupPhase == .loading { startupPhase = .ready }
+            if platformMode, let selected = playback.selectedTrack, let updated = tracks.first(where: { $0.id == selected.id }) {
+                playback.select(updated)
+                if showPlayer { loadPlatformDetail(updated) }
+            } else if platformMode, playback.selectedTrack != nil {
+                detailTask?.cancel(); platformDetailGeneration += 1; platformDetail = nil; platformDetailFailure = true
+            }
             if let selected = activeCollection {
                 let current = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
                 activeCollection = MusicCollection(id: selected.id, slug: selected.slug, title: selected.title, description: selected.description,
@@ -223,6 +259,19 @@ import Observation
         } catch {
             guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
             featuredPhase = featuredTracks.isEmpty && collections.isEmpty ? .unavailable : .loaded
+            featuredFailure = CatalogFailure(error)
+        }
+    }
+    private func loadPlatformFeaturedSection(_ platform: any PlatformMusicProviding, id: Int, scope startedScope: AccountScope, locale: String) async {
+        do {
+            let result = try await platform.featuredTracks()
+            guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
+            featuredTracks = result; collections = []
+            featuredPhase = result.isEmpty ? .empty : .loaded
+            if platformMode, startupPhase == .loading { startupPhase = .ready }
+        } catch {
+            guard id == operation, startedScope == scope, locale == self.locale, !Task.isCancelled else { return }
+            featuredPhase = featuredTracks.isEmpty ? .unavailable : .loaded
             featuredFailure = CatalogFailure(error)
         }
     }
@@ -259,7 +308,7 @@ import Observation
         scopeTransition = true
         libraryGeneration += 1; syncTask?.cancel(); libraryBusy = false
         let transition = libraryGeneration
-        operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.clear(); tracks = []; favorites = []; recent = []
+        operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; platformDetailGeneration += 1; platformDetail = nil; platformDetailFailure = false; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.clear(); tracks = []; favorites = []; recent = []
         await library.selectScope(scope)
         guard transition == libraryGeneration else { return }
         self.scope = scope; scopeTransition = false
@@ -286,6 +335,7 @@ import Observation
         } catch { localCleanupStatus = "localCleanupFailed" }
     }
     func setAutoCache(_ enabled: Bool) {
+        guard !platformMode else { return }
         autoCacheFreeSongs = enabled
         UserDefaults.standard.set(enabled, forKey: offlinePreferenceKey)
     }
@@ -295,7 +345,7 @@ import Observation
         offlineBytes = (try? await offlineCache.usage()) ?? 0
     }
     func saveOffline(_ track: Track) {
-        guard let nativeMusic, let offlineCache, offlineDownloading == nil else { return }
+        guard !platformMode, let nativeMusic, let offlineCache, offlineDownloading == nil else { return }
         offlineDownloading = track.id; offlineStatus = "offlineSaving"
         let ticket = OfflineDownloadTicket(); offlineTicket = ticket
         offlineTask = Task { [weak self] in
@@ -317,15 +367,49 @@ import Observation
         await refreshOffline()
     }
     func clearCache() async {
-        detailTask?.cancel(); detail = nil; URLCache.shared.removeAllCachedResponses()
-        do { try await artwork.clearCache() } catch { libraryStatus = "libraryError"; return }
+        detailTask?.cancel(); detail = nil; platformDetailGeneration += 1; platformDetail = nil; URLCache.shared.removeAllCachedResponses()
+        do { try await artwork.clearCache() } catch {
+            libraryStatus = "libraryError"; await refreshArtworkCacheUsage(); return
+        }
+        await refreshArtworkCacheUsage()
         await load()
     }
+    func refreshArtworkCacheUsage() async {
+        artworkCacheUsage = try? await artwork.cacheUsage()
+    }
     func select(_ track: Track, from list: [Track]? = nil) {
+        if platformMode { selectPlatformTrack(track); return }
         let list = list ?? [track]
         if let index = list.firstIndex(of: track) { playback.setQueue(list, startingAt: index, play: false) }
         else { playback.select(track) }
         showPlayer = true
+    }
+    func selectPlatformTrack(_ track: Track) {
+        guard platformMode, track.release != nil else { return }
+        playback.select(track) // Selection stops any old item; it never requests an audio source.
+        showPlayer = true
+        loadPlatformDetail(track)
+    }
+    func retryPlatformDetail() {
+        guard let track = playback.selectedTrack else { return }
+        loadPlatformDetail(track)
+    }
+    private func loadPlatformDetail(_ track: Track) {
+        platformDetailGeneration += 1; platformDetail = nil; platformDetailFailure = false; detailTask?.cancel()
+        guard let platformCatalog else { platformDetailFailure = true; return }
+        let version = operation, locale = locale, startedScope = scope
+        detailTask = Task { [weak self] in
+            do {
+                let value = try await platformCatalog.platformDetail(track, locale: locale)
+                guard let self, !Task.isCancelled, self.operation == version, self.scope == startedScope,
+                      self.locale == locale, self.playback.selectedTrack?.id == track.id else { return }
+                self.platformDetail = value
+            } catch {
+                guard let self, !Task.isCancelled, self.operation == version, self.scope == startedScope,
+                      self.locale == locale, self.playback.selectedTrack?.id == track.id else { return }
+                self.platformDetailFailure = true
+            }
+        }
     }
     private func loadDetail(_ track: Track?) {
         detail = nil; detailTask?.cancel()
@@ -353,6 +437,7 @@ import Observation
     }
     var trackShareURL: URL? {
         guard let track = playback.selectedTrack, UUID(uuidString: track.id) != nil else { return nil }
+        if platformMode { return (platformDetail?.track ?? track).release?.webURL }
         return musicURL(name: "track", value: track.id)
     }
     var collectionShareURL: URL? {
@@ -360,6 +445,17 @@ import Observation
         return musicURL(name: "collection", value: collection.slug)
     }
     func openMusicLink(_ url: URL) async {
+        if platformMode {
+            guard let target = platformLink(url) else { return }
+            let matches: (Track) -> Bool = { item in
+                if let id = target.id { return id == item.id }
+                if let slug = target.slug { return slug == item.release?.slug }
+                return false
+            }
+            let track = tracks.first(where: matches) ?? featuredTracks.first(where: matches)
+            if let track { selectPlatformTrack(track) } else { linkUnavailable = true }
+            return
+        }
         guard let nativeMusic, let host = musicWebOrigin?.host, let link = MusicLink(url, allowedHost: host) else { return }
         operation += 1; let ticket = operation; let startedScope = scope
         catalogTask?.cancel(); detailTask?.cancel(); linkUnavailable = false
@@ -375,6 +471,23 @@ import Observation
                 activeCollection = result; query = ""; selectedTab = 1; phase = result.tracks.isEmpty ? .empty : .loaded
             }
         } catch { if ticket == operation && scope == startedScope && !Task.isCancelled { linkUnavailable = true } }
+    }
+    private func platformLink(_ url: URL) -> (id: String?, slug: String?)? {
+        guard platformMode, let origin = platformCatalog?.webOrigin,
+              let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              parts.scheme == "https", parts.host == origin.host, parts.port == nil,
+              parts.user == nil, parts.password == nil, parts.fragment == nil,
+              parts.percentEncodedPath == parts.path else { return nil }
+        if let link = MusicLink(url, allowedHost: origin.host!), case .track(let id) = link { return (id, nil) }
+        guard parts.query == nil else { return nil }
+        let path = parts.path
+        for prefix in ["/music/tracks/", "/zh-hant/music/tracks/", "/zh-hans/music/tracks/", "/en/music/tracks/", "/ja/music/tracks/"] where path.hasPrefix(prefix) {
+            let raw = String(path.dropFirst(prefix.count))
+            let slug = raw.hasSuffix("/") ? String(raw.dropLast()) : raw
+            guard (1...100).contains(slug.utf8.count), slug.range(of: "^[a-z0-9]+(?:-[a-z0-9]+)*$", options: .regularExpression) != nil else { return nil }
+            return (nil, slug)
+        }
+        return nil
     }
     func adjacent(_ offset: Int) { if offset < 0 { playback.previous() } else { playback.next() } }
 

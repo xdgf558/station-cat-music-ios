@@ -28,6 +28,12 @@
 	<string>https://wwwstationcat.org</string>
 	<key>StationMusicWebOrigin</key>
 	<string>$(STATION_MUSIC_WEB_ORIGIN)</string>
+	<key>StationPublicReleasesEnabled</key>
+	<string>$(STATION_PUBLIC_RELEASES_ENABLED)</string>
+	<key>StationPublicReleaseOrigin</key>
+	<string>$(STATION_PUBLIC_RELEASE_ORIGIN)</string>
+	<key>StationLegacyOfflineOrigin</key>
+	<string>https://station-cat-music-r2.yehao1105.workers.dev</string>
 	<key>StationNativeAuthEnabled</key>
 	<string>$(STATION_NATIVE_AUTH_ENABLED)</string>
 	<key>StationNativeAuthOrigin</key>

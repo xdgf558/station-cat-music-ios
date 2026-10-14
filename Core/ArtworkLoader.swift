@@ -24,6 +24,11 @@ actor ArtworkLoader {
         network = URLSession(configuration: config, delegate: RejectRedirects(), delegateQueue: nil)
     }
     deinit { network.invalidateAndCancel() }
+    // Requested by the storage screen only. Directory enumeration stays on
+    // this actor and never becomes a prerequisite for refreshing the catalog.
+    func cacheUsage() throws -> ArtworkCache.Usage {
+        try cache?.usage() ?? ArtworkCache.Usage(bytes: 0, files: 0, maximumBytes: 0)
+    }
     func clearCache() throws {
         generation += 1 // An already-started download cannot repopulate the cleared cache.
         decoded.removeAll()

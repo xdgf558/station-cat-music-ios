@@ -197,6 +197,44 @@ rows += '\n'.join(['',
 'deletion.stage.completed|All required server cleanup checks have passed.|服务器必要清理检查已通过。|伺服器必要清理檢查已通過。|サーバー側の必要な削除確認を完了しました。',
 ''])
 
+rows += '''
+platformListening|Listen on a platform|平台收听|平台收聽|配信サービスで聴く
+platformDiscoverIntro|Keep the music you love close. Listen on your favorite platform.|收藏喜欢的作品，选择熟悉的平台慢慢听。|收藏喜歡的作品，選擇熟悉的平台慢慢聽。|好きな作品をそばに。いつもの配信サービスで聴こう。
+platformFeatured|Featured work|主推作品|主推作品|おすすめの作品
+platformWorks|Music works|音乐作品|音樂作品|音楽作品
+platformOpenWebsite|View on the website|前往网站|前往網站|ウェブサイトで見る
+platformPreviewWebsite|Preview on the website|前往网站试听|前往網站試聽|ウェブサイトで試聴
+platformLinksPending|Platform links will be announced later.|平台入口稍后公开。|平台入口稍後公開。|配信リンクは後日公開します。
+platformUnavailable|Platform links are currently unavailable.|平台入口暂不可用。|平台入口暫時無法使用。|配信リンクは現在利用できません。
+platformRegionLimited|Platform availability depends on your region.|平台可用性因所在地区而异。|平台可用性依所在地區而異。|配信サービスの利用可否は地域により異なります。
+platformDetailLoading|Loading work details…|正在载入作品信息…|正在載入作品資訊…|作品の情報を読み込んでいます…
+platformDetailFailure|Work details could not be loaded.|作品信息暂时未能载入。|作品資訊暫時未能載入。|作品の情報を読み込めませんでした。
+platformOpenFailure|This link could not be opened. Copy it to open in your browser.|未能打开链接，可复制后在浏览器中打开。|無法開啟連結，可複製後在瀏覽器中開啟。|リンクを開けませんでした。コピーしてブラウザで開いてください。
+platformCopyLink|Copy link|复制链接|複製連結|リンクをコピー
+platformCopied|Link copied.|链接已复制。|連結已複製。|リンクをコピーしました。
+platformWorkIntro|About this work|作品介绍|作品介紹|作品について
+platformCacheManagement|Previously saved music|已有缓存管理|既有快取管理|以前保存した音楽
+platformCacheSummary|View and remove earlier downloads|查看与清理之前保存的歌曲|查看與清理先前儲存的歌曲|以前保存した曲を確認・削除
+platformLegacyCacheDetail|Earlier downloads are preserved. This version uses music platforms for listening; you can remove existing files here.|旧版本保存的文件会保留；当前版本通过音乐平台收听，可在这里删除已有缓存。|舊版本儲存的檔案會保留；目前版本透過音樂平台收聽，可在這裡刪除既有快取。|以前保存したファイルは保持されます。このバージョンでは配信サービスで聴くことができます。保存済みファイルはここで削除できます。
+platformLegacyCacheSaved|Previously saved on this device|以前保存于此设备|先前儲存於此裝置|以前この端末に保存済み
+platformFixture|Sample works for local interface preview.|示例作品，仅用于本机界面预览。|示例作品，僅供本機介面預覽。|端末内の画面プレビュー用サンプル作品です。
+platformAccountDetail|Browse works and save favorites on this device without signing in. Account features are not available in this version.|无需登录即可浏览作品并在本机收藏，当前版本暂不提供账号功能。|無需登入即可瀏覽作品並在本機收藏，目前版本暫不提供帳號功能。|ログインなしで作品の閲覧と端末へのお気に入り保存ができます。このバージョンではアカウント機能は利用できません。
+platformHistoryDetail|Listening on external platforms is recorded by those platforms. Earlier in-app history is kept and can be cleared in Privacy & storage.|外部平台的收听记录由平台管理。旧版本的本机记录会保留，可在“隐私与存储”中清理。|外部平台的收聽紀錄由平台管理。舊版本的本機紀錄會保留，可在「隱私與儲存」中清理。|外部サービスの再生履歴は各サービスが管理します。以前のアプリ内履歴は保持され、「プライバシーとストレージ」で消去できます。
+platform.netease|NetEase Music|网易云音乐|網易雲音樂|NetEase Music
+platform.qishui|Qishui Music|汽水音乐|汽水音樂|Qishui Music
+platform.apple_music|Apple Music|Apple Music|Apple Music|Apple Music
+platform.youtube|YouTube|YouTube|YouTube|YouTube
+platform.spotify|Spotify|Spotify|Spotify|Spotify
+artworkCacheSpace|Cover cache storage|封面缓存占用|封面快取空間|カバー画像のキャッシュ容量
+artworkCacheFiles|Cached covers|已缓存封面|已快取封面|保存済みのカバー画像
+releaseCoverCache|Versioned covers can be reused from memory and local storage while valid. View usage and clear them in Privacy & storage.|封面按版本缓存在本机，有效期内直接复用，可在“隐私与存储”查看占用并清理。|封面依版本快取於本機，有效期內直接重用，可在「隱私與儲存」查看空間並清理。|バージョンごとにカバー画像を端末へ保存し、有効期間内は再利用します。「プライバシーとストレージ」で容量の確認と削除ができます。
+releaseImageLoading|Recommendations load in parallel, and music lists use smaller cover thumbnails.|推荐信息并行载入，歌曲列表使用更轻的封面缩略图。|推薦資訊平行載入，歌曲清單使用更輕量的封面縮圖。|おすすめ情報を並列で読み込み、曲の一覧には軽量なカバー画像を表示します。
+releaseImageRetries|Retrying a failed refresh also retries missing covers, while already displayed images stay visible.|刷新失败后重试也会重新加载未显示的封面，已经显示的图片保持可见。|更新失敗後重試也會重新載入未顯示的封面，已顯示的圖片保持可見。|更新に失敗した後の再試行で未表示の画像も再読み込みします。表示済みの画像はそのまま保持します。
+releasePlatforms|Discovery and song details now put verified music-platform links first, with an option to copy links if opening fails.|发现页与歌曲详情改为平台收听优先，打不开时可复制链接。|發現頁與歌曲詳情改為平台收聽優先，無法開啟時可複製連結。|発見画面と曲の詳細は配信リンクを優先表示。開けない場合はリンクをコピーできます。
+releaseWebsiteCatalog|Works and featured picks follow the website's public release catalog. Website previews appear only when available.|作品与推荐对齐网站公开目录，仅在有试听配置时显示网站试听入口。|作品與推薦對齊網站公開目錄，僅在有試聽設定時顯示網站試聽入口。|作品とおすすめをウェブサイトの公開情報に統一。試聴がある場合のみサイトへの入口を表示します。
+releaseLocalData|Favorites and existing local files are kept. Full playback and new offline saves are no longer main-screen actions.|保留收藏与已有本机文件，主界面不再提供完整播放与新增离线缓存入口。|保留收藏與既有本機檔案，主介面不再提供完整播放與新增離線快取入口。|お気に入りと既存の端末内ファイルを保持。全曲再生と新しいオフライン保存の入口はメイン画面から外しました。
+'''
+
 # Embedded hero newlines are restored from escaped markers after splitting rows.
 rows=rows.replace('A little music.\nA slower day.','A little music.\\nA slower day.').replace('听一点音乐，\n让日常慢下来。','听一点音乐，\\n让日常慢下来。').replace('聽一點音樂，\n讓日常慢下來。','聽一點音樂，\\n讓日常慢下來。').replace('音楽とともに、\nゆっくり過ごす。','音楽とともに、\\nゆっくり過ごす。')
 translations={x:{} for x in ['en','zh-Hans','zh-Hant','ja']}

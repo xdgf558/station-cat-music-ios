@@ -1,0 +1,41 @@
+[
+  {
+    "configuration": "Development",
+    "version": "0.1.0",
+    "build": "5",
+    "flags": {
+      "StationNativeAuthEnabled": "NO",
+      "StationNativeMusicEnabled": "NO",
+      "StationPersonalSyncEnabled": "NO",
+      "StationProductionActivationEnabled": "NO",
+      "StationPublicReleasesEnabled": "NO"
+    },
+    "publicOrigin": ""
+  },
+  {
+    "configuration": "Staging",
+    "version": "0.1.0",
+    "build": "5",
+    "flags": {
+      "StationNativeAuthEnabled": "NO",
+      "StationNativeMusicEnabled": "NO",
+      "StationPersonalSyncEnabled": "NO",
+      "StationProductionActivationEnabled": "NO",
+      "StationPublicReleasesEnabled": "NO"
+    },
+    "publicOrigin": ""
+  },
+  {
+    "configuration": "Production",
+    "version": "0.1.0",
+    "build": "5",
+    "flags": {
+      "StationNativeAuthEnabled": "NO",
+      "StationNativeMusicEnabled": "NO",
+      "StationPersonalSyncEnabled": "NO",
+      "StationProductionActivationEnabled": "NO",
+      "StationPublicReleasesEnabled": "NO"
+    },
+    "publicOrigin": ""
+  }
+]

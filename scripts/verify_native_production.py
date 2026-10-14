@@ -215,6 +215,32 @@ def wait_for_worker_readiness(connection, *, total_timeout=20, max_attempts=4,
     raise VerificationError('Local Worker readiness exhausted; XCTest was not started')
 
 
+def wait_for_fixture_startup(ready, server, *, timeout=180, clock=time.monotonic,
+                             sleep=time.sleep, record=lambda value: None):
+    """Bound cold Node/Miniflare/migration setup separately from request deadlines.
+
+    No service restart or business request is repeated. A late ready file or an
+    exited process never admits XCTest, even if a file was left behind.
+    """
+    require(0 < timeout <= 180, 'Invalid fixture startup budget')
+    started = clock(); deadline = started + timeout
+    record({'event': 'startup_wait', 'budgetSeconds': timeout})
+    while True:
+        elapsed = clock() - started
+        if server.poll() is not None:
+            record({'event': 'startup_exited', 'seconds': round(elapsed, 3)})
+            raise VerificationError('Local production fixture exited during startup')
+        if clock() >= deadline:
+            record({'event': 'startup_deadline', 'seconds': round(elapsed, 3)})
+            raise VerificationError('Local production fixture startup deadline exceeded')
+        if ready.exists():
+            require(clock() < deadline, 'Late fixture ready file rejected')
+            result = {'seconds': round(clock() - started, 3), 'budgetSeconds': timeout}
+            record({'event': 'startup_ready_file', **result})
+            return result
+        sleep(max(0, min(.1, deadline - clock())))
+
+
 def read_service_evidence(connection):
     local = http.client.HTTPConnection('127.0.0.1', connection['port'], timeout=10)
     try:
@@ -290,18 +316,16 @@ def main():
                                       stdout=log, stderr=subprocess.STDOUT, env=fixture_env)
             test_file = None
             try:
-                ready = Path(directory) / 'ready.json'; deadline = time.monotonic() + 90
-                while not ready.exists():
-                    require(server.poll() is None and time.monotonic() < deadline, 'Local production fixture failed to start')
-                    time.sleep(0.1)
-                require(ready.is_file() and not ready.is_symlink() and ready.stat().st_size <= 4096 and
-                        ready.stat().st_mode & 0o777 == 0o600, 'Invalid ready file')
-                connection = validate_connection(json.loads(ready.read_text()))
+                ready = Path(directory) / 'ready.json'
                 with (output / 'production-local-readiness.log').open('w') as readiness_log:
                     readiness_log.write('Local production run ' + run_id + '; started ' + started_at + '\n')
                     def record_readiness(value):
                         # Fixed categories/counts only: never persist proof, headers or response bodies.
                         readiness_log.write(json.dumps(value) + '\n'); readiness_log.flush()
+                    startup = wait_for_fixture_startup(ready, server, record=record_readiness)
+                    require(ready.is_file() and not ready.is_symlink() and ready.stat().st_size <= 4096 and
+                            ready.stat().st_mode & 0o777 == 0o600, 'Invalid ready file')
+                    connection = validate_connection(json.loads(ready.read_text()))
                     readiness = wait_for_worker_readiness(connection, record=record_readiness)
                 products = ROOT / '.build/production-e2e/Build/Products'
                 sources = list(products.glob('StationCatMusic_*.xctestrun'))
@@ -328,7 +352,7 @@ def main():
                            'simulatorIdentifier': sim, 'simulatorRuntime': runtime,
                            'xcodeVersion': subprocess.check_output(['xcodebuild', '-version'], text=True).strip(),
                            'nodeVersion': subprocess.check_output(['node', '--version'], text=True).strip(),
-                           'workerEvidence': service_evidence, 'workerReadiness': readiness,
+                           'workerEvidence': service_evidence, 'workerReadiness': readiness, 'fixtureStartup': startup,
                            'localRealImplementationE2E': True, 'productionActivated': False,
                            'realProductionHTTPSVerified': False, 'osAssociationVerified': False, 'physicalDeviceVerified': False}
                 (output / 'production-local-summary.json').write_text(json.dumps(summary, indent=2) + '\n')

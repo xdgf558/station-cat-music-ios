@@ -155,6 +155,7 @@ class ProductionRunnerTests(unittest.TestCase):
         simulator, inventory, products = self.prepare_driver_fixture()
         launches = []; events = []
         class Server:
+            def poll(self): return None
             def terminate(self): pass
             def wait(self, timeout): return 0
         def launch(arguments, **options):
@@ -211,6 +212,7 @@ class ProductionRunnerTests(unittest.TestCase):
         simulator, inventory, products = self.prepare_driver_fixture('Booted')
         commands = []; closed = []
         class Server:
+            def poll(self): return None
             def terminate(self): closed.append('terminated')
             def wait(self, timeout): return 0
         def launch(arguments, **options):
@@ -271,6 +273,39 @@ class ProductionRunnerTests(unittest.TestCase):
 
 
 class WorkerReadinessTests(unittest.TestCase):
+    def test_cold_fixture_startup_can_finish_after_old_budget_without_restart(self):
+        now = [0]; events = []
+        def sleep(seconds): now[0] += seconds
+        ready = Mock(); ready.exists.side_effect = lambda: now[0] >= 100
+        server = Mock(); server.poll.return_value = None
+        result = runner.wait_for_fixture_startup(ready, server, clock=lambda: now[0], sleep=sleep, record=events.append)
+        self.assertGreaterEqual(result['seconds'], 100)
+        self.assertLess(result['seconds'], 101)
+        self.assertEqual(result['budgetSeconds'], 180)
+        self.assertEqual(events[-1]['event'], 'startup_ready_file')
+        server.terminate.assert_not_called()
+
+    def test_fixture_startup_is_bounded_and_late_or_exited_service_rejected(self):
+        now = [0]; events = []
+        def sleep(seconds): now[0] += seconds
+        ready = Mock(); ready.exists.return_value = False
+        server = Mock(); server.poll.return_value = None
+        with self.assertRaisesRegex(runner.VerificationError, 'startup deadline'):
+            runner.wait_for_fixture_startup(ready, server, clock=lambda: now[0], sleep=sleep, record=events.append)
+        self.assertEqual(now[0], 180)
+        self.assertEqual(events[-1]['event'], 'startup_deadline')
+        server.poll.return_value = 1; ready.exists.return_value = True
+        with self.assertRaisesRegex(runner.VerificationError, 'exited'):
+            runner.wait_for_fixture_startup(ready, server)
+
+    def test_ready_file_discovered_after_deadline_cannot_be_accepted(self):
+        now = [0]; server = Mock(); server.poll.return_value = None
+        ready = Mock()
+        def appears_late(): now[0] = 181; return True
+        ready.exists.side_effect = appears_late
+        with self.assertRaisesRegex(runner.VerificationError, 'Late fixture'):
+            runner.wait_for_fixture_startup(ready, server, clock=lambda: now[0])
+
     def envelope(self, flags=None, status=200):
         expected = {'nativeAuthentication': True, 'musicCatalog': True, 'musicPlayback': True,
                     'personalSync': True, 'accountDeletion': False, 'musicPurchases': False}

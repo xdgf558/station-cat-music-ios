@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Fail-closed checks for the local production driver; no simulator/network required."""
 import copy
+import base64
 import hashlib
 import importlib.util
 import json
 import plistlib
 from pathlib import Path
 import subprocess
+import threading
+import time
 import tempfile
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location('production_runner', Path(__file__).with_name('verify_native_production.py'))
@@ -140,7 +144,8 @@ class ProductionRunnerTests(unittest.TestCase):
         output = self.backend / 'evidence'; output.mkdir()
         names = ('production-local-summary.json', 'production-local-build.log',
                  'production-local-boot.log', 'production-local-bootstatus.log',
-                 'production-local-integration.log', 'production-local-service.log', 'production-local-runtime.jsonl')
+                         'production-local-integration.log', 'production-local-service.log', 'production-local-runtime.jsonl',
+                         'production-local-readiness.log')
         for name in names: (output / name).write_text('previous successful run')
         with patch.object(runner, 'ROOT', self.backend), patch.dict(runner.os.environ, {}, clear=True), patch('builtins.print'):
             with self.assertRaises(runner.VerificationError): runner.main()
@@ -175,17 +180,24 @@ class ProductionRunnerTests(unittest.TestCase):
                 self.assertEqual(options['timeout'], 900)
                 events.append('bootstatus_completed')
             if failed:
+                self.assertEqual(events[-1], 'worker_ready')
                 options['stdout'].write('PRODUCTION_NATIVE_LOCAL_FAILED stage=capability_request category=fixture_response\n')
             return subprocess.CompletedProcess(arguments, 65 if failed else 0)
+        def readiness(connection, **options):
+            self.assertEqual(events[-1], 'service_started')
+            events.append('worker_ready')
+            options['record']({'event': 'ready', 'attempts': 1, 'seconds': .1})
+            return {'attempts': 1, 'seconds': .1}
         with patch.object(runner, 'ROOT', self.backend), patch.object(runner, 'verify_backend', return_value=self.manifest['commit']), \
              patch.dict(runner.os.environ, {'PRODUCTION_BACKEND_PATH': str(self.backend), 'M1_SIMULATOR_ID': simulator}, clear=True), \
              patch.object(runner.subprocess, 'check_output', return_value=json.dumps(inventory)), \
              patch.object(runner.subprocess, 'run', side_effect=execute), patch.object(runner.subprocess, 'Popen', side_effect=launch), \
+             patch.object(runner, 'wait_for_worker_readiness', side_effect=readiness), \
              patch('builtins.print'):
             with self.assertRaisesRegex(runner.VerificationError, 'production-local-integration.log'):
                 runner.main()
         self.assertEqual(len(launches), 1)
-        self.assertEqual(events, ['build_completed', 'boot_completed', 'bootstatus_completed', 'service_started'])
+        self.assertEqual(events, ['build_completed', 'boot_completed', 'bootstatus_completed', 'service_started', 'worker_ready'])
         output = self.backend / 'evidence'; runtime = output / 'production-local-runtime.jsonl'
         diagnostic = json.loads(runtime.read_text())
         log = (output / 'production-local-integration.log').read_text()
@@ -194,6 +206,43 @@ class ProductionRunnerTests(unittest.TestCase):
         self.assertEqual(runtime.stat().st_mode & 0o777, 0o600)
         self.assertFalse((output / 'production-local-summary.json').exists())
         self.assertFalse(list(products.glob('production-local-*.xctestrun')))
+
+    def test_readiness_failure_never_starts_xctest_and_preserves_diagnostics(self):
+        simulator, inventory, products = self.prepare_driver_fixture('Booted')
+        commands = []; closed = []
+        class Server:
+            def terminate(self): closed.append('terminated')
+            def wait(self, timeout): return 0
+        def launch(arguments, **options):
+            directory = Path(arguments[-1]); ready = directory / 'ready.json'
+            ready.write_text(json.dumps({'schemaVersion': 1, 'port': 49152, 'key': 'K' * 43})); ready.chmod(0o600)
+            env = options['env']
+            Path(env['PRODUCTION_RUNTIME_DIAGNOSTICS_FILE']).write_text(json.dumps({
+                'event': 'observer_started', 'runId': env['PRODUCTION_RUNTIME_DIAGNOSTICS_RUN_ID']}) + '\n')
+            return Server()
+        def execute(arguments, **options):
+            commands.append(arguments)
+            return subprocess.CompletedProcess(arguments, 0)
+        def readiness(connection, **options):
+            options['record']({'event': 'exhausted', 'attempts': 4, 'seconds': 20})
+            raise runner.VerificationError('Local Worker readiness exhausted; XCTest was not started')
+        output = self.backend / 'evidence'; output.mkdir()
+        (output / 'production-local-summary.json').write_text('old successful summary')
+        with patch.object(runner, 'ROOT', self.backend), patch.object(runner, 'verify_backend', return_value=self.manifest['commit']), \
+             patch.dict(runner.os.environ, {'PRODUCTION_BACKEND_PATH': str(self.backend), 'M1_SIMULATOR_ID': simulator}, clear=True), \
+             patch.object(runner.subprocess, 'check_output', return_value=json.dumps(inventory)), \
+             patch.object(runner.subprocess, 'run', side_effect=execute), patch.object(runner.subprocess, 'Popen', side_effect=launch), \
+             patch.object(runner, 'wait_for_worker_readiness', side_effect=readiness), patch('builtins.print'):
+            with self.assertRaisesRegex(runner.VerificationError, 'readiness exhausted'): runner.main()
+        self.assertFalse(any('test-without-building' in command for command in commands))
+        self.assertEqual(closed, ['terminated'])
+        self.assertFalse((output / 'production-local-summary.json').exists())
+        self.assertFalse(list(products.glob('production-local-*.xctestrun')))
+        log = (output / 'production-local-readiness.log').read_text()
+        runtime = json.loads((output / 'production-local-runtime.jsonl').read_text())
+        self.assertIn(runtime['runId'], log)
+        self.assertIn('exhausted', log)
+        self.assertNotIn('K' * 43, log)
 
     def test_boot_or_bootstatus_failure_clears_old_green_and_never_starts_service(self):
         simulator, inventory, _ = self.prepare_driver_fixture()
@@ -219,6 +268,136 @@ class ProductionRunnerTests(unittest.TestCase):
                 self.assertTrue(all(not (output / name).exists() for name in stale))
                 self.assertEqual(commands[-1][:3], ['xcrun', 'simctl', failed_step])
                 self.assertFalse(any('test-without-building' in command for command in commands))
+
+
+class WorkerReadinessTests(unittest.TestCase):
+    def envelope(self, flags=None, status=200):
+        expected = {'nativeAuthentication': True, 'musicCatalog': True, 'musicPlayback': True,
+                    'personalSync': True, 'accountDeletion': False, 'musicPurchases': False}
+        payload = json.dumps({'data': {'apiVersion': '1', 'capabilities': expected | (flags or {})}}).encode()
+        return {'status': status, 'headers': {'content-type': 'application/json; charset=utf-8'},
+                'bodyBase64': base64.b64encode(payload).decode()}
+
+    def server(self, replies):
+        requests = []
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args): pass
+            def do_POST(self):
+                body = self.rfile.read(int(self.headers['Content-Length']))
+                requests.append((self.path, self.headers.get('X-Production-Probe-Key'), json.loads(body)))
+                reply = replies[min(len(requests) - 1, len(replies) - 1)]
+                status, value = reply[:2]
+                header_delay = reply[2] if len(reply) > 2 else 0
+                body_delay = reply[3] if len(reply) > 3 else 0
+                chunk_delay = reply[4] if len(reply) > 4 else 0
+                payload = value if isinstance(value, bytes) else json.dumps(value).encode()
+                try:
+                    time.sleep(header_delay)
+                    self.send_response(status); self.send_header('Content-Type', 'application/json')
+                    self.send_header('Content-Length', str(len(payload))); self.end_headers()
+                    time.sleep(body_delay)
+                    if chunk_delay:
+                        for offset in range(0, len(payload), 8):
+                            self.wfile.write(payload[offset:offset + 8]); self.wfile.flush(); time.sleep(chunk_delay)
+                    else: self.wfile.write(payload)
+                except (BrokenPipeError, ConnectionResetError): pass
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .01}, daemon=True); thread.start()
+        def cleanup():
+            server.shutdown(); server.server_close(); thread.join()
+        self.addCleanup(cleanup)
+        return {'schemaVersion': 1, 'port': server.server_port, 'key': 'K' * 43}, requests
+
+    def test_fixed_get_over_protected_loopback_and_scalar_ready_report(self):
+        connection, requests = self.server([(200, self.envelope())])
+        events = []
+        result = runner.wait_for_worker_readiness(connection, record=events.append)
+        self.assertEqual(result['attempts'], 1)
+        self.assertEqual(requests, [('/request', 'K' * 43, {
+            'url': 'https://wwwstationcat.org/api/mobile/v1/config', 'method': 'GET', 'headers': {}})])
+        self.assertEqual(events[0]['event'], 'ready')
+        self.assertEqual(set(events[0]), {'event', 'attempts', 'seconds'})
+
+    def test_only_bridge_request_timeout_is_retried(self):
+        connection, requests = self.server([(408, {'error': {'code': 'REQUEST_TIMEOUT'}}), (200, self.envelope())])
+        events = []
+        result = runner.wait_for_worker_readiness(connection, record=events.append)
+        self.assertEqual(result['attempts'], 2)
+        self.assertEqual([event['event'] for event in events], ['deadline', 'ready'])
+        self.assertEqual(events[0]['source'], 'bridge')
+        self.assertEqual(requests[0], requests[1])
+
+    def test_worker_408_and_other_bridge_failures_are_not_retried(self):
+        for status, payload in [(200, self.envelope(status=408)), (408, {'error': {'code': 'OTHER'}}),
+                                (503, {'error': {'code': 'SERVICE_CLOSED'}}), (302, self.envelope())]:
+            with self.subTest(status=status, payload=payload):
+                connection, requests = self.server([(status, payload)])
+                with self.assertRaises(runner.VerificationError): runner.wait_for_worker_readiness(connection)
+                self.assertEqual(len(requests), 1)
+
+    def test_wrong_or_non_boolean_capabilities_fail_closed_without_retry(self):
+        for change in [{'nativeAuthentication': False}, {'musicCatalog': 1}, {'musicPlayback': False},
+                       {'personalSync': 'true'}, {'accountDeletion': True}, {'musicPurchases': True}]:
+            with self.subTest(change=change):
+                connection, requests = self.server([(200, self.envelope(flags=change))])
+                with self.assertRaisesRegex(runner.VerificationError, 'capability mismatch'):
+                    runner.wait_for_worker_readiness(connection)
+                self.assertEqual(len(requests), 1)
+
+    def test_malformed_oversized_or_invalid_base64_response_fails_without_retry(self):
+        cases = [b'{', b' ' * 16_385, self.envelope() | {'bodyBase64': 'INVALID!'},
+                 self.envelope() | {'status': True}, self.envelope() | {'headers': {}}]
+        for payload in cases:
+            with self.subTest(payload_type=type(payload).__name__):
+                connection, requests = self.server([(200, payload)])
+                with self.assertRaises(runner.VerificationError): runner.wait_for_worker_readiness(connection)
+                self.assertEqual(len(requests), 1)
+
+    def test_transport_timeout_then_ready_is_bounded(self):
+        connection = {'schemaVersion': 1, 'port': 49152, 'key': 'K' * 43}
+        probe = Mock(side_effect=[runner.ReadinessTimeout('synthetic'), None])
+        result = runner.wait_for_worker_readiness(connection, probe=probe, sleep=lambda seconds: None)
+        self.assertEqual(result['attempts'], 2)
+        self.assertEqual(probe.call_count, 2)
+        self.assertTrue(all(0 < call.args[1] <= 5 for call in probe.call_args_list))
+
+    def test_four_deadlines_exhaust_without_starting_any_operation(self):
+        connection = {'schemaVersion': 1, 'port': 49152, 'key': 'K' * 43}
+        probe = Mock(side_effect=runner.ReadinessTimeout('synthetic')); events = []
+        with self.assertRaisesRegex(runner.VerificationError, 'exhausted'):
+            runner.wait_for_worker_readiness(connection, probe=probe, sleep=lambda seconds: None, record=events.append)
+        self.assertEqual(probe.call_count, 4)
+        self.assertEqual(events[-1]['event'], 'exhausted')
+
+    def test_absolute_collection_deadline_rejects_late_success(self):
+        connection = {'schemaVersion': 1, 'port': 49152, 'key': 'K' * 43}; now = [0]
+        def late(connection, timeout): now[0] = 21
+        with self.assertRaisesRegex(runner.VerificationError, 'Late readiness'):
+            runner.wait_for_worker_readiness(connection, probe=late, clock=lambda: now[0], sleep=lambda seconds: None)
+
+    def test_header_and_body_share_absolute_deadline(self):
+        connection, requests = self.server([(200, self.envelope(), .12, .12)])
+        started = time.monotonic()
+        with self.assertRaises(runner.ReadinessTimeout): runner.probe_worker_readiness(connection, .2)
+        self.assertLess(time.monotonic() - started, .6)
+        self.assertEqual(len(requests), 1)
+
+    def test_drip_body_cannot_extend_deadline(self):
+        connection, requests = self.server([(200, self.envelope(), 0, 0, .04)])
+        started = time.monotonic()
+        with self.assertRaises(runner.ReadinessTimeout): runner.probe_worker_readiness(connection, .2)
+        self.assertLess(time.monotonic() - started, .6)
+        self.assertEqual(len(requests), 1)
+
+    def test_wrong_connection_or_unbounded_budgets_never_connect(self):
+        connection = {'schemaVersion': 1, 'port': 49152, 'key': 'K' * 43}
+        with patch.object(runner.http.client, 'HTTPConnection') as client:
+            with self.assertRaises(runner.VerificationError): runner.probe_worker_readiness(connection | {'host': 'example.com'}, 5)
+            for timeout in (0, -1, 6):
+                with self.assertRaises(runner.VerificationError): runner.probe_worker_readiness(connection, timeout)
+            for change in [{'total_timeout': 21}, {'max_attempts': 5}, {'max_attempts': True}]:
+                with self.assertRaises(runner.VerificationError): runner.wait_for_worker_readiness(connection, **change)
+            client.assert_not_called()
 
 
 if __name__ == '__main__': unittest.main()

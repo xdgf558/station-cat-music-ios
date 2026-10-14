@@ -27,9 +27,12 @@ struct RootView: View {
         .tint(Palette.accent)
         .onOpenURL { url in Task { await model.receiveMusicLink(url) } }
         .alert(model.t("linkUnavailable"), isPresented: $model.linkUnavailable) { Button(model.t("close"), role: .cancel) {} }
-        .sheet(isPresented: $model.showPlayer) { player }
+        .sheet(isPresented: $model.showPlayer) {
+            if model.platformMode { PlatformMusicDetailView(model: model) }
+            else { player }
+        }
         .task { await model.initialize() }
-        .onChange(of: model.locale) { _, _ in if model.nativeMusic != nil { Task { await model.load() } } }
+        .onChange(of: model.locale) { _, _ in if model.nativeMusic != nil || model.platformMode { Task { await model.load() } } }
         .onChange(of: model.account.scope) { _, scope in Task { await model.accountScopeChanged(scope) } }
         .alert(model.t("clearHistoryConfirm"), isPresented: $confirmHistoryClear) { Button(model.t("clearHistory"), role: .destructive) { Task { await model.clearHistory() } }; Button(model.t("cancel"), role: .cancel) {} }
         .confirmationDialog(model.t("localCleanupConfirm"), isPresented: $confirmLocalCleanup, titleVisibility: .visible) {
@@ -44,8 +47,14 @@ struct RootView: View {
     }
     private var mainTabs: some View {
         TabView(selection: $model.selectedTab) {
-            NavigationStack { discover.safeAreaInset(edge: .bottom) { miniPlayer } }.tabItem { Label(model.t("discover"), systemImage: "sparkles") }.tag(0)
-            NavigationStack { catalog.safeAreaInset(edge: .bottom) { miniPlayer } }.tabItem { Label(model.t("catalog"), systemImage: "music.note.list") }.tag(1)
+            NavigationStack {
+                if model.platformMode { PlatformMusicScreen(model: model, discovery: true) }
+                else { discover.safeAreaInset(edge: .bottom) { miniPlayer } }
+            }.tabItem { Label(model.t("discover"), systemImage: "sparkles") }.tag(0)
+            NavigationStack {
+                if model.platformMode { PlatformMusicScreen(model: model, discovery: false) }
+                else { catalog.safeAreaInset(edge: .bottom) { miniPlayer } }
+            }.tabItem { Label(model.t("catalog"), systemImage: "music.note.list") }.tag(1)
             NavigationStack { library.safeAreaInset(edge: .bottom) { miniPlayer } }.tabItem { Label(model.t("library"), systemImage: "person.crop.circle") }.tag(2)
         }
     }
@@ -66,7 +75,7 @@ struct RootView: View {
         else { model.playback.handle(.toggle) }
     }
     @ViewBuilder private var miniPlayer: some View {
-        if let track = model.playback.selectedTrack {
+        if !model.platformMode, let track = model.playback.selectedTrack {
             HStack(spacing: 10) {
                 Button { model.showPlayer = true } label: {
                     HStack(spacing: 10) {
@@ -288,7 +297,7 @@ struct RootView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(model.t("settings")).font(.headline).foregroundStyle(Palette.muted)
                     VStack(spacing: 0) {
-                        NavigationLink { offlinePage } label: { libraryCategory("offlineMusic", subtitle: "offlineSummary", symbol: "arrow.down.circle") }.accessibilityIdentifier("offlineEntry")
+                        NavigationLink { offlinePage } label: { libraryCategory(model.platformMode ? "platformCacheManagement" : "offlineMusic", subtitle: model.platformMode ? "platformCacheSummary" : "offlineSummary", symbol: "arrow.down.circle") }.accessibilityIdentifier("offlineEntry")
                         Divider().overlay(Palette.line).padding(.leading, 66)
                         NavigationLink { privacyPage } label: { libraryCategory("privacyStorage", subtitle: "privacyStorageDetail", symbol: "hand.raised") }.accessibilityIdentifier("privacyEntry")
                         Divider().overlay(Palette.line).padding(.leading, 66)
@@ -343,7 +352,7 @@ struct RootView: View {
                         Button(model.t("signOut")) { Task { await model.account.signOut() } }.disabled(model.account.busy)
                     }
                     if !model.account.messageKey.isEmpty { Text(model.t(model.account.messageKey)).font(.footnote).accessibilityIdentifier("authMessage") }
-                } else { Text(model.t("authNotReady")).font(.footnote).foregroundStyle(Palette.muted) }
+                } else { Text(model.t(model.platformMode ? "platformAccountDetail" : "authNotReady")).font(.footnote).foregroundStyle(Palette.muted) }
             }.listRowBackground(Palette.panel)
             if model.account.deletionEnabled {
                 Section(model.t("accountDeletion")) {
@@ -402,7 +411,7 @@ struct RootView: View {
                 ForEach(recentTracks) { track in libraryRow(track, list: recentTracks) }
                 if recentTracks.isEmpty { Label(model.t("noRecent"), systemImage: "clock").font(.subheadline).foregroundStyle(Palette.muted) }
             }.listRowBackground(Palette.panel)
-            Section { Text(model.t(model.historyEnabled ? "historyOnDetail" : "historyOffDetail")).font(.footnote).foregroundStyle(Palette.muted) }.listRowBackground(Palette.panel)
+            Section { Text(model.t(model.platformMode ? "platformHistoryDetail" : model.historyEnabled ? "historyOnDetail" : "historyOffDetail")).font(.footnote).foregroundStyle(Palette.muted) }.listRowBackground(Palette.panel)
         }
     }
     private var offlineUsage: String {
@@ -411,22 +420,33 @@ struct RootView: View {
         return formatter.string(fromByteCount: Int64(model.offlineBytes)) + " / 500 MB"
     }
     private var offlinePage: some View {
-        libraryPage("offlineMusic", id: "offlinePage") {
+        libraryPage(model.platformMode ? "platformCacheManagement" : "offlineMusic", id: "offlinePage") {
             Section {
                 LabeledContent(model.t("offlineSpace"), value: offlineUsage)
-                Toggle(model.t("offlineAuto"), isOn: Binding(get: { model.autoCacheFreeSongs }, set: { model.setAutoCache($0) })).disabled(model.offlineCache == nil)
-                Text(model.t("offlineDetail")).font(.footnote).foregroundStyle(Palette.muted)
+                if model.platformMode {
+                    Text(model.t("platformLegacyCacheDetail")).font(.footnote).foregroundStyle(Palette.muted)
+                } else {
+                    Toggle(model.t("offlineAuto"), isOn: Binding(get: { model.autoCacheFreeSongs }, set: { model.setAutoCache($0) })).disabled(model.offlineCache == nil)
+                    Text(model.t("offlineDetail")).font(.footnote).foregroundStyle(Palette.muted)
+                }
             }.listRowBackground(Palette.panel)
             Section {
                 if model.offlineSongs.isEmpty { Label(model.t("offlineEmpty"), systemImage: "arrow.down.circle").foregroundStyle(Palette.muted) }
                 ForEach(model.offlineSongs) { song in
                     HStack {
-                        Button { model.select(song.track, from: model.offlineSongs.filter { $0.unavailable != true }.map(\.track)) } label: {
+                        if model.platformMode {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(song.track.title).font(.headline)
-                                Text(song.unavailable == true ? model.t("offlineUnavailable") : model.t("offlineUntil") + " " + song.expiresAt.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(Palette.muted)
+                                Text(model.t("platformLegacyCacheSaved")).font(.caption).foregroundStyle(Palette.muted)
                             }.frame(maxWidth: .infinity, alignment: .leading)
-                        }.buttonStyle(.plain).disabled(song.unavailable == true)
+                        } else {
+                            Button { model.select(song.track, from: model.offlineSongs.filter { $0.unavailable != true }.map(\.track)) } label: {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(song.track.title).font(.headline)
+                                    Text(song.unavailable == true ? model.t("offlineUnavailable") : model.t("offlineUntil") + " " + song.expiresAt.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(Palette.muted)
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                            }.buttonStyle(.plain).disabled(song.unavailable == true)
+                        }
                         Button(role: .destructive) { Task { await model.removeOffline(song.id) } } label: { Image(systemName: "trash").frame(width: 44, height: 44) }.accessibilityLabel(model.t("remove") + " " + song.track.title)
                     }
                 }
@@ -446,13 +466,22 @@ struct RootView: View {
                 Text(model.t(model.libraryStatus)).font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section {
+                LabeledContent(model.t("artworkCacheSpace"), value: artworkUsage).accessibilityIdentifier("artworkCacheSpace")
+                LabeledContent(model.t("artworkCacheFiles"), value: model.artworkCacheUsage.map { $0.files.formatted() } ?? "—")
+                    .accessibilityIdentifier("artworkCacheFiles")
                 Button(model.t("clearCache")) { Task { await model.clearCache() } }
             } header: { Text(model.t("temporaryStorage")) } footer: { Text(model.t("cacheDetail")) }.listRowBackground(Palette.panel)
             Section {
                 Button(model.t("localCleanup"), role: .destructive) { cleanupScope = model.scope; confirmLocalCleanup = true }
                 if !model.localCleanupStatus.isEmpty { Text(model.t(model.localCleanupStatus)).font(.footnote) }
             } header: { Text(model.t("accountStorage")) } footer: { Text(model.t("localCleanupDetail")) }.listRowBackground(Palette.panel)
-        }
+        }.task { await model.refreshArtworkCacheUsage() }
+    }
+    private var artworkUsage: String {
+        guard let usage = model.artworkCacheUsage else { return "—" }
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .binary; formatter.allowsNonnumericFormatting = false
+        return formatter.string(fromByteCount: Int64(usage.bytes)) + " / " + formatter.string(fromByteCount: Int64(usage.maximumBytes))
     }
     private var preferencesPage: some View {
         libraryPage("preferences", id: "preferencesPage") {
@@ -489,9 +518,19 @@ struct RootView: View {
         libraryPage("releaseNotes", id: "releaseNotesPage") {
             Section {
                 Text("Station Cat Music · " + appVersion).font(.headline)
-                Text("2026-09-25").font(.caption).foregroundStyle(Palette.muted)
+                Text("2026-10-14").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("releaseCoverCache"), systemImage: "externaldrive")
+                Label(model.t("releaseImageLoading"), systemImage: "photo")
+                Label(model.t("releaseImageRetries"), systemImage: "arrow.clockwise")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 0.1.0 (5) · 2026-10-13") {
+                Label(model.t("releasePlatforms"), systemImage: "arrow.up.right")
+                Label(model.t("releaseWebsiteCatalog"), systemImage: "music.note.list")
+                Label(model.t("releaseLocalData"), systemImage: "heart")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 0.1.0 (4) · 2026-09-25") {
                 Label(model.t("releaseSaveStability"), systemImage: "arrow.down.circle")
                 Label(model.t("releaseClockProtection"), systemImage: "clock.badge.checkmark")
                 Label(model.t("releaseCacheCleanup"), systemImage: "externaldrive")
@@ -506,13 +545,16 @@ struct RootView: View {
         }
     }
     private func libraryRow(_ track: Track, list: [Track]) -> some View {
-        Button { model.select(track, from: list) } label: {
+        Button {
+            if model.platformMode { model.selectPlatformTrack(track) }
+            else { model.select(track, from: list) }
+        } label: {
             HStack(spacing: 12) {
-                OrbitArtwork(track: track, model: model).frame(width: 40, height: 40).clipShape(RoundedRectangle(cornerRadius: 7))
+                OrbitArtwork(track: track, model: model, thumbnail: true).frame(width: 40, height: 40).clipShape(RoundedRectangle(cornerRadius: 7))
                 VStack(alignment: .leading, spacing: 3) { Text(track.title).font(.subheadline); Text(track.artist).font(.caption).foregroundStyle(Palette.muted) }
                 Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(Palette.muted)
-            }.frame(minHeight: 44)
-        }.buttonStyle(.plain)
+            }.frame(minHeight: 44).contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityIdentifier("library.track.\(track.id)")
     }
     private var deletionSheet: some View {
         NavigationStack {

@@ -18,5 +18,9 @@ STATION_PERSONAL_SYNC_ENABLED = NO
 // Independent reviewed profile; never include Staging/R2 settings here.
 STATION_PRODUCTION_ACTIVATION_ENABLED = NO
 STATION_PRODUCTION_ACTIVATION_PROFILE =
+
+// Publication requires separate approval even for read-only metadata.
+STATION_PUBLIC_RELEASES_ENABLED = NO
+STATION_PUBLIC_RELEASE_ORIGIN =
 STATION_APP_ENTITLEMENTS =
 #include? "Production.local.xcconfig"

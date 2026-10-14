@@ -1,6 +1,11 @@
 import Foundation
 
-nonisolated struct HTTPResult: Sendable { let status: Int; let data: Data }
+nonisolated struct HTTPResult: Sendable {
+    let status: Int
+    let data: Data
+    var headers: [String: String] = [:]
+    var finalURL: URL? = nil
+}
 nonisolated protocol HTTPTransport: Sendable { func send(_ request: URLRequest) async throws -> HTTPResult }
 nonisolated final class RejectRedirects: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
@@ -25,7 +30,10 @@ actor URLSessionTransport: HTTPTransport {
             guard data.count < 262_144 else { throw APIError.invalidPayload }
             data.append(byte)
         }
-        return HTTPResult(status: response.statusCode, data: data)
+        let headers = response.allHeaderFields.reduce(into: [String: String]()) { values, field in
+            if let key = field.key as? String, let value = field.value as? String { values[key.lowercased()] = value }
+        }
+        return HTTPResult(status: response.statusCode, data: data, headers: headers, finalURL: response.url)
     }
 }
 actor MockTransport: HTTPTransport {

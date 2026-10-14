@@ -136,6 +136,11 @@ private final class CachedArtworkProtocol: URLProtocol, @unchecked Sendable {
         if path.contains("no-store") { headers["Cache-Control"] = "public, max-age=3600, no-store" }
         if path.contains("short-ttl") { headers["Cache-Control"] = "public, max-age=3" }
         if path.contains("private") { headers["Cache-Control"] = "private, max-age=3600" }
+        let version = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "v" }?.value
+        if path.hasPrefix("/api/station/content/assets/"), version?.count == 64 {
+            headers["Cache-Control"] = "private, max-age=86400"
+        }
+        if path.contains("max-age-zero") { headers["Cache-Control"] = "private, max-age=0" }
         if path.contains("cookie") { headers["Set-Cookie"] = "fixture=not-a-credential" }
         if path.contains("old-age") { headers["Age"] = "3600" }
         if path.contains("missing") { headers.removeValue(forKey: "Cache-Control") }
@@ -221,6 +226,41 @@ private final class CachedArtworkProtocol: URLProtocol, @unchecked Sendable {
         _ = try await reopened.load(url, allowedHost: "artwork.test")
         XCTAssertEqual(CachedArtworkProtocol.state.count(url.path), 1)
     }
+    func testVersionedPrivateCoverSurvivesRelaunchAndOnlyChangedVersionDownloads() async throws {
+        let dir = directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let path = "/api/station/content/assets/" + UUID().uuidString
+        let first = URL(string: "https://artwork.test" + path + "?size=display&v=" + String(repeating: "a", count: 64))!
+        let changed = URL(string: "https://artwork.test" + path + "?size=display&v=" + String(repeating: "b", count: 64))!
+        let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: dir)
+        let downloaded = try await loader.load(first, allowedHost: "artwork.test")
+        let memory = try await loader.load(first, allowedHost: "artwork.test")
+        XCTAssertNotNil(downloaded); XCTAssertTrue(downloaded === memory)
+        let initialUsage = try await loader.cacheUsage()
+        XCTAssertEqual(initialUsage.files, 1); XCTAssertGreaterThan(initialUsage.bytes, 0)
+        XCTAssertEqual(initialUsage.maximumBytes, 150 * 1024 * 1024)
+        let reopened = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: dir)
+        let disk = try await reopened.load(first, allowedHost: "artwork.test")
+        XCTAssertNotNil(disk); XCTAssertEqual(CachedArtworkProtocol.state.count(path), 1)
+        let newImage = try await reopened.load(changed, allowedHost: "artwork.test")
+        let newMemory = try await reopened.load(changed, allowedHost: "artwork.test")
+        XCTAssertNotNil(newImage); XCTAssertTrue(newImage === newMemory)
+        XCTAssertEqual(CachedArtworkProtocol.state.count(path), 2)
+        let changedUsage = try await reopened.cacheUsage()
+        XCTAssertEqual(changedUsage.files, 2); XCTAssertGreaterThan(changedUsage.bytes, initialUsage.bytes)
+        XCTAssertLessThanOrEqual(changedUsage.bytes, changedUsage.maximumBytes)
+    }
+    func testUnversionedMaxAgeZeroStillNeverEntersMemoryOrDiskCache() async throws {
+        let dir = directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let url = URL(string: "https://artwork.test/max-age-zero-" + UUID().uuidString + "?size=display")!
+        let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: dir)
+        _ = try await loader.load(url, allowedHost: "artwork.test")
+        _ = try await loader.load(url, allowedHost: "artwork.test")
+        let reopened = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: dir)
+        _ = try await reopened.load(url, allowedHost: "artwork.test")
+        XCTAssertEqual(CachedArtworkProtocol.state.count(url.path), 3)
+        let usage = try await reopened.cacheUsage()
+        XCTAssertEqual(usage.files, 0); XCTAssertEqual(usage.bytes, 0)
+    }
     func testUncacheableAndInvalidResponsesNeverPersist() async throws {
         let dir = directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let loader = ArtworkLoader(protocolClasses: [CachedArtworkProtocol.self], cacheDirectory: dir)
@@ -286,5 +326,30 @@ private final class CachedArtworkProtocol: URLProtocol, @unchecked Sendable {
         try ArtworkCache(directory: dir).clear()
         XCTAssertEqual(try Data(contentsOf: outside), original)
         XCTAssertEqual(try Data(contentsOf: dir.appending(path: "state.json")), original)
+    }
+    func testUsageAndClearOnlyCountRegularArtworkFilesWithoutTraversingPrivateState() async throws {
+        let base = directory(); defer { try? FileManager.default.removeItem(at: base) }
+        let dir = base.appending(path: "PublicMusicArtwork-v1"), account = base.appending(path: "PersonalMusic")
+        let audio = base.appending(path: "OfflineMusic"), original = Data("preserved private state".utf8)
+        for folder in [dir, account, audio] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        let journal = account.appending(path: "journal.json"), song = audio.appending(path: "song.mp3")
+        try original.write(to: journal); try original.write(to: song)
+        try original.write(to: dir.appending(path: "state.json"))
+        try FileManager.default.createSymbolicLink(at: dir.appending(path: "ignored.art"), withDestinationURL: journal)
+        let nested = dir.appending(path: "directory.art")
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+        try original.write(to: nested.appending(path: "song.mp3"))
+        let cache = ArtworkCache(directory: dir)
+        let now = Date()
+        try cache.store(Data(repeating: 5, count: 400), url: URL(string: "https://artwork.test/usage")!, expires: now.addingTimeInterval(100), now: now)
+        let loader = ArtworkLoader(cacheDirectory: dir), usage = try await loader.cacheUsage()
+        XCTAssertEqual(usage.files, 1); XCTAssertGreaterThan(usage.bytes, 400)
+        try await loader.clearCache()
+        let empty = try await loader.cacheUsage()
+        XCTAssertEqual(empty.files, 0); XCTAssertEqual(empty.bytes, 0)
+        for path in [journal, song, dir.appending(path: "state.json"), nested.appending(path: "song.mp3")] {
+            XCTAssertEqual(try Data(contentsOf: path), original)
+        }
+        XCTAssertTrue(try dir.appending(path: "ignored.art").resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink == true)
     }
 }

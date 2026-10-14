@@ -21,6 +21,10 @@ final class ArtworkFreshnessTests: XCTestCase {
         }
         XCTAssertNil(ArtworkFreshness.expiration(response(generated: now.addingTimeInterval(-120)), responseTime: now, storedAt: now, responseDelay: 0, residentTime: 0))
     }
+    func testCurrentWebsiteRevalidationPolicyDoesNotBecomeAnUnvalidatedCacheHit() {
+        XCTAssertNil(ArtworkFreshness.expiration(response(["Cache-Control": "private, max-age=0, must-revalidate"]),
+            responseTime: now, storedAt: now, responseDelay: 0, residentTime: 0))
+    }
     func testAgeIncludesHeaderDelayDownloadAndDecodeAndTakesOlderDate() throws {
         let expires = try XCTUnwrap(ArtworkFreshness.expiration(response(["Age": "10"]), responseTime: now, storedAt: now.addingTimeInterval(3), responseDelay: 4, residentTime: 3))
         XCTAssertEqual(expires.timeIntervalSince(now), 46, accuracy: 0.001)

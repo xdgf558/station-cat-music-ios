@@ -22,12 +22,14 @@ struct OrbitBackground: View {
 struct OrbitArtwork: View {
     let track: Track?
     let model: AppModel
+    var thumbnail = false
     var body: some View {
         GeometryReader { geometry in
             Group {
                 if let url = track?.coverUrl, url.scheme == "https",
-                   let host = model.nativeMusic?.configuration.origin.host, url.host == host {
-                    CachedArtwork(url: url, host: host, loader: model.artwork, fill: true)
+                   let host = model.artworkHost, url.host == host {
+                    CachedArtwork(url: PlatformArtwork.url(url, thumbnail: thumbnail), host: host,
+                        loader: model.artwork, fill: true, retryGeneration: model.artworkRetryGeneration)
                 } else {
                     Image("OrbitCover").resizable().scaledToFill()
                 }

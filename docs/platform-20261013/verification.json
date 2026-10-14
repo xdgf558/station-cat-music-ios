@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-13",
+  "timezone": "Asia/Singapore",
+  "baseCommit": "f766a9497bb0b5ac25a32bd5bfee4e237fda1c75",
+  "localToolchain": "Xcode 27 beta 6 (27A5252f)",
+  "simulator": "iPhone 17 Pro / iOS 26.4",
+  "stableCI": false,
+  "tests": {
+    "swiftPassed": 244,
+    "swiftSpecialEnvironmentSkipped": 23,
+    "legacyUITestsPassed": 8,
+    "platformUITestsPassed": 4,
+    "platformLargestDynamicTypeLocales": [
+      "en",
+      "zh-Hans",
+      "zh-Hant",
+      "ja"
+    ],
+    "openapiOperations": 26,
+    "positiveContractFixtures": 67,
+    "negativeContractFixtures": 21,
+    "sourceGuards": "passed",
+    "closedProductionProfile": "passed"
+  },
+  "realPublicPreview": {
+    "environment": "development",
+    "publicMetadataOptIn": "local build command only",
+    "version": "0.1.0",
+    "build": "5",
+    "nativeFlags": {
+      "StationNativeAuthEnabled": "NO",
+      "StationNativeMusicEnabled": "NO",
+      "StationPersonalSyncEnabled": "NO",
+      "StationProductionActivationEnabled": "NO"
+    },
+    "screenshot": "real-home.png",
+    "observedFeaturedTitle": "原来已经这么远",
+    "audioPlaybackTested": false,
+    "platformAppHandoffTested": false
+  },
+  "defaultPublicFlag": "NO",
+  "productionEnabled": false,
+  "deviceInstalled": false,
+  "appStoreUploaded": false,
+  "screenshots": {
+    "real-home.png": "Simulator, actual read-only public website metadata and artwork",
+    "mock-detail.png": "Synthetic Mock links; no external platform request",
+    "mock-zh-hans-accessibility.png": "Mock, largest supported Dynamic Type"
+  },
+  "initialFailures": {
+    "firstUISuite": "identifier inheritance, incomplete fixture, row hit area, old canonical URL guard; fixed and rerun",
+    "initialPresentationTest": "test locale expectation was not isolated; fixed and full suite passed"
+  },
+  "sourceSHA256": {
+    "Core/ArtworkCache.swift": "d6bfac22819bfb47086f43e4a9e3a2221a6a883f98a8f6dce2fa96f4b8626645",
+    "Core/ArtworkLoader.swift": "0b6d200717302e9446b8c79547c9a57474c6f3077e033e9dd7832ca57648806b",
+    "Core/CatalogFailure.swift": "b31196aad110c131632b7f1d32931a8dfee6c412069927588c8987997d3e227b",
+    "Core/Credentials.swift": "8a84e8d6271740cbc166083f48f81bc8a396b55e9ab916c9022a08233ccda583",
+    "Core/DeletionRecovery.swift": "9eb9c6556aa5a3ae9fd47655fe2906d362d9e2f5662e4f29e39b576fdb63a125",
+    "Core/Domain.swift": "5b0c05ccf6106eeee0ccfc1552591a9a9b9fe97047856c26c66721bd58870fa1",
+    "Core/MusicLink.swift": "bef702c42492dd0da2cb29dfe83f7b53133cfe23d4bc1a01ffb0b168428dcc01",
+    "Core/NativeAuthentication.swift": "3a20292e480e28d8dc65a3526eb39f640c1b0c3435a59181bf29c5fefa0ad889",
+    "Core/NativeDeletion.swift": "fd8080cac40a66ae2f965667b438f8eb366a436cd68a2aec4b7a6fcc76876394",
+    "Core/NativeLibrary.swift": "5b38af7d546e61170de7b614f4128c53d5e5bb18038c4264b7e0f3581ce5700a",
+    "Core/NativeMediaLoader.swift": "967d8fe6a307d4dabbeb5e86ee45c4b979de3c9b034d28c6f4f673bb29d33e2c",
+    "Core/NativeMusic.swift": "7c6fdd935ea2b9324fd86220a669ca230bc85f799634e9baff75ec53e4090dd4",
+    "Core/NativeRuntimeConfiguration.swift": "0eb7d082c382837201580a90d3b02edde3471af240587fb02e98cbf49280b7e2",
+    "Core/Networking.swift": "30ea41c40cfd1f3acab620c5414f1b754ebd7d541df5d3443cf2d4688c3615b8",
+    "Core/OfflineMusic.swift": "7f7ec04f64c7e6e67aaab685dc768225ba8c2302871eae4b9dc833509dab7180",
+    "Core/PersonalLibrary.swift": "ee3e48cfb7653c357719adf3924ab03627327af6df673794bd62c5e8e40e22f0",
+    "Core/PlatformConfiguration.swift": "8facd3c25f636cc1829caa62ec1d30e64bb447d624d4d7d274e0ece5b7c73cba",
+    "Core/PlatformFixtureTransport.swift": "e3db0eb144c923e843e4616869a07a70c68c26c08f2fe1fd17ecd9890a805049",
+    "Core/PlatformMusic.swift": "fb41c0f4d7de0a83ee5376b035243cb55dd6aa1a1ebcc82edddc8beaba823fe7",
+    "Core/Playback.swift": "24f4d0b470dca7768b196258afe8a8e8112ff3364663d159ed306ed93a8198ab",
+    "Core/PlaybackQueue.swift": "0ae21bc35a0bf3cb87ae41841a3f99ab181891b7b893b7dddb4cf6e7843f541d",
+    "Core/ServiceContracts.swift": "831b69aa4b3018b8934e5909f4c2e15d193bbabfb9ebc4be9b9fc6933ac102ce",
+    "Core/SystemPlayback.swift": "dea426afee647772216b13bf018142c893280bd34c185a0e414a2b845c10cb32",
+    "StationCatMusic/AppModel.swift": "c733390bd1bf11f6f270e02ef8354ba94e4b008c59a75c7df8d94500dd44cb32",
+    "StationCatMusic/CachedArtwork.swift": "c76dbd291f9703bf5c049f1c6676edbce5faad328012a108bcb63b0f86e8402e",
+    "StationCatMusic/NativeAccountModel.swift": "a0123faaf54bc94211299753c779c97685524b993a4f31225639104ba3e9b1ae",
+    "StationCatMusic/OrbitTheme.swift": "1118201d80deb39f1090b651c7f9cf7f7cea051b149386286bc6726c975fbd0f",
+    "StationCatMusic/PlatformMusicView.swift": "984e901584325e55dcb6f82c0c71e8e95e946ae77febdcdb51bc2a06e4390457",
+    "StationCatMusic/RootView.swift": "c9c4af485ceec2b417457544f8694b63eb962b8ce062b1a62bc8c9d9cee55b61",
+    "StationCatMusic/StartupView.swift": "e09eae1b0c6273e747524fc24376d5730b31d63a5773bf0a6f4824cd04177c12",
+    "StationCatMusic/StationCatMusicApp.swift": "0e21fc159d9099c137139142f1c1a383893bfcdaf9c399672ec48f2505867bf9",
+    "StationCatMusic/SystemAuthenticationBrowser.swift": "19a1519b1d1ab864e494d69fe4110d926ac31c7b171f90746477cd120c4ed92f"
+  },
+  "defaultClosedConfigurationsVerified": [
+    "Mock",
+    "Development",
+    "Staging",
+    "Production"
+  ],
+  "closedBuildNotes": "Final three non-Mock builds also include the platform-specific account/history copy; no behavioral code changed after full suite."
+}

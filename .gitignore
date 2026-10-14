@@ -1,5 +1,7 @@
 .build/
 .build-production/
+.build-platform/
+.build-public-preview/
 .venv/
 evidence/
 *.xcuserstate

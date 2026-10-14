@@ -2,6 +2,7 @@
 """Pinned, synthetic production-profile E2E over loopback. Never a deployment/HTTPS probe."""
 import hashlib
 import http.client
+import base64
 from datetime import datetime, timezone
 import json
 import os
@@ -9,8 +10,10 @@ from pathlib import Path, PurePosixPath
 import plistlib
 import re
 import shutil
+import socket
 import subprocess
 import tempfile
+import threading
 import time
 import uuid
 
@@ -29,6 +32,12 @@ MARKERS = ('PRODUCTION_NATIVE_LOCAL_E2E_PASSED:', 'PRODUCTION_LINK_MATRIX_COLD_P
 
 class VerificationError(Exception):
     pass
+
+
+class ReadinessTimeout(VerificationError):
+    def __init__(self, message, *, kind='transport'):
+        super().__init__(message)
+        self.kind = kind if kind in ('transport', 'bridge') else 'transport'
 
 
 def require(condition, message):
@@ -112,6 +121,126 @@ def require_evidence(log):
     require('PRODUCTION_NATIVE_LOCAL_FAILED' not in log, 'Native production fixture failed')
 
 
+def probe_worker_readiness(connection, timeout):
+    """Only GET config through the proof-protected local bridge; never a mutation.
+
+    One absolute deadline covers connect, headers and the entire bounded body.
+    No redirects/proxies are used and no reader remains after socket shutdown.
+    """
+    validate_connection(connection)
+    require(0 < timeout <= 5, 'Invalid readiness request budget')
+    deadline = time.monotonic() + timeout
+    local = http.client.HTTPConnection('127.0.0.1', connection['port'], timeout=timeout)
+    expired = threading.Event(); timer = None
+    limit = 16_384
+    try:
+        local.connect()
+        sock = local.sock
+        def interrupt():
+            expired.set()
+            try: sock.shutdown(socket.SHUT_RDWR)
+            except OSError: pass
+        timer = threading.Timer(max(0, deadline - time.monotonic()), interrupt)
+        timer.start()
+        # The outer POST is only an envelope; the Worker receives this fixed GET.
+        body = json.dumps({'url': 'https://wwwstationcat.org/api/mobile/v1/config',
+                           'method': 'GET', 'headers': {}}, separators=(',', ':')).encode()
+        local.request('POST', '/request', body=body,
+                      headers={'X-Production-Probe-Key': connection['key'], 'Content-Type': 'application/json'})
+        response = local.getresponse()
+        payload = response.read(limit + 1)
+        if expired.is_set() or time.monotonic() >= deadline:
+            raise ReadinessTimeout('Readiness transport deadline')
+        require(len(payload) <= limit and
+                response.getheader('Content-Type', '').split(';')[0].strip().lower() == 'application/json',
+                'Invalid readiness bridge response')
+        try: envelope = json.loads(payload)
+        except (ValueError, UnicodeError): raise VerificationError('Invalid readiness bridge JSON') from None
+        if response.status == 408 and envelope == {'error': {'code': 'REQUEST_TIMEOUT'}}:
+            raise ReadinessTimeout('Readiness bridge deadline', kind='bridge')
+        require(response.status == 200 and isinstance(envelope, dict) and
+                set(envelope) == {'status', 'headers', 'bodyBase64'} and type(envelope['status']) is int and
+                envelope['status'] == 200 and isinstance(envelope['headers'], dict) and
+                isinstance(envelope['bodyBase64'], str), 'Readiness Worker response rejected')
+        content_type = envelope['headers'].get('content-type')
+        require(isinstance(content_type, str) and content_type.split(';')[0].strip().lower() == 'application/json',
+                'Invalid readiness Worker content type')
+        try:
+            decoded = base64.b64decode(envelope['bodyBase64'], validate=True)
+            require(len(decoded) <= limit, 'Oversized readiness Worker response')
+            value = json.loads(decoded)
+        except (ValueError, UnicodeError): raise VerificationError('Invalid readiness Worker JSON') from None
+        expected = {'nativeAuthentication': True, 'musicCatalog': True, 'musicPlayback': True,
+                    'personalSync': True, 'accountDeletion': False, 'musicPurchases': False}
+        data = value.get('data') if isinstance(value, dict) else None
+        flags = data.get('capabilities') if isinstance(data, dict) else None
+        require(isinstance(data, dict) and data.get('apiVersion') == '1' and isinstance(flags, dict) and
+                all(flags.get(key) is enabled for key, enabled in expected.items()), 'Readiness capability mismatch')
+        if expired.is_set() or time.monotonic() >= deadline:
+            raise ReadinessTimeout('Readiness transport deadline')
+    except (OSError, http.client.HTTPException) as error:
+        if expired.is_set() or time.monotonic() >= deadline or isinstance(error, TimeoutError):
+            raise ReadinessTimeout('Readiness transport deadline') from None
+        raise VerificationError('Readiness transport failed') from None
+    finally:
+        if timer is not None:
+            timer.cancel(); timer.join()
+        local.close()
+
+
+def wait_for_worker_readiness(connection, *, total_timeout=20, max_attempts=4,
+                              probe=probe_worker_readiness, clock=time.monotonic, sleep=time.sleep, record=lambda value: None):
+    """Startup gate only. Real XCTest config/login/refresh assertions are not retried."""
+    validate_connection(connection)
+    require(0 < total_timeout <= 20 and type(max_attempts) is int and 1 <= max_attempts <= 4,
+            'Invalid readiness collection budget')
+    started = clock(); deadline = started + total_timeout; attempts = 0
+    while attempts < max_attempts and clock() < deadline:
+        attempts += 1
+        try:
+            probe(connection, min(5, deadline - clock()))
+            require(clock() < deadline, 'Late readiness result rejected')
+            result = {'attempts': attempts, 'seconds': round(clock() - started, 3)}
+            record({'event': 'ready', **result})
+            return result
+        except ReadinessTimeout as error:
+            record({'event': 'deadline', 'source': error.kind, 'attempt': attempts, 'seconds': round(clock() - started, 3)})
+        except VerificationError:
+            record({'event': 'rejected', 'attempt': attempts, 'seconds': round(clock() - started, 3)})
+            raise
+        remaining = deadline - clock()
+        if attempts < max_attempts and remaining > 0:
+            sleep(min(.25 * attempts, remaining))
+    record({'event': 'exhausted', 'attempts': attempts, 'seconds': round(clock() - started, 3)})
+    raise VerificationError('Local Worker readiness exhausted; XCTest was not started')
+
+
+def wait_for_fixture_startup(ready, server, *, timeout=180, clock=time.monotonic,
+                             sleep=time.sleep, record=lambda value: None):
+    """Bound cold Node/Miniflare/migration setup separately from request deadlines.
+
+    No service restart or business request is repeated. A late ready file or an
+    exited process never admits XCTest, even if a file was left behind.
+    """
+    require(0 < timeout <= 180, 'Invalid fixture startup budget')
+    started = clock(); deadline = started + timeout
+    record({'event': 'startup_wait', 'budgetSeconds': timeout})
+    while True:
+        elapsed = clock() - started
+        if server.poll() is not None:
+            record({'event': 'startup_exited', 'seconds': round(elapsed, 3)})
+            raise VerificationError('Local production fixture exited during startup')
+        if clock() >= deadline:
+            record({'event': 'startup_deadline', 'seconds': round(elapsed, 3)})
+            raise VerificationError('Local production fixture startup deadline exceeded')
+        if ready.exists():
+            require(clock() < deadline, 'Late fixture ready file rejected')
+            result = {'seconds': round(clock() - started, 3), 'budgetSeconds': timeout}
+            record({'event': 'startup_ready_file', **result})
+            return result
+        sleep(max(0, min(.1, deadline - clock())))
+
+
 def read_service_evidence(connection):
     local = http.client.HTTPConnection('127.0.0.1', connection['port'], timeout=10)
     try:
@@ -148,7 +277,8 @@ def main():
     output = ROOT / 'evidence'; output.mkdir(exist_ok=True)
     for name in ('production-local-summary.json', 'production-local-build.log',
                  'production-local-boot.log', 'production-local-bootstatus.log',
-                 'production-local-integration.log', 'production-local-service.log', 'production-local-runtime.jsonl'):
+                 'production-local-integration.log', 'production-local-service.log', 'production-local-runtime.jsonl',
+                 'production-local-readiness.log'):
         (output / name).unlink(missing_ok=True)
     run_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
@@ -186,13 +316,17 @@ def main():
                                       stdout=log, stderr=subprocess.STDOUT, env=fixture_env)
             test_file = None
             try:
-                ready = Path(directory) / 'ready.json'; deadline = time.monotonic() + 90
-                while not ready.exists():
-                    require(server.poll() is None and time.monotonic() < deadline, 'Local production fixture failed to start')
-                    time.sleep(0.1)
-                require(ready.is_file() and not ready.is_symlink() and ready.stat().st_size <= 4096 and
-                        ready.stat().st_mode & 0o777 == 0o600, 'Invalid ready file')
-                connection = validate_connection(json.loads(ready.read_text()))
+                ready = Path(directory) / 'ready.json'
+                with (output / 'production-local-readiness.log').open('w') as readiness_log:
+                    readiness_log.write('Local production run ' + run_id + '; started ' + started_at + '\n')
+                    def record_readiness(value):
+                        # Fixed categories/counts only: never persist proof, headers or response bodies.
+                        readiness_log.write(json.dumps(value) + '\n'); readiness_log.flush()
+                    startup = wait_for_fixture_startup(ready, server, record=record_readiness)
+                    require(ready.is_file() and not ready.is_symlink() and ready.stat().st_size <= 4096 and
+                            ready.stat().st_mode & 0o777 == 0o600, 'Invalid ready file')
+                    connection = validate_connection(json.loads(ready.read_text()))
+                    readiness = wait_for_worker_readiness(connection, record=record_readiness)
                 products = ROOT / '.build/production-e2e/Build/Products'
                 sources = list(products.glob('StationCatMusic_*.xctestrun'))
                 require(bool(sources), 'Missing compiled test configuration')
@@ -218,7 +352,7 @@ def main():
                            'simulatorIdentifier': sim, 'simulatorRuntime': runtime,
                            'xcodeVersion': subprocess.check_output(['xcodebuild', '-version'], text=True).strip(),
                            'nodeVersion': subprocess.check_output(['node', '--version'], text=True).strip(),
-                           'workerEvidence': service_evidence,
+                           'workerEvidence': service_evidence, 'workerReadiness': readiness, 'fixtureStartup': startup,
                            'localRealImplementationE2E': True, 'productionActivated': False,
                            'realProductionHTTPSVerified': False, 'osAssociationVerified': False, 'physicalDeviceVerified': False}
                 (output / 'production-local-summary.json').write_text(json.dumps(summary, indent=2) + '\n')

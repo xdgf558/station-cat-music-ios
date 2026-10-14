@@ -3,7 +3,7 @@ import XCTest
 @MainActor final class NavigationTests: XCTestCase {
     func testStartupShowcaseTransitionsToHome() {
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launchArguments = ["--legacy-player-fixture", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.launchEnvironment["STATION_STARTUP_PREVIEW"] = "slow"
         app.launch()
         XCTAssertTrue(app.staticTexts["startupLoading"].waitForExistence(timeout: 3))
@@ -15,7 +15,7 @@ import XCTest
     }
     func testStartupFailureCanRetryOrEnterLibrary() {
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launchArguments = ["--legacy-player-fixture", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.launchEnvironment["STATION_STARTUP_PREVIEW"] = "failure"
         app.launch()
         XCTAssertTrue(app.buttons["startupRetry"].waitForExistence(timeout: 5))
@@ -31,7 +31,7 @@ import XCTest
     func testStartupAccessibilityInFourLanguages() {
         for locale in ["en", "zh-Hans", "zh-Hant", "ja"] {
             let app = XCUIApplication()
-            app.launchArguments = ["-AppleLanguages", "(\(locale))", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+            app.launchArguments = ["--legacy-player-fixture", "-AppleLanguages", "(\(locale))", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
             app.launchEnvironment["STATION_STARTUP_PREVIEW"] = "failure"
             app.launch()
             XCTAssertTrue(app.buttons["startupRetry"].waitForExistence(timeout: 5))
@@ -46,7 +46,7 @@ import XCTest
     }
     func testOfflineAndVersionPages() {
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launchArguments = ["--legacy-player-fixture", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["我的"].waitForExistence(timeout: 10))
         app.tabBars.buttons["我的"].tap()
@@ -56,13 +56,13 @@ import XCTest
         app.navigationBars.buttons.firstMatch.tap()
         for _ in 0..<4 { if app.buttons["helpEntry"].isHittable { break }; app.swipeUp() }
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (4)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (6)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (4)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (6)"].waitForExistence(timeout: 5))
         let release = XCTAttachment(screenshot: app.screenshot()); release.name = "Version-Release-Notes"; release.lifetime = .keepAlways; add(release)
     }
     func testThreeTabsAndPlayerNeverAutoPlays() {
-        let app = XCUIApplication(); app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["--legacy-player-fixture", "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]; app.launch()
         XCTAssertTrue(app.buttons["track.sample-night-window"].waitForExistence(timeout: 10))
         let home = XCTAttachment(screenshot: app.screenshot()); home.name = "M1-English-Discover"; home.lifetime = .keepAlways; add(home)
         app.buttons["track.sample-night-window"].tap()
@@ -95,7 +95,7 @@ import XCTest
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = "M1-English-You"; attachment.lifetime = .keepAlways; add(attachment)
     }
     func testHistoryPreferencePersistsAndClearRequiresConfirmation() {
-        let app = XCUIApplication(); app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["--legacy-player-fixture", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]; app.launch()
         XCTAssertTrue(app.tabBars.buttons["You"].waitForExistence(timeout: 10)); app.tabBars.buttons["You"].tap()
         XCTAssertFalse(app.switches["Save listening history"].exists, "Privacy actions belong on the second-level page")
         app.buttons["privacyEntry"].tap()
@@ -119,7 +119,7 @@ import XCTest
     }
     func testLibraryCategoryNavigationAndBack() {
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launchArguments = ["--legacy-player-fixture", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.launch()
         XCTAssertTrue(app.buttons["track.sample-night-window"].waitForExistence(timeout: 10))
         app.buttons["track.sample-night-window"].tap()
@@ -142,7 +142,7 @@ import XCTest
     }
     func testFourLocalesAndLargestDynamicType() {
         for locale in ["zh-Hans", "zh-Hant", "en", "ja"] {
-            let app = XCUIApplication(); app.launchArguments = ["-AppleLanguages", "(\(locale))", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]; app.launch()
+            let app = XCUIApplication(); app.launchArguments = ["--legacy-player-fixture", "-AppleLanguages", "(\(locale))", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]; app.launch()
             XCTAssertTrue(app.buttons["track.sample-night-window"].waitForExistence(timeout: 10))
             XCTAssertEqual(app.tabBars.buttons.count, 3)
             let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = "M1-\(locale)-AXXXL"; attachment.lifetime = .keepAlways; add(attachment)

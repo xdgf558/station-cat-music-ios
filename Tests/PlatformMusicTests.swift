@@ -7,6 +7,7 @@ private nonisolated struct PlatformTestReply: Sendable {
     var mime = "application/json; charset=utf-8"
     var redirected = false
     var delay: Duration = .zero
+    var headers: [String: String] = [:]
 }
 private actor PlatformTestTransport: HTTPTransport {
     let replies: [PlatformTestReply]
@@ -17,7 +18,7 @@ private actor PlatformTestTransport: HTTPTransport {
         let reply = replies[min(requests.count - 1, replies.count - 1)]
         try await Task.sleep(for: reply.delay)
         try Task.checkCancellation()
-        return HTTPResult(status: reply.status, data: reply.data, headers: ["content-type": reply.mime],
+        return HTTPResult(status: reply.status, data: reply.data, headers: reply.headers.merging(["content-type": reply.mime], uniquingKeysWith: { _, new in new }),
             finalURL: reply.redirected ? URL(string: "https://unassociated.example.test/") : request.url)
     }
 }
@@ -95,6 +96,42 @@ private actor PlatformFeaturedTransport: HTTPTransport {
     private func api(_ transport: any HTTPTransport) throws -> PlatformMusicAPI {
         try PlatformMusicAPI(explicitlyEnabled: true, transport: transport,
             now: { Date(timeIntervalSince1970: 1_900_000_000) })
+    }
+    func testDirectSlugDoesNotRequireCatalogAndChecksIdentityAndLocale() async throws {
+        let transport = PlatformTestTransport([try detail(track())])
+        let client = try api(transport)
+        let result = try await client.resolvePlatformTrack(slug: "a-slower-day", locale: "en")
+        XCTAssertEqual(result.track.id, firstID)
+        let requests = await transport.requests
+        XCTAssertEqual(requests.count, 1)
+        XCTAssertEqual(requests.first?.url?.path, "/api/station/content/tracks/a-slower-day")
+        XCTAssertNil(requests.first?.value(forHTTPHeaderField: "Authorization"))
+        for value in [track(slug: "wrong-song"), track("not-a-uuid"), track(locale: "ja")] {
+            let invalid = try api(PlatformTestTransport([try detail(value)]))
+            do { _ = try await invalid.resolvePlatformTrack(slug: "a-slower-day", locale: "en"); XCTFail("Bad identity accepted") }
+            catch { XCTAssertEqual(error as? APIError, .invalidPayload) }
+        }
+    }
+    func testBookmarkRequiresExplicitFreshCachePermissionAndMatchingID() async throws {
+        let data = try json(["schemaVersion":1,"locale":"en","bookmark":["id":firstID,"slug":"a-slower-day","revision":2,"title":"Saved title","artist":"Station Cat"]])
+        let timestamp = Date(timeIntervalSince1970: 1_900_000_000)
+        let date = DateFormatter(); date.locale = Locale(identifier: "en_US_POSIX"); date.timeZone = TimeZone(secondsFromGMT: 0); date.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+        let validHeaders = ["Cache-Control":"private, max-age=86400, must-revalidate", "Date": date.string(from: timestamp)]
+        let seed = try api(PlatformTestTransport([try page([track()])]))
+        let catalog = try await seed.catalog()
+        let target = try XCTUnwrap(catalog.items.first)
+        let permitted = try api(PlatformTestTransport([PlatformTestReply(data: data, headers: validHeaders)]))
+        let saved = try await permitted.bookmark(target, locale: "en")
+        XCTAssertEqual(saved.title, "Saved title"); XCTAssertLessThanOrEqual(saved.expires.timeIntervalSince(timestamp), 86400)
+        for headers in [[:], ["Cache-Control":"no-store"], validHeaders.merging(["Vary":"*"], uniquingKeysWith: { _, new in new }), validHeaders.merging(["Age":"86400"], uniquingKeysWith: { _, new in new }), validHeaders.merging(["Cache-Control":"private, max-age=0"], uniquingKeysWith: { _, new in new })] {
+            let denied = try api(PlatformTestTransport([PlatformTestReply(data: data, headers: headers)]))
+            do { _ = try await denied.bookmark(target, locale: "en"); XCTFail("Cache denial ignored") }
+            catch { XCTAssertEqual(error as? APIError, .invalidPayload) }
+        }
+        let changedData = try json(["schemaVersion":1,"locale":"en","bookmark":["id":secondID,"slug":"a-slower-day","revision":2,"title":"Wrong identity","artist":"Station Cat"]])
+        let changed = try api(PlatformTestTransport([PlatformTestReply(data: changedData, headers: validHeaders)]))
+        do { _ = try await changed.bookmark(target, locale: "en"); XCTFail("Wrong bookmark identity accepted") }
+        catch { XCTAssertEqual(error as? APIError, .invalidPayload) }
     }
     private func featuredTransport(_ primary: [String: Any], selected: [[String: Any]], held: Bool = true) throws -> PlatformFeaturedTransport {
         let values = [primary] + selected

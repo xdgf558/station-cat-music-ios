@@ -182,7 +182,7 @@ struct PlatformMusicDetailView: View {
                             }
                         } else if model.platformDetailFailure {
                             VStack(alignment: .leading, spacing: 12) {
-                                Label(model.t("platformDetailFailure"), systemImage: "exclamationmark.circle").foregroundStyle(Palette.muted)
+                                Label(model.t(model.platformDetailFailureKey), systemImage: "exclamationmark.circle").foregroundStyle(Palette.muted)
                                     .accessibilityIdentifier("platformDetailFailure")
                                 Button(model.t("retry")) { model.retryPlatformDetail() }.frame(minHeight: 44)
                                     .accessibilityIdentifier("platformDetailRetry")
@@ -207,6 +207,15 @@ struct PlatformMusicDetailView: View {
                             }.accessibilityIdentifier("platformShare")
                         }
                     }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    VStack(spacing: 18) {
+                        if model.platformDetailFailure {
+                            Label(model.t(model.platformDetailFailureKey), systemImage: "exclamationmark.circle")
+                                .accessibilityIdentifier("platformDetailFailure")
+                            Button(model.t("retry")) { model.retryPlatformDetail() }.frame(minHeight: 44)
+                                .accessibilityIdentifier("platformDetailRetry")
+                        } else { ProgressView(model.t("platformDetailLoading")) }
+                    }.padding(24).frame(maxWidth: .infinity, minHeight: 240)
                 }
             }.background { OrbitBackground() }.accessibilityIdentifier("platformDetailScreen")
                 .navigationBarTitleDisplayMode(.inline)

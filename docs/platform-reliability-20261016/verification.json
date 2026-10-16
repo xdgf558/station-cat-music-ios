@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-16",
+  "version": "0.1.0",
+  "build": "8",
+  "xcode": "27.1",
+  "xcodeBuild": "27A9275",
+  "simulatorOS": "27.0",
+  "swift": {
+    "cases": 288,
+    "passed": 265,
+    "skipped": 23,
+    "failed": 0
+  },
+  "ui": {
+    "passed": 6,
+    "failed": 0
+  },
+  "followUp": {
+    "unitPassed": 19,
+    "uiPassed": 1
+  },
+  "python": {
+    "release": 8,
+    "links": 3
+  },
+  "configurations": [
+    "Mock",
+    "Development",
+    "Staging",
+    "Production"
+  ],
+  "website": {
+    "publicRuntimePassed": 60,
+    "associationAndContractPassed": 84,
+    "developmentPages": 181,
+    "allowEmptySerialContent": true
+  },
+  "sharedLinkMatrixSHA256": "1dce0ad82c4f2b491b908396470518cdbcc5111abbd81d5150501577f6a6db40",
+  "productionEnabled": false,
+  "aasaDeployed": false,
+  "appleCDNVerified": false,
+  "deviceTested": false,
+  "testFlightUploaded": false,
+  "remoteCICompleted": false
+}

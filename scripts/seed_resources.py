@@ -25,6 +25,12 @@ privacy|Privacy|隐私说明|隱私說明|プライバシー
 terms|Terms|服务条款|服務條款|利用規約
 support|Support|联系支持|聯絡支援|サポート
 shareMusic|Share link|分享链接|分享連結|リンクを共有
+platformWorkMissing|This work is no longer available at this address. Your favorite is kept.|此地址的作品不存在或已撤回，收藏仍保留。|此位址的作品不存在或已撤回，收藏仍保留。|このアドレスの作品は存在しないか、公開が終了しています。お気に入りは保持します。
+platformWorkRemoved|This work has been withdrawn. Your favorite is kept.|作品已撤回，收藏仍保留。|作品已撤回，收藏仍保留。|作品の公開が終了しました。お気に入りは保持します。
+favoritePlaceholder|Saved work|已收藏的作品|已收藏的作品|保存した作品
+favoriteAwaitingUpdate|Saved · connect to update details|已收藏 · 联网后更新作品资料|已收藏 · 連線後更新作品資料|保存済み · 接続後に情報を更新
+favoriteOpenDetails|Open details to check listening platforms|打开详情，核验收听平台|開啟詳情，核驗收聽平台|詳細を開いて配信先を確認
+removeFavorite|Remove favorite|取消收藏|取消收藏|お気に入りから削除
 linkUnavailable|This music link is unavailable.|此音乐链接暂不可用。|此音樂連結暫不可用。|この音楽リンクは利用できません。
 playing|Playing|正在播放|正在播放|再生中
 queue|Play queue|播放队列|播放佇列|再生キュー
@@ -227,6 +233,10 @@ platform.youtube|YouTube|YouTube|YouTube|YouTube
 platform.spotify|Spotify|Spotify|Spotify|Spotify
 artworkCacheSpace|Cover cache storage|封面缓存占用|封面快取空間|カバー画像のキャッシュ容量
 artworkCacheFiles|Cached covers|已缓存封面|已快取封面|保存済みのカバー画像
+releaseSongLinks|Song links can load a work directly, including supported campaign tags, even before it appears in your catalog.|歌曲链接可直接查询作品，并支持限定的推广来源参数，无需等待作品进入本机曲库。|歌曲連結可直接查詢作品，並支援限定的推廣來源參數，無需等待作品進入本機曲庫。|対応するキャンペーン情報付きの曲リンクから、一覧にまだない作品も直接読み込めます。
+releaseFavoriteReliability|Favorites remain visible offline. Permitted saved names appear while fresh; otherwise a saved-work placeholder stays available.|断网时收藏数量和条目仍保留；有效期内显示已保存的作品名称，否则显示收藏占位。|離線時收藏數量和項目仍保留；有效期內顯示已儲存的作品名稱，否則顯示收藏佔位。|オフラインでもお気に入りの件数と項目を保持。有効な保存情報があれば作品名を表示し、期限後も保存済みの項目を残します。
+releaseDetailErrors|Song details distinguish network failures and unavailable addresses, with a retry option.|歌曲详情区分网络失败和地址失效，并提供重试入口。|歌曲詳情區分網路失敗和位址失效，並提供重試入口。|曲の詳細で通信エラーと無効なアドレスを区別し、再試行できます。
+releasePrivacyLinks|Privacy and terms now open the current website pages in your selected language.|隐私政策和服务条款现在会打开与你所选语言对应的新版网站页面。|隱私政策與服務條款現在會開啟與所選語言對應的新版網站頁面。|プライバシーポリシーと利用規約のリンクを、選択した言語の現在のウェブページに更新しました。
 releaseCoverCache|Versioned covers can be reused from memory and local storage while valid. View usage and clear them in Privacy & storage.|封面按版本缓存在本机，有效期内直接复用，可在“隐私与存储”查看占用并清理。|封面依版本快取於本機，有效期內直接重用，可在「隱私與儲存」查看空間並清理。|バージョンごとにカバー画像を端末へ保存し、有効期間内は再利用します。「プライバシーとストレージ」で容量の確認と削除ができます。
 releaseImageLoading|Recommendations load in parallel, and music lists use smaller cover thumbnails.|推荐信息并行载入，歌曲列表使用更轻的封面缩略图。|推薦資訊平行載入，歌曲清單使用更輕量的封面縮圖。|おすすめ情報を並列で読み込み、曲の一覧には軽量なカバー画像を表示します。
 releaseImageRetries|Retrying a failed refresh also retries missing covers, while already displayed images stay visible.|刷新失败后重试也会重新加载未显示的封面，已经显示的图片保持可见。|更新失敗後重試也會重新載入未顯示的封面，已顯示的圖片保持可見。|更新に失敗した後の再試行で未表示の画像も再読み込みします。表示済みの画像はそのまま保持します。

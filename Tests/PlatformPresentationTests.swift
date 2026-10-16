@@ -38,6 +38,10 @@ private actor PresentationCatalog: PlatformMusicProviding {
         if fail { throw URLError(.notConnectedToInternet) }
         return [track(Self.firstID)]
     }
+    func resolvePlatformTrack(slug: String, locale: String) async throws -> PlatformTrackDetail {
+        guard let value = [track(Self.firstID), track(Self.secondID)].first(where: { $0.release?.slug == slug }) else { throw APIError.rejected(404) }
+        return try await platformDetail(value, locale: locale)
+    }
     func platformDetail(_ track: Track, locale: String) async throws -> PlatformTrackDetail {
         detailCalls.append(track.id)
         if held { await withCheckedContinuation { waiting.append($0) } }

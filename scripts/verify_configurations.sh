@@ -22,9 +22,18 @@ assert not info.get('StationProductionActivationProfile')
 assert info['StationLegalOrigin']=='https://wwwstationcat.org'
 assert not info.get('StationNativeAuthOrigin')
 assert not info.get('StationMusicWebOrigin')
+assert info['StationPublicReleasesEnabled']=='NO'
+assert info['StationPublicAppLinksEnabled']=='NO'
+assert not info.get('StationPublicReleaseOrigin')
 assert 'NSAppTransportSecurity' not in info
-assert info.get('UIBackgroundModes') == ['audio']
+if config == 'Production':
+ assert 'UIBackgroundModes' not in info
+else:
+ assert info.get('UIBackgroundModes') == ['audio']
 assert 'NSAppleMusicUsageDescription' not in info
-print(config+': environment embedded, iOS18 minimum, no HTTP exception; audio background mode only')
+print(config+': environment embedded, iOS18 minimum, services closed; no background audio in Production')
 PY
+  if [[ "$config" == "Production" ]]; then
+    python3 scripts/check_platform_release.py --app .build/Build/Products/Production-iphonesimulator/StationCatMusic.app
+  fi
 done

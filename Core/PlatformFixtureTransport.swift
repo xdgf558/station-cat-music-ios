@@ -18,20 +18,33 @@ actor PlatformFixtureTransport: HTTPTransport {
               let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw APIError.invalidRequest }
         try await Task.sleep(for: delay); try Task.checkCancellation()
         let prefix = PlatformMusicAPI.contentPath
-        let isDetail = url.path.hasPrefix(prefix + "/tracks/")
+        let isBookmark = url.path.hasSuffix("/bookmark")
+        let isDetail = url.path.hasPrefix(prefix + "/tracks/") && !isBookmark
         if isDetail { detailCounts[url.path, default: 0] += 1 }
         let body: Any?
         if url.path == prefix + "/tracks" { body = object["catalog"] }
         else if url.path == prefix + "/home" { body = object["home"] }
+        else if isBookmark,
+            let detail = (object["details"] as? [String: Any])?[url.deletingLastPathComponent().lastPathComponent] as? [String: Any],
+            let track = detail["track"] as? [String: Any] {
+            body = ["schemaVersion":1, "locale":"en", "bookmark": track.filter { ["id","slug","title","artist","revision"].contains($0.key) }]
+        }
         else if isDetail { body = (object["details"] as? [String: Any])?[url.lastPathComponent] }
         else { throw APIError.invalidRequest }
         guard let body else { throw APIError.invalidRequest }
         let locale = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "locale" })?.value ?? "en"
         let content = patch(body, locale: locale)
+        var headers = ["content-type":"application/json"]
+        if isBookmark {
+            let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0); formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+            headers["Cache-Control"] = "private, max-age=86400, must-revalidate"
+            headers["Date"] = formatter.string(from: Date())
+        }
         // The homepage's initial detail projection succeeds. The first user
         // opening fails once, so the UI exercises a real retry without networking.
         return HTTPResult(status: detailFailure && isDetail && detailCounts[url.path] == 2 ? 503 : status,
-            data: try JSONSerialization.data(withJSONObject: content), headers: ["content-type": "application/json"], finalURL: url)
+            data: try JSONSerialization.data(withJSONObject: content), headers: headers, finalURL: url)
     }
     private func patch(_ value: Any, locale: String) -> Any {
         if let values = value as? [Any] { return values.map { patch($0, locale: locale) } }

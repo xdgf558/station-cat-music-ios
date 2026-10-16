@@ -76,6 +76,32 @@ import XCTest
         XCTAssertFalse(app.switches["Automatically save free songs"].exists)
         assertNoPlaybackControls(app)
     }
+    func testFavoritesSurviveTerminatedOfflineLaunch() {
+        let app = launch()
+        scrollUntilVisible(app.buttons["platformFeaturedOpen"], in: app); app.buttons["platformFeaturedOpen"].tap()
+        let favorite = app.buttons["platformFavorite"]
+        XCTAssertTrue(favorite.waitForExistence(timeout: 5))
+        if favorite.value as? String != "On" { favorite.tap() }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == 'On'"), object: favorite)], timeout: 5), .completed)
+        app.buttons["platformDetailClose"].tap()
+        app.tabBars.buttons.element(boundBy: 2).tap(); app.buttons["favoritesEntry"].tap()
+        XCTAssertTrue(app.buttons["library.track.\(firstID)"].waitForExistence(timeout: 5))
+        app.terminate()
+        // Bundled Mock 503; this test changes no device/network setting or live service.
+        app.launchEnvironment["STATION_STARTUP_PREVIEW"] = "failure"
+        app.launch()
+        XCTAssertTrue(app.buttons["startupContinue"].waitForExistence(timeout: 5)); app.buttons["startupContinue"].tap()
+        app.tabBars.buttons.element(boundBy: 2).tap(); app.buttons["favoritesEntry"].tap()
+        let saved = app.buttons["library.track.\(firstID)"]
+        XCTAssertTrue(saved.waitForExistence(timeout: 5))
+        XCTAssertTrue(saved.label.contains("A Slower Day"))
+        XCTAssertTrue(saved.label.contains("connect to update"))
+        capture(app, "Platform-Offline-Favorites")
+        saved.tap()
+        XCTAssertTrue(app.buttons["platformDetailRetry"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["platformLink.netease"].exists)
+        assertNoPlaybackControls(app)
+    }
     func testDetailFailureRetriesAndRejectedExternalOpenHasCopyFallback() {
         let app = launch(fixture: "detail-failure")
         scrollUntilVisible(app.buttons["platformFeaturedOpen"], in: app); app.buttons["platformFeaturedOpen"].tap()

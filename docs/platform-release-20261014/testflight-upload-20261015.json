@@ -1,0 +1,82 @@
+{
+  "recordedAt": "2026-10-15T09:51:31+08:00",
+  "appleUploadSucceededAtLocal": "2026-10-15 09:47:52.666",
+  "appStoreConnectAppId": "6822797145",
+  "bundleIdentifier": "org.stationcat.music",
+  "teamId": "2AM5S7BM2N",
+  "version": "0.1.0",
+  "build": "7",
+  "toolchain": "Xcode 27.0 (27A266a)",
+  "archiveSucceeded": true,
+  "distributionExportSucceeded": true,
+  "uploaded": true,
+  "appleProcessingStateAtUploadCompletion": "processing",
+  "processingCompletionVerified": false,
+  "webVerification": "user_will_confirm_manually",
+  "appStoreSubmitted": false,
+  "testersInvited": false,
+  "installedOnPhone": false,
+  "physicalDeviceTestsRun": false,
+  "userRequestedNoDeviceTests": true,
+  "checks": {
+    "bundle": "org.stationcat.music",
+    "version": "0.1.0",
+    "build": "7",
+    "publicMetadataEnabled": true,
+    "nativeServicesEnabled": false,
+    "backgroundAudio": false,
+    "requiredReasonManifest": "present",
+    "usesNonExemptEncryption": false,
+    "releaseNoteLocales": [
+      "en",
+      "ja",
+      "zh-Hans",
+      "zh-Hant"
+    ],
+    "appStorePrivacyLabelConfirmed": false,
+    "signedDistributionValidated": true
+  },
+  "distributionSigning": {
+    "profileName": "iOS Team Store Provisioning Profile: org.stationcat.music",
+    "team": [
+      "2AM5S7BM2N"
+    ],
+    "applicationIdentifier": "2AM5S7BM2N.org.stationcat.music",
+    "getTaskAllow": false,
+    "betaReportsActive": true,
+    "hasDeviceAllowlist": false,
+    "associatedDomains": false,
+    "xcodeBuild": "27A266a",
+    "sdkName": "iphoneos27.0",
+    "sdkBuild": "24A430",
+    "ipaSHA256": "7d9001e5312ead1c4bc68babb8b3e07345df581d7ae5a2f88efdbf93ce48ff44"
+  },
+  "verificationIPASHA256": "7d9001e5312ead1c4bc68babb8b3e07345df581d7ae5a2f88efdbf93ce48ff44",
+  "uploadLogSHA256": "0a21333200ae8d6a7ff04b34102fcd501094325323ded7aa70422825028609d5",
+  "archiveArtifacts": {
+    "StationCatMusic": "0d11687d5420ea6f87802547d878f7271e84aef556956c5b31d056961195de4a",
+    "Info.plist": "3e32c02437e6165bcb0759e5a94b872958e1a0f6e50d533a862b5d7b16b85e50",
+    "Localizations.json": "84efbd7715996f8915ea4056706517e6ab449a2e7255e9fbb2f8f6584e4971a1",
+    "PrivacyInfo.xcprivacy": "7605f33de027658dc05989f2e028e90225fc3e8369c7af5c8c228774497e8e6b"
+  },
+  "sourceHashes": {
+    "Config/PlatformRelease-Info.plist": "9231716e43bb5f401e1b1a0a18e260bc2ebc1859cb69c2b0a8ab146e8acb8d36",
+    "Core/LegalLinks.swift": "02be3a29ec04a61593f14a8eee348a6b78a0c8a11375243d16feccabdf1cf66d",
+    "Resources/Localizations.json": "84efbd7715996f8915ea4056706517e6ab449a2e7255e9fbb2f8f6584e4971a1",
+    "Resources/PrivacyInfo.xcprivacy": "7605f33de027658dc05989f2e028e90225fc3e8369c7af5c8c228774497e8e6b",
+    "StationCatMusic.xcodeproj/project.pbxproj": "c32fe5e75f3b276a7c3e9cfb2e1c0bb414600afbd0a5ee49e0e91257b541a38b",
+    "StationCatMusic/RootView.swift": "6948cc3685575d8f3c6ba4c5a6ce92a42e6dd8067e62b4416e9edad59757cf25",
+    "UITests/NavigationTests.swift": "6d5a55fb7b88e4da5d99329a46900a74c90df09eee9305511b3a173cef520f6c",
+    "scripts/check_platform_release.py": "7f2348079348a18b4b5d25d119ab01da12f4b84f0fcc9d72d12ebdc6be660143",
+    "scripts/generate_project.py": "12966c9ea0f8f19e5b49c370444bee408f2872faa15c6adffd920e86ff883273",
+    "scripts/seed_resources.py": "e9cdf6b890caa7addd87e0cafc62f401b46601bbefdf713b009765e6c99b111f",
+    "scripts/test_platform_acceptance.py": "73ce8e22b573ddb0e41a24314f43c750ab341d8a586652fd023b9748c5f3cc47"
+  },
+  "sourceChangedSincePriorCandidate": false,
+  "priorRejectedAttempt": {
+    "toolchain": "Xcode 27 beta 6",
+    "reason": "Unsupported SDK or Xcode version",
+    "appleErrorID": "L6UB5XAA4OHB2NEEH5NIKMTK4A"
+  },
+  "latestHeadStableCI": "not_run_local_uncommitted_batch"
+}

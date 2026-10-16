@@ -26,6 +26,13 @@ nonisolated protocol PlatformMusicProviding: CatalogProviding {
     func setLocale(_ locale: String) async
     func featuredTracks() async throws -> [Track]
     func platformDetail(_ track: Track, locale: String) async throws -> PlatformTrackDetail
+    func resolvePlatformTrack(slug: String, locale: String) async throws -> PlatformTrackDetail
+    func bookmark(_ track: Track, locale: String) async throws -> PlatformBookmark
+}
+
+extension PlatformMusicProviding {
+    func resolvePlatformTrack(slug: String, locale: String) async throws -> PlatformTrackDetail { throw APIError.networkDisabled }
+    func bookmark(_ track: Track, locale: String) async throws -> PlatformBookmark { throw APIError.networkDisabled }
 }
 
 /// Public website metadata only. This client never requests audio, a native
@@ -56,8 +63,8 @@ actor PlatformMusicAPI: PlatformMusicProviding {
         let next = Self.locales.contains(value) ? value : "en"
         if next != locale { locale = next; localeVersion += 1 }
     }
-    private func request<T: Decodable & Sendable>(_ path: String, query: [URLQueryItem], as: T.Type) async throws -> T {
-        guard path == "/home" || path == "/tracks" || path.range(of: "^/tracks/[a-z0-9]+(?:-[a-z0-9]+)*$", options: .regularExpression) != nil else { throw APIError.invalidRequest }
+    private func request<T: Decodable & Sendable>(_ path: String, query: [URLQueryItem], as: T.Type, cacheExpiry: ((Date) -> Void)? = nil) async throws -> T {
+        guard path == "/home" || path == "/tracks" || path.range(of: "^/tracks/[a-z0-9]+(?:-[a-z0-9]+)*(?:/bookmark)?$", options: .regularExpression) != nil else { throw APIError.invalidRequest }
         var components = URLComponents(url: webOrigin, resolvingAgainstBaseURL: false)!
         components.path = Self.contentPath + path
         components.queryItems = query
@@ -66,12 +73,20 @@ actor PlatformMusicAPI: PlatformMusicProviding {
         request.httpMethod = "GET"
         request.httpShouldHandleCookies = false
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let started = ContinuousClock.now
         let result = try await transport.send(request)
         try Task.checkCancellation()
         guard result.status == 200 else { throw APIError.rejected(result.status) }
         guard result.data.count <= 262_144, result.finalURL == url,
               let contentType = result.headers.first(where: { $0.key.lowercased() == "content-type" })?.value,
               contentType.split(separator: ";", maxSplits: 1).first?.trimmingCharacters(in: .whitespaces).lowercased() == "application/json" else { throw APIError.invalidPayload }
+        if let cacheExpiry {
+            let received = now()
+            guard let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: result.headers),
+                  let expiry = ArtworkFreshness.expiration(response, responseTime: received, storedAt: received,
+                    responseDelay: ArtworkFreshness.seconds(started.duration(to: .now)), residentTime: 0) else { throw APIError.invalidPayload }
+            cacheExpiry(expiry)
+        }
         do { return try JSONDecoder().decode(T.self, from: result.data) }
         catch { throw APIError.invalidPayload }
     }
@@ -149,9 +164,24 @@ actor PlatformMusicAPI: PlatformMusicProviding {
         try current(version)
         return result
     }
-    private func detail(slug: String, id: String, locale: String) async throws -> PlatformTrackDetail {
+    func resolvePlatformTrack(slug: String, locale: String) async throws -> PlatformTrackDetail {
+        guard Self.slug(slug), Self.locales.contains(locale) else { throw APIError.invalidRequest }
+        return try await detail(slug: slug, id: nil, locale: locale)
+    }
+    func bookmark(_ track: Track, locale: String) async throws -> PlatformBookmark {
+        guard Self.uuid(track.id), let slug = track.release?.slug, Self.slug(slug), Self.locales.contains(locale) else { throw APIError.invalidRequest }
+        var expires: Date?
+        let value = try await request("/tracks/" + slug + "/bookmark", query: [.init(name: "locale", value: locale)], as: PlatformBookmarkDTO.self, cacheExpiry: { expires = $0 })
+        guard value.schemaVersion == 1, value.locale == locale, let expires,
+              value.bookmark.id.lowercased() == track.id.lowercased(), value.bookmark.slug == slug else { throw APIError.invalidPayload }
+        let item = PlatformBookmark(id: track.id, slug: slug, title: value.bookmark.title, artist: value.bookmark.artist,
+            revision: value.bookmark.revision, locale: locale, savedAt: now(), expires: expires)
+        guard item.valid else { throw APIError.invalidPayload }
+        return item
+    }
+    private func detail(slug: String, id: String?, locale: String) async throws -> PlatformTrackDetail {
         let result = try await request("/tracks/" + slug, query: [.init(name: "locale", value: locale)], as: PlatformDetailDTO.self)
-        guard result.schemaVersion == 1, result.locale == locale, result.track.id.lowercased() == id.lowercased(), result.track.slug == slug else { throw APIError.invalidPayload }
+        guard result.schemaVersion == 1, result.locale == locale, (id == nil || result.track.id.lowercased() == id?.lowercased()), result.track.slug == slug else { throw APIError.invalidPayload }
         let track = try project(result.track, locale: locale)
         let story = result.track.story ?? ""
         guard Self.story(story) else { throw APIError.invalidPayload }
@@ -287,4 +317,11 @@ nonisolated private struct PlatformTrackDTO: Decodable, Sendable {
 }
 nonisolated private struct PlatformLinkDTO: Decodable, Sendable {
     let id: String; let provider: String; let status: String; let href: String; let verifiedAt: String
+}
+
+nonisolated private struct PlatformBookmarkDTO: Decodable, Sendable {
+    let schemaVersion: Int
+    let locale: String
+    let bookmark: Item
+    struct Item: Decodable, Sendable { let id, slug, title, artist: String; let revision: Int }
 }

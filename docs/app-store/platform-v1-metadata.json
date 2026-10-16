@@ -1,0 +1,44 @@
+{
+  "status": "draft-not-submitted",
+  "productScope": "public-platform-catalog-no-subscriptions",
+  "proposedStoreVersion": "1.0",
+  "localCandidateVersion": "0.1.0 (7)",
+  "bundleIdentifier": "org.stationcat.music",
+  "primaryCategory": "MUSIC",
+  "reviewAccountRequired": false,
+  "marketingURL": "https://wwwstationcat.org/music/",
+  "supportURLCandidate": "https://wwwstationcat.org/en/support/",
+  "privacyURL": null,
+  "privacyURLStatus": "Publish and review a platform-app policy before submission; existing website text describes the legacy web player.",
+  "reviewNotes": "Station Cat Music is a native catalog for Station Cat releases. No Station Cat account or subscription is required. Open Discover, select a work, and read its description or use its published platform link. Music plays on the external service, subject to that service's availability and terms; this app does not unlock third-party subscriptions. The Music tab supports local search; My contains on-device favorites, cover-cache usage and settings. No in-app audio, background playback, new offline downloads, in-app purchases or remote account synchronization are offered by this build. Network access is required to fetch the public catalog and links. Cover caching reduces repeated image downloads but does not make the catalog or music available offline. Add the account holder's review contact details and final screenshots before submission.",
+  "localizations": {
+    "zh-Hans": {
+      "name": "Station Cat Music",
+      "subtitle": "发现作品，读懂歌曲背后的故事",
+      "promotionalText": "在安静的深色界面里，发现 Station Cat 的音乐与创作故事，收藏喜欢的作品，前往可用的音乐平台收听。",
+      "description": "Station Cat Music，把作品与创作故事放在一起。\n\n浏览作品与站长推荐，在原生曲库里按歌曲或创作者搜索，阅读作品介绍，并将喜欢的歌曲保存在本机收藏中。通过作品页已发布的链接，前往对应音乐平台收听，也可以分享作品网页给朋友。\n\n支持简体中文、繁体中文、English 和日本語。封面在服务器允许的有效期内缓存在本机，可在“我的 → 隐私与存储”查看占用并清理。\n\n无需 Station Cat 账号。本版本不销售订阅，不在 App 内播放完整音频，也不提供新增离线歌曲下载。目录和平台链接需要网络；封面缓存不等于离线听歌。第三方平台的可用性、登录和收听条件以对应平台为准。",
+      "keywords": "音乐,原创,歌曲,作品,创作故事,收藏,独立创作"
+    },
+    "zh-Hant": {
+      "name": "Station Cat Music",
+      "subtitle": "探索作品，聽見歌曲背後的故事",
+      "promotionalText": "在安靜的深色介面中，探索 Station Cat 的音樂與創作故事，收藏喜歡的作品，前往可用的音樂平台收聽。",
+      "description": "Station Cat Music，讓作品與創作故事相遇。\n\n瀏覽作品與站長推薦，在原生曲庫依歌曲或創作者搜尋，閱讀作品介紹，並將喜歡的歌曲存入本機收藏。透過作品頁已發布的連結前往對應音樂平台收聽，也可以將作品網頁分享給朋友。\n\n支援繁體中文、簡體中文、English 與日本語。封面會在伺服器允許的有效期內快取於本機，可在「我的 → 隱私與儲存」查看空間並清理。\n\n無須 Station Cat 帳號。本版本不銷售訂閱，不在 App 內播放完整音訊，也不提供新增離線歌曲下載。目錄與平台連結需要網路；封面快取不等於離線收聽。第三方平台的可用性、登入及收聽條件以該平台為準。",
+      "keywords": "音樂,原創,歌曲,作品,創作故事,收藏,獨立創作"
+    },
+    "en": {
+      "name": "Station Cat Music",
+      "subtitle": "Discover songs and stories",
+      "promotionalText": "Explore Station Cat releases and the stories behind them. Save favorites on your device and follow available links to listen on music platforms.",
+      "description": "Explore the music and creative stories of Station Cat.\n\nBrowse releases and featured picks, search by song or artist, read about each work, and keep favorites on your device. Follow published links to listen on the corresponding music service, or share a work's web page with friends.\n\nAvailable in English, Simplified Chinese, Traditional Chinese and Japanese. Covers are cached locally for the period allowed by the server. View their storage usage or clear them in My → Privacy & storage.\n\nNo Station Cat account is required. This version does not sell subscriptions, play full audio in the app or offer new offline music downloads. The catalog and platform links require an internet connection; cover caching does not provide offline listening. Availability, sign-in and listening conditions are determined by each external service.",
+      "keywords": "independent,songs,releases,stories,favorites,artist,discovery"
+    },
+    "ja": {
+      "name": "Station Cat Music",
+      "subtitle": "作品と、その背景にある物語を探す",
+      "promotionalText": "落ち着いた画面で Station Cat の作品と制作の物語を探し、お気に入りを端末に保存。公開されたリンクから音楽配信サービスで聴けます。",
+      "description": "Station Cat の音楽と、その背景にある物語を見つけましょう。\n\n作品やおすすめを閲覧し、曲名やアーティスト名で検索。作品の紹介を読み、お気に入りを端末に保存できます。作品ページの公開リンクから各音楽配信サービスへ移動したり、作品のウェブページを友人と共有したりできます。\n\n日本語、English、簡体字中国語、繁体字中国語に対応。カバー画像はサーバーが許可した期間内に限り端末で再利用します。「マイ → プライバシーとストレージ」で容量の確認と削除ができます。\n\nStation Cat アカウントは不要です。このバージョンにはサブスクリプション販売、アプリ内のフル音源再生、新規オフライン楽曲ダウンロードはありません。作品情報と配信リンクの取得にはインターネット接続が必要です。画像のキャッシュはオフライン再生ではありません。利用可能な作品、ログイン、再生条件は各配信サービスに従います。",
+      "keywords": "音楽,作品,楽曲,物語,お気に入り,アーティスト,インディーズ"
+    }
+  }
+}

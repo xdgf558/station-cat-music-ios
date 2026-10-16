@@ -28,6 +28,8 @@
 	<string>https://wwwstationcat.org</string>
 	<key>StationMusicWebOrigin</key>
 	<string>$(STATION_MUSIC_WEB_ORIGIN)</string>
+	<key>StationPublicAppLinksEnabled</key>
+	<string>$(STATION_PUBLIC_APP_LINKS_ENABLED)</string>
 	<key>StationPublicReleasesEnabled</key>
 	<string>$(STATION_PUBLIC_RELEASES_ENABLED)</string>
 	<key>StationPublicReleaseOrigin</key>

@@ -23,4 +23,6 @@ STATION_PUBLIC_RELEASE_ORIGIN =
 
 // Generated only after explicit R2 opt-in; absent in clean checkouts and CI.
 STATION_APP_ENTITLEMENTS =
+// Public Universal Links require separate AASA and signed-entitlement acceptance.
+STATION_PUBLIC_APP_LINKS_ENABLED = NO
 #include? "R2.local.xcconfig"

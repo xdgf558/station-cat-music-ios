@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct RootView: View {
-    private let legalOrigin = URL(string: Bundle.main.object(forInfoDictionaryKey: "StationLegalOrigin") as? String ?? "https://example.invalid")!
     @Bindable var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -287,7 +286,7 @@ struct RootView: View {
                     Text(model.t("myMusic")).font(.headline).foregroundStyle(Palette.muted)
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: typeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
                         NavigationLink { favoritesPage } label: {
-                            libraryTile("favorites", symbol: "heart.fill", count: model.favoriteTracks.count)
+                            libraryTile("favorites", symbol: "heart.fill", count: model.favoriteCount)
                         }.accessibilityIdentifier("favoritesEntry")
                         NavigationLink { historyPage } label: {
                             libraryTile("recent", symbol: "clock.fill", count: model.recentTracks.count)
@@ -394,14 +393,47 @@ struct RootView: View {
     private var favoritesPage: some View {
         libraryPage("favorites", id: "favoritesPage") {
             Section {
-                let favoriteTracks = model.favoriteTracks
-                if favoriteTracks.isEmpty { Label(model.t("noFavorites"), systemImage: "heart").foregroundStyle(Palette.muted).font(.subheadline) }
-                ForEach(favoriteTracks) { track in libraryRow(track, list: favoriteTracks) }
+                if model.platformMode {
+                    if model.favorites.isEmpty { Label(model.t("noFavorites"), systemImage: "heart").foregroundStyle(Palette.muted).font(.subheadline) }
+                    ForEach(model.platformFavorites) { row in platformFavoriteRow(row) }
+                } else {
+                    let favoriteTracks = model.favoriteTracks
+                    if favoriteTracks.isEmpty { Label(model.t("noFavorites"), systemImage: "heart").foregroundStyle(Palette.muted).font(.subheadline) }
+                    ForEach(favoriteTracks) { track in libraryRow(track, list: favoriteTracks) }
+                }
             }.listRowBackground(Palette.panel)
             Section {
                 Text(model.t(model.libraryStatus)).font(.caption).foregroundStyle(Palette.muted)
+                if model.platformMode, let failure = model.catalogFailure {
+                    Label(model.t(failure.messageKey), systemImage: "exclamationmark.circle").font(.caption).foregroundStyle(Palette.muted)
+                    Button(model.t("retry")) { Task { await model.load() } }.frame(minHeight: 44)
+                }
                 if model.libraryRemote != nil && model.scope.accountID != nil { Button(model.t("syncNow")) { model.syncLibrary() }.disabled(model.libraryBusy) }
             }.listRowBackground(Palette.panel)
+        }
+    }
+    private func platformFavoriteRow(_ row: PlatformFavoriteRow) -> some View {
+        HStack(spacing: 12) {
+            Button { model.openPlatformFavorite(row) } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "music.note").font(.title2).foregroundStyle(Palette.accent).frame(width: 42)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(row.track?.title ?? row.bookmark?.title ?? model.t("favoritePlaceholder")).foregroundStyle(Color.primary)
+                        if let artist = row.track?.artist ?? row.bookmark?.artist {
+                            Text(artist).font(.caption).foregroundStyle(Palette.muted)
+                        }
+                        Text(model.t(model.unavailableFavorites.contains(row.id) ? "platformWorkMissing" :
+                            row.track == nil ? "favoriteAwaitingUpdate" : "favoriteOpenDetails"))
+                            .font(.caption).foregroundStyle(Palette.muted)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: row.track == nil && row.bookmark == nil ? "arrow.clockwise" : "chevron.right")
+                        .font(.caption).foregroundStyle(Palette.muted)
+                }.frame(minHeight: 54).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("library.track." + row.id)
+            Button { Task { await model.toggleFavoriteID(row.id) } } label: {
+                Image(systemName: "heart.fill").foregroundStyle(Palette.accent).frame(width: 44, height: 44)
+            }.buttonStyle(.plain).accessibilityLabel(model.t("removeFavorite"))
+                .accessibilityIdentifier("favorite.remove." + row.id)
         }
     }
     private var historyPage: some View {
@@ -503,8 +535,10 @@ struct RootView: View {
                     .accessibilityIdentifier("releaseNotesEntry")
             }.listRowBackground(Palette.panel)
             Section {
-                Link(model.t("privacy"), destination: URL(string: "/music/#music-privacy", relativeTo: legalOrigin)!)
-                Link(model.t("terms"), destination: URL(string: "/music/#music-listening", relativeTo: legalOrigin)!)
+                Link(model.t("privacy"), destination: LegalLinks.url(.privacy, locale: model.locale))
+                    .accessibilityIdentifier("privacyPolicyLink")
+                Link(model.t("terms"), destination: LegalLinks.url(.terms, locale: model.locale))
+                    .accessibilityIdentifier("termsLink")
                 Link(model.t("support"), destination: URL(string: "mailto:brodstem@protonmail.com")!)
             }.listRowBackground(Palette.panel)
         }
@@ -518,9 +552,17 @@ struct RootView: View {
         libraryPage("releaseNotes", id: "releaseNotesPage") {
             Section {
                 Text("Station Cat Music · " + appVersion).font(.headline)
-                Text("2026-10-14").font(.caption).foregroundStyle(Palette.muted)
+                Text("2026-10-16").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("releaseSongLinks"), systemImage: "link")
+                Label(model.t("releaseFavoriteReliability"), systemImage: "heart")
+                Label(model.t("releaseDetailErrors"), systemImage: "arrow.clockwise")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 0.1.0 (7) · 2026-10-14") {
+                Label(model.t("releasePrivacyLinks"), systemImage: "doc.text")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 0.1.0 (6) · 2026-10-14") {
                 Label(model.t("releaseCoverCache"), systemImage: "externaldrive")
                 Label(model.t("releaseImageLoading"), systemImage: "photo")
                 Label(model.t("releaseImageRetries"), systemImage: "arrow.clockwise")

@@ -20,8 +20,8 @@ def ref(path,kind):
 sources=[ref(str(p.relative_to(root)),'sourcecode.swift') for d in ['Core','StationCatMusic'] for p in sorted((root/d).glob('*.swift'))]
 tests=[ref(str(p.relative_to(root)),'sourcecode.swift') for directory in ['Tests','TestsSupport'] for p in sorted((root/directory).glob('*.swift'))]
 uits=[ref(str(p.relative_to(root)),'sourcecode.swift') for p in sorted((root/'UITests').glob('*.swift'))]
-resources=[ref('Resources/Localizations.json','text.json'),ref('contracts/fixtures/catalog.json','text.json'),ref('contracts/fixtures/platform-catalog.json','text.json'),ref('contracts/fixtures/schema-examples.json','text.json'),ref('Resources/Assets.xcassets','folder.assetcatalog')]
-testresources=[ref('Resources/TestAudio/SyntheticAudio.mp3','audio.mp3'),ref('contracts/fixtures/canonical-link-cases.json','text.json')]
+resources=[ref('Resources/Localizations.json','text.json'),ref('Resources/PrivacyInfo.xcprivacy','text.xml'),ref('contracts/fixtures/catalog.json','text.json'),ref('contracts/fixtures/platform-catalog.json','text.json'),ref('contracts/fixtures/schema-examples.json','text.json'),ref('Resources/Assets.xcassets','folder.assetcatalog')]
+testresources=[ref('contracts/fixtures/platform-link-cases.json','text.json'),ref('Resources/TestAudio/SyntheticAudio.mp3','audio.mp3'),ref('contracts/fixtures/canonical-link-cases.json','text.json')]
 configs=['Mock','Development','Staging','Production']
 configrefs={n:ref('Config/'+n+'.xcconfig','text.xcconfig') for n in configs}
 products=[];targets=[]
@@ -34,6 +34,13 @@ def configlist(label,values):
    settings['PRODUCT_BUNDLE_IDENTIFIER']='org.stationcat.music'+('.staging' if n=='Staging' else '')+suffix
    settings['DEVELOPMENT_TEAM']='2AM5S7BM2N'
    if label=='StationCatMusic':settings['CODE_SIGN_ENTITLEMENTS']='$(STATION_APP_ENTITLEMENTS)'
+  if label=='StationCatMusic' and n=='Production':
+   # The current shipping product is a public catalog with external listening.
+   # Keep historical isolated audio probes on their own Staging configuration.
+   settings['INFOPLIST_FILE']='Config/PlatformRelease-Info.plist'
+   settings['ENABLE_TESTABILITY']='NO'
+   settings['SWIFT_OPTIMIZATION_LEVEL']='-O'
+   settings['DEBUG_INFORMATION_FORMAT']='dwarf-with-dsym'
   items.append(obj(label+n,'XCBuildConfiguration',name=n,baseConfigurationReference=configrefs[n],buildSettings=settings))
  return obj(label+'configs','XCConfigurationList',buildConfigurations=items,defaultConfigurationIsVisible=0,defaultConfigurationName='Mock')
 def phase(label,kind,refs):
@@ -43,7 +50,7 @@ for name,refs,productType in [('StationCatMusic',sources,'com.apple.product-type
  isapp=name=='StationCatMusic';isui=name.endswith('UITests')
  product=obj(name+'product','PBXFileReference',explicitFileType='wrapper.application' if isapp else 'wrapper.cfbundle',path=name+('.app' if isapp else '.xctest'),sourceTree='BUILT_PRODUCTS_DIR');products.append(product)
  settings={'PRODUCT_NAME':name,'PRODUCT_BUNDLE_IDENTIFIER':'org.stationcat.music.dev'+('' if isapp else ('.uitests' if isui else '.tests')),'GENERATE_INFOPLIST_FILE':'YES','SWIFT_VERSION':'6.0','SWIFT_STRICT_CONCURRENCY':'complete','SWIFT_DEFAULT_ACTOR_ISOLATION':'nonisolated','ENABLE_TESTABILITY':'YES','CODE_SIGN_STYLE':'Automatic','TARGETED_DEVICE_FAMILY':'1','IPHONEOS_DEPLOYMENT_TARGET':'18.0','SDKROOT':'iphoneos','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks @loader_path/Frameworks'}
- if isapp:settings.update({'GENERATE_INFOPLIST_FILE':'NO','INFOPLIST_FILE':'Config/Info.plist','INFOPLIST_KEY_CFBundleDisplayName':'Station Cat Music','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_StationEnvironment':'$(STATION_ENVIRONMENT)','INFOPLIST_KEY_UISupportedInterfaceOrientations':'UIInterfaceOrientationPortrait','INFOPLIST_KEY_LSApplicationCategoryType':'public.app-category.music','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','MARKETING_VERSION':'0.1.0','CURRENT_PROJECT_VERSION':'6'})
+ if isapp:settings.update({'GENERATE_INFOPLIST_FILE':'NO','INFOPLIST_FILE':'Config/Info.plist','INFOPLIST_KEY_CFBundleDisplayName':'Station Cat Music','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_StationEnvironment':'$(STATION_ENVIRONMENT)','INFOPLIST_KEY_UISupportedInterfaceOrientations':'UIInterfaceOrientationPortrait','INFOPLIST_KEY_LSApplicationCategoryType':'public.app-category.music','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','MARKETING_VERSION':'0.1.0','CURRENT_PROJECT_VERSION':'8'})
  elif isui:settings['TEST_TARGET_NAME']='StationCatMusic'
  else:settings.update({'TEST_HOST':'$(BUILT_PRODUCTS_DIR)/StationCatMusic.app/StationCatMusic','BUNDLE_LOADER':'$(TEST_HOST)'})
  dependencies=[]
@@ -60,5 +67,11 @@ def reference(name):return f'<BuildableReference BuildableIdentifier="primary" B
 (scheme/'StationCatMusic.xcscheme').write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2640" version="1.7"><BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{reference('StationCatMusic')}</BuildActionEntry></BuildActionEntries></BuildAction><TestAction buildConfiguration="Mock" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB"><Testables><TestableReference skipped="NO">{reference('StationCatMusicTests')}</TestableReference><TestableReference skipped="NO">{reference('StationCatMusicUITests')}</TestableReference></Testables></TestAction><LaunchAction buildConfiguration="Mock" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" allowLocationSimulation="NO"><BuildableProductRunnable runnableDebuggingMode="0">{reference('StationCatMusic')}</BuildableProductRunnable></LaunchAction><ProfileAction buildConfiguration="Production"/><AnalyzeAction buildConfiguration="Mock"/><ArchiveAction buildConfiguration="Production" revealArchiveInOrganizer="YES"/></Scheme>''')
 print('Generated project with',len(sources),'app sources,',len(tests),'test sources')
+platformInfo=plistlib.loads((root/'Config/Info.plist').read_bytes())
+platformInfo.pop('UIBackgroundModes',None)
+# HTTPS, Keychain and hashes use Apple system frameworks; there is no bundled
+# third-party or proprietary encryption implementation in this candidate.
+platformInfo['ITSAppUsesNonExemptEncryption']=False
+(root/'Config/PlatformRelease-Info.plist').write_bytes(plistlib.dumps(platformInfo,sort_keys=False))
 staging=(scheme/'StationCatMusic.xcscheme').read_text().replace('buildConfiguration="Mock"','buildConfiguration="Staging"').replace('buildConfiguration="Production"','buildConfiguration="Staging"')
 (scheme/'StationCatMusicStaging.xcscheme').write_text(staging)

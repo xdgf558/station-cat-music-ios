@@ -20,3 +20,6 @@ STATION_PRODUCTION_ACTIVATION_PROFILE =
 // Mock uses bundled public-release fixtures; this flag cannot enable networking.
 STATION_PUBLIC_RELEASES_ENABLED = NO
 STATION_PUBLIC_RELEASE_ORIGIN =
+
+// Public Universal Links require separate AASA and signed-entitlement acceptance.
+STATION_PUBLIC_APP_LINKS_ENABLED = NO

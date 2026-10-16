@@ -20,3 +20,6 @@ STATION_PRODUCTION_ACTIVATION_PROFILE =
 // Independent, read-only website metadata opt-in. Native services remain gated.
 STATION_PUBLIC_RELEASES_ENABLED = NO
 STATION_PUBLIC_RELEASE_ORIGIN =
+
+// Public Universal Links require separate AASA and signed-entitlement acceptance.
+STATION_PUBLIC_APP_LINKS_ENABLED = NO

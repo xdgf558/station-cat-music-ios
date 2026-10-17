@@ -408,6 +408,12 @@
 			"path" = "UITests/PlatformMusicUITests.swift";
 			"sourceTree" = "<group>";
 		};
+		"E2C7837828CEB003AF7B9B32" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/PublicUniversalLinkUITests.swift";
+			"sourceTree" = "<group>";
+		};
 		"29F4B9F9E997A6078032077A" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -538,7 +544,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "8";
+				"CURRENT_PROJECT_VERSION" = "9";
 			};
 		};
 		"FBFB519E017124AD6A05AD21" = {
@@ -569,7 +575,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "8";
+				"CURRENT_PROJECT_VERSION" = "9";
 			};
 		};
 		"0E4CA93122EFD27B46D9D173" = {
@@ -600,7 +606,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "8";
+				"CURRENT_PROJECT_VERSION" = "9";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 			};
@@ -633,7 +639,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "8";
+				"CURRENT_PROJECT_VERSION" = "9";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
@@ -1353,6 +1359,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "A8C10FD3801F7CD94B1A30B1";
 		};
+		"00F6D8CB630454B22F48FF0F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E2C7837828CEB003AF7B9B32";
+		};
 		"C398033C9ED2AC57D776D4C3" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "29F4B9F9E997A6078032077A";
@@ -1371,6 +1381,7 @@
 			"files" = (
 				"CFBFD44240B7907E82B791FD",
 				"4AE6932373B90A511546F04A",
+				"00F6D8CB630454B22F48FF0F",
 				"C398033C9ED2AC57D776D4C3",
 				"5FC20BA41AD368BFFF8B8D3F",
 				"3D4D5F42A829979972D82E0A"
@@ -1492,6 +1503,7 @@
 				"88C3AD6BA91A898123D82801",
 				"AC2AB77181D707D00C92E57A",
 				"A8C10FD3801F7CD94B1A30B1",
+				"E2C7837828CEB003AF7B9B32",
 				"29F4B9F9E997A6078032077A",
 				"7DB33EFE4E031BB44D5BA9B1",
 				"CCA3DCFF33635D624ADF50BB",

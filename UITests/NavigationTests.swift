@@ -56,12 +56,12 @@ import XCTest
         app.navigationBars.buttons.firstMatch.tap()
         for _ in 0..<4 { if app.buttons["helpEntry"].isHittable { break }; app.swipeUp() }
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (8)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (9)")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["privacyPolicyLink"].firstMatch.exists)
         XCTAssertTrue(app.descendants(matching: .any)["termsLink"].firstMatch.exists)
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (8)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["歌曲详情区分网络失败和地址失效，并提供重试入口。"].exists)
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (9)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["支持从其他 App 的 Station Cat 歌曲链接进入对应作品页面；具体打开方式由 iOS 和来源 App 决定。"].exists)
         let release = XCTAttachment(screenshot: app.screenshot()); release.name = "Version-Release-Notes"; release.lifetime = .keepAlways; add(release)
     }
     func testThreeTabsAndPlayerNeverAutoPlays() {

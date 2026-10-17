@@ -233,6 +233,7 @@ platform.youtube|YouTube|YouTube|YouTube|YouTube
 platform.spotify|Spotify|Spotify|Spotify|Spotify
 artworkCacheSpace|Cover cache storage|封面缓存占用|封面快取空間|カバー画像のキャッシュ容量
 artworkCacheFiles|Cached covers|已缓存封面|已快取封面|保存済みのカバー画像
+releaseUniversalLinks|Open supported Station Cat song links from other apps directly in the matching work page. Opening behavior depends on iOS and the source app.|支持从其他 App 的 Station Cat 歌曲链接进入对应作品页面；具体打开方式由 iOS 和来源 App 决定。|支援從其他 App 的 Station Cat 歌曲連結進入對應作品頁面；實際開啟方式由 iOS 和來源 App 決定。|他のアプリから対応する Station Cat の曲リンクで作品ページを開けます。開き方は iOS とリンク元のアプリによって異なります。
 releaseSongLinks|Song links can load a work directly, including supported campaign tags, even before it appears in your catalog.|歌曲链接可直接查询作品，并支持限定的推广来源参数，无需等待作品进入本机曲库。|歌曲連結可直接查詢作品，並支援限定的推廣來源參數，無需等待作品進入本機曲庫。|対応するキャンペーン情報付きの曲リンクから、一覧にまだない作品も直接読み込めます。
 releaseFavoriteReliability|Favorites remain visible offline. Permitted saved names appear while fresh; otherwise a saved-work placeholder stays available.|断网时收藏数量和条目仍保留；有效期内显示已保存的作品名称，否则显示收藏占位。|離線時收藏數量和項目仍保留；有效期內顯示已儲存的作品名稱，否則顯示收藏佔位。|オフラインでもお気に入りの件数と項目を保持。有効な保存情報があれば作品名を表示し、期限後も保存済みの項目を残します。
 releaseDetailErrors|Song details distinguish network failures and unavailable addresses, with a retry option.|歌曲详情区分网络失败和地址失效，并提供重试入口。|歌曲詳情區分網路失敗和位址失效，並提供重試入口。|曲の詳細で通信エラーと無効なアドレスを区別し、再試行できます。

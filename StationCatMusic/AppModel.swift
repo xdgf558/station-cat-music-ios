@@ -15,6 +15,7 @@ import Observation
     var phase: Phase = .loading
     var tracks: [Track] = []
     var query = ""
+    var catalogCategory: PlatformCatalogCategory = .all
     var locale: String = L10n.resolve(Locale.preferredLanguages.first ?? "en")
     var selectedTab = 0
     var showPlayer = false
@@ -304,6 +305,15 @@ import Observation
     }
     var favoriteCount: Int { platformMode ? favorites.count : favoriteTracks.count }
     var favoriteTracks: [Track] { tracks.filter { favorites.contains($0.id) } }
+    var platformAlbums: [PlatformAlbum] { (try? PlatformAlbum.catalog(tracks)) ?? [] }
+    var platformSingles: [Track] { tracks.filter { $0.release?.albums?.isEmpty == true } }
+    var platformClassificationUnavailable: Bool { tracks.contains { $0.release?.albums == nil } }
+    var platformCatalogTracks: [Track] {
+        let source = catalogCategory == .singles ? platformSingles : tracks
+        return query.isEmpty ? source : source.filter { ($0.title + " " + $0.artist).localizedCaseInsensitiveContains(query) }
+    }
+    var platformCatalogAlbums: [PlatformAlbum] { platformAlbums.filter { $0.matches(query) } }
+    func albumTrackCount(_ count: Int) -> String { String(format: t("catalogTrackCount"), locale: Locale(identifier: locale), count) }
     var results: [Track] {
         query.isEmpty ? (activeCollection?.tracks ?? tracks) : (activeCollection?.tracks ?? tracks).filter { ($0.title + " " + $0.artist).localizedCaseInsensitiveContains(query) }
     }

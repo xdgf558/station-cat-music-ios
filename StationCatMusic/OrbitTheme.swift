@@ -31,10 +31,24 @@ struct OrbitArtwork: View {
                     CachedArtwork(url: PlatformArtwork.url(url, thumbnail: thumbnail), host: host,
                         loader: model.artwork, fill: true, retryGeneration: model.artworkRetryGeneration)
                 } else {
-                    Image("OrbitCover").resizable().scaledToFill()
+                    Image(sampleArtwork ?? "OrbitCover").resizable().scaledToFill()
                 }
             }.frame(width: geometry.size.width, height: geometry.size.height).clipped()
         }.accessibilityHidden(true)
+    }
+    private var sampleArtwork: String? {
+        #if DEBUG && targetEnvironment(simulator)
+        // Representative artwork is restricted to the explicit local category
+        // fixture. A missing live cover always retains the regular fallback.
+        if model.scope.environment == .mock,
+           ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] == "catalog-categories",
+           let album = track?.release?.albums?.first,
+           let index = ["aaaaaaaa-0000-4000-8000-000000000001", "aaaaaaaa-0000-4000-8000-000000000002",
+                        "aaaaaaaa-0000-4000-8000-000000000003", "aaaaaaaa-0000-4000-8000-000000000004"].firstIndex(of: album.id) {
+            return "CatalogSample" + String(index + 1)
+        }
+        #endif
+        return nil
     }
 }
 

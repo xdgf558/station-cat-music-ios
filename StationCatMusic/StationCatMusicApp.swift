@@ -30,11 +30,13 @@ import SwiftUI
         if !platformMode, runtime.musicEnabled, let configuration = runtime.authentication, account.enabled,
            let native = try? NativeMusicAPI(configuration: configuration, explicitlyEnabled: true, transport: URLSessionTransport(), auth: account.auth) { client = native }
         if platformMode, environment == .mock {
-            let platformData = Bundle.main.url(forResource: "platform-catalog", withExtension: "json").flatMap { try? Data(contentsOf: $0) } ?? Data()
+            var fixtureName = "platform-catalog"
             var detailFailure = false
             #if DEBUG && targetEnvironment(simulator)
             detailFailure = ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] == "detail-failure"
+            if ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] == "catalog-categories" { fixtureName = "platform-albums" }
             #endif
+            let platformData = Bundle.main.url(forResource: fixtureName, withExtension: "json").flatMap { try? Data(contentsOf: $0) } ?? Data()
             let fixture = PlatformFixtureTransport(data: platformData, delay: previewDelay, status: previewStatus, detailFailure: detailFailure)
             if let platform = try? PlatformMusicAPI(explicitlyEnabled: true, transport: fixture) { client = platform }
         } else if platformMode, let origin = publicConfiguration.origin,

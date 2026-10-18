@@ -11,6 +11,10 @@ struct PlatformMusicScreen: View {
     private var failure: CatalogFailure? { discovery ? model.discoveryFailure : model.catalogFailure }
 
     var body: some View {
+        if discovery { discoveryContent }
+        else { PlatformCatalogScreen(model: model) }
+    }
+    private var discoveryContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if discovery { brandHeader }

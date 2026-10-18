@@ -173,6 +173,52 @@ private actor PlatformFeaturedTransport: HTTPTransport {
         XCTAssertEqual(request.url?.path, "/api/station/content/tracks")
         XCTAssertEqual(request.allHTTPHeaderFields?.count, 1)
     }
+    private func album(position: Int = 0, version: Int = 1) -> [String: Any] {
+        ["id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd", "slug":"night-letters", "title":"Night Letters",
+         "summary":"Songs for the evening", "version":version, "position":position]
+    }
+    func testPublishedAlbumMembershipKeepsOrderAndUnknownIsNotASingle() async throws {
+        var first = track(); first["albums"] = [album(position: 8)]
+        var second = track(secondID, slug: "night-window"); second["albums"] = [album(position: 2)]
+        let client = try api(PlatformTestTransport([try page([first, second])]))
+        let items = try await client.catalog().items
+        let albums = try PlatformAlbum.catalog(items)
+        XCTAssertEqual(albums.count, 1)
+        XCTAssertEqual(albums.first?.tracks.map(\.id), [secondID, firstID])
+        XCTAssertTrue(albums[0].matches("letters"))
+        XCTAssertTrue(albums[0].matches("Slower"))
+        XCTAssertFalse(albums[0].matches("nothing"))
+        var single = track(); single["albums"] = []
+        let singleAPI = try api(PlatformTestTransport([try page([single])]))
+        let singles = try await singleAPI.catalog().items
+        XCTAssertEqual(singles[0].release?.albums, [])
+        for value in [track(), track().merging(["albums": NSNull()], uniquingKeysWith: { _, new in new })] {
+            let oldAPI = try api(PlatformTestTransport([try page([value])]))
+            let old = try await oldAPI.catalog().items
+            XCTAssertNil(old[0].release?.albums, "Unknown classification must not be treated as a single")
+        }
+    }
+    func testAlbumMetadataRejectsMalformedAndDuplicateMemberships() async throws {
+        for invalid in [album().merging(["id":"not-a-uuid"], uniquingKeysWith: { _, n in n }),
+                        album().merging(["slug":"../album"], uniquingKeysWith: { _, n in n }),
+                        album().merging(["title":""], uniquingKeysWith: { _, n in n }), album(position: -1), album(version: 0)] {
+            var value = track(); value["albums"] = [invalid]
+            try await expectCatalogFailure(page([value]))
+        }
+        for memberships in [[album(), album()], Array(repeating: album(), count: 26)] {
+            var value = track(); value["albums"] = memberships
+            try await expectCatalogFailure(page([value]))
+        }
+    }
+    func testConflictingAlbumVersionsOrPositionsAcrossPagesRejectTheSnapshot() async throws {
+        var first = track(); first["albums"] = [album(position: 0)]
+        for membership in [album(position: 1, version: 2), album(position: 0)] {
+            var second = track(secondID, slug: "night-window"); second["albums"] = [membership]
+            let client = try api(PlatformTestTransport([try page([first], cursor: "next-page"), try page([second])]))
+            do { _ = try await client.catalog(); XCTFail("Contradictory album snapshot accepted") }
+            catch { XCTAssertEqual(error as? APIError, .invalidPayload) }
+        }
+    }
     func testVersionedCoverKeyChangesWithArtworkAndOldCatalogsRemainCompatible() async throws {
         let fingerprint = String(repeating: "a", count: 64)
         var first = track(); first["coverCacheVersion"] = fingerprint

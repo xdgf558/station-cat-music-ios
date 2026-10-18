@@ -555,6 +555,9 @@ struct RootView: View {
                 Text("2026-10-17").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("releaseCatalogCategories"), systemImage: "square.stack")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 0.1.0 (9) · 2026-10-17") {
                 Label(model.t("releaseUniversalLinks"), systemImage: "link")
             }.listRowBackground(Palette.panel)
             Section(model.t("previousUpdates") + " · 0.1.0 (8) · 2026-10-16") {

@@ -78,9 +78,9 @@ import XCTest
             app.swipeUp()
         }
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (9)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (10)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (9)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (10)"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["支持从其他 App 的 Station Cat 歌曲链接进入对应作品页面；具体打开方式由 iOS 和来源 App 决定。"].exists)
         capture(app, name: "public-links-build9-release-notes")
     }

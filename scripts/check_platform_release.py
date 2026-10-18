@@ -10,7 +10,7 @@ NATIVE_FLAGS = ["StationNativeAuthEnabled", "StationNativeMusicEnabled",
                 "StationPersonalSyncEnabled", "StationProductionActivationEnabled"]
 REASONS = {"NSPrivacyAccessedAPICategoryFileTimestamp": ["C617.1"],
            "NSPrivacyAccessedAPICategoryUserDefaults": ["CA92.1"]}
-NOTES = ["releaseUniversalLinks", "releaseSongLinks", "releaseFavoriteReliability", "releaseDetailErrors", "releasePrivacyLinks", "releaseCoverCache", "releaseImageLoading", "releaseImageRetries"]
+NOTES = ["releaseCatalogCategories", "releaseUniversalLinks", "releaseSongLinks", "releaseFavoriteReliability", "releaseDetailErrors", "releasePrivacyLinks", "releaseCoverCache", "releaseImageLoading", "releaseImageRetries"]
 
 
 def validate(info, privacy, localizations, public_enabled, links_enabled=False):

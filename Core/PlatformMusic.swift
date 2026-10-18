@@ -15,6 +15,9 @@ nonisolated struct PlatformTrackRelease: Codable, Equatable, Sendable {
     let platforms: [PlatformLink]
     let availability: String
     let previewAvailable: Bool
+    // nil: an older server, or classification unavailable. []: no published
+    // album membership. Do not infer membership from a platform's album URL.
+    var albums: [PlatformAlbumMembership]? = nil
 }
 nonisolated struct PlatformTrackDetail: Sendable {
     let track: Track
@@ -113,6 +116,7 @@ actor PlatformMusicAPI: PlatformMusicProviding {
             if let cursor { guard Self.cursor(cursor), pages < 10 else { throw APIError.invalidPayload } }
         } while cursor != nil
         guard Set(items.map { $0.id.lowercased() }).count == items.count else { throw APIError.invalidPayload }
+        _ = try PlatformAlbum.catalog(items)
         return Catalog(items: items, nextCursor: nil)
     }
     func featuredTracks() async throws -> [Track] {
@@ -201,10 +205,19 @@ actor PlatformMusicAPI: PlatformMusicProviding {
                   preview.playbackPath == Self.contentPath + "/tracks/" + value.slug + "/playback?variant=preview" else { throw APIError.invalidPayload }
         }
         let links = Self.validatedLinks(value.platforms, now: now())
+        if let albums = value.albums {
+            guard albums.count <= 25, Set(albums.map { $0.id.lowercased() }).count == albums.count,
+                  albums.allSatisfy({ Self.uuid($0.id) && Self.slug($0.slug) && Self.plain($0.title, max: 200, required: true) &&
+                    Self.plain($0.summary, max: 500) && $0.version > 0 && $0.version <= 9_007_199_254_740_991 &&
+                    $0.position >= 0 && $0.position <= 9_007_199_254_740_991 }) else { throw APIError.invalidPayload }
+        }
         let release = PlatformTrackRelease(slug: value.slug, summary: value.summary,
             webURL: Self.webURL(origin: webOrigin, path: value.href), platforms: links,
             availability: value.platformAvailability.state == "available" && links.isEmpty ? "unconfirmed" : value.platformAvailability.state,
-            previewAvailable: value.preview != nil)
+            previewAvailable: value.preview != nil, albums: value.albums?.map {
+                PlatformAlbumMembership(id: $0.id.lowercased(), slug: $0.slug, title: $0.title, summary: $0.summary,
+                                        version: $0.version, position: $0.position)
+            })
         return Track(id: value.id, title: value.title, artist: value.artist,
             durationSeconds: (value.durationMs ?? 0) / 1000, audioVersion: value.revision, access: .unavailable,
             coverUrl: try value.coverUrl.map { try assetURL($0, display: true, cacheVersion: value.coverCacheVersion) }, offlineEligible: false, release: release)
@@ -310,6 +323,7 @@ nonisolated private struct PlatformTrackDTO: Decodable, Sendable {
     let id: String; let slug: String; let revision: Int; let originalLocale: String
     let title: String; let artist: String; let summary: String; let durationMs: Double?; let href: String; let coverUrl: String?
     let coverCacheVersion: String?
+    let albums: [PlatformAlbumMembership]?
     let preview: Preview?; let platformAvailability: Availability; let platforms: [PlatformLinkDTO]
     let story: String?; let lyricsUrl: String?
     struct Preview: Decodable, Sendable { let durationMs: Double; let revision: Int; let playbackPath: String }

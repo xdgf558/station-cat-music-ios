@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-19",
+  "reviewedHead": "c2d384f29ba3ee9a252c26b7ee345848a1716731",
+  "rootCause": "PlatformPersonalUITests.seed awaited the removed platformListeningOptions StaticText after the song-detail redesign.",
+  "fixScope": "UI-test locator only: await the existing verified platformLink.netease Button. No product, fixture, permission or version changes.",
+  "originalRuns": [
+    {
+      "event": "push",
+      "runID": 39139357949,
+      "url": "https://github.com/xdgf558/station-cat-music-ios/actions/runs/39139357949",
+      "conclusion": "failure",
+      "failedStep": "bash scripts/test_ios.sh",
+      "rawFailedLogSHA256": "704974b8a307b294b83c43be6bffd1315273a9670da123b1296b4d7e5c80028b",
+      "assertions": [
+        {
+          "file": "UITests/PlatformPersonalUITests.swift",
+          "line": 27,
+          "test": "PlatformPersonalUITests/testBrowsingRelaunchOfflineStillShowsEntriesWithoutListeningLinks",
+          "failure": "XCTAssertTrue failed"
+        },
+        {
+          "file": "UITests/PlatformPersonalUITests.swift",
+          "line": 27,
+          "test": "PlatformPersonalUITests/testBrowsingRelaunchOfflineStillShowsEntriesWithoutListeningLinks",
+          "failure": "XCTAssertTrue failed"
+        },
+        {
+          "file": "UITests/PlatformPersonalUITests.swift",
+          "line": 27,
+          "test": "PlatformPersonalUITests/testPersonalHubNavigationPrivacyPreferenceAndNotes",
+          "failure": "XCTAssertTrue failed"
+        },
+        {
+          "file": "UITests/PlatformPersonalUITests.swift",
+          "line": 27,
+          "test": "PlatformPersonalUITests/testPersonalHubNavigationPrivacyPreferenceAndNotes",
+          "failure": "XCTAssertTrue failed"
+        }
+      ],
+      "swiftCore": {
+        "total": 318,
+        "skipped": 23,
+        "failures": 0
+      },
+      "skippedAfterFailure": [
+        "verify_keychain_relaunch.sh",
+        "verify_auth_crash_recovery.sh"
+      ]
+    },
+    {
+      "event": "pull_request",
+      "runID": 39139405316,
+      "url": "https://github.com/xdgf558/station-cat-music-ios/actions/runs/39139405316",
+      "conclusion": "failure",
+      "failedStep": "bash scripts/test_ios.sh",
+      "rawFailedLogSHA256": "6f03517568837239d9034843e16990adac32de8f8dd819e8101b28714b87ae79",
+      "assertions": [
+        {
+          "file": "UITests/PlatformPersonalUITests.swift",
+          "line": 27,
+          "test": "PlatformPersonalUITests/testBrowsingRelaunchOfflineStillShowsEntriesWithoutListeningLinks",
+          "failure": "XCTAssertTrue failed"
+        },
+        {
+          "file": "UITests/PlatformPersonalUITests.swift",
+          "line": 27,
+          "test": "PlatformPersonalUITests/testBrowsingRelaunchOfflineStillShowsEntriesWithoutListeningLinks",
+          "failure": "XCTAssertTrue failed"
+        },
+        {
+          "file": "UITests/PlatformPersonalUITests.swift",
+          "line": 27,
+          "test": "PlatformPersonalUITests/testPersonalHubNavigationPrivacyPreferenceAndNotes",
+          "failure": "XCTAssertTrue failed"
+        },
+        {
+          "file": "UITests/PlatformPersonalUITests.swift",
+          "line": 27,
+          "test": "PlatformPersonalUITests/testPersonalHubNavigationPrivacyPreferenceAndNotes",
+          "failure": "XCTAssertTrue failed"
+        }
+      ],
+      "swiftCore": {
+        "total": 318,
+        "skipped": 23,
+        "failures": 0
+      },
+      "skippedAfterFailure": [
+        "verify_keychain_relaunch.sh",
+        "verify_auth_crash_recovery.sh"
+      ]
+    }
+  ],
+  "localVerification": {
+    "toolchain": "Xcode 27.1 (27A9275)",
+    "runtime": "iOS 26.4.1 simulator",
+    "suites": [
+      "PlatformPersonalUITests",
+      "PlatformContentUITests"
+    ],
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "resultBundle": ".build/pr18-ci-ui-fix-20261019.xcresult",
+    "rawLogSHA256": "079943c3ed9cb2157d3b8bc6ffd5e1b068f9b6e3607fa28e4f173f6c4c5e3c3b",
+    "testSourceSHA256": "b62aba6f1af0fc25c1282511ad18f1ec10d465e05e8c385156b94ac4b65b5021",
+    "fixedRemoteCIPassed": false,
+    "runtimeWarnings": []
+  }
+}

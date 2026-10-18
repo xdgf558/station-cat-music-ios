@@ -24,7 +24,8 @@ import XCTest
             let track = app.buttons["track." + id]; reveal(track, app: app); track.tap()
             let favorite = app.buttons["platformFavorite"]
             XCTAssertTrue(favorite.waitForExistence(timeout: 5))
-            XCTAssertTrue(app.staticTexts["platformListeningOptions"].waitForExistence(timeout: 5))
+            // Wait for the verified listening action, not the removed section heading.
+            XCTAssertTrue(app.buttons["platformLink.netease"].waitForExistence(timeout: 5))
             if favorite.value as? String != "开启" && favorite.value as? String != "On" { favorite.tap() }
             app.buttons["platformDetailClose"].tap()
         }

@@ -125,6 +125,58 @@ extension NativeCrashBoundaryTests {
 }
 
 extension NativeCrashBoundaryTests {
+    func testStandaloneProbeWaitsForMatchingLaunchPermitBeforeStarting() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let runID = UUID().uuidString
+        let permit = directory.appendingPathComponent("M2-" + runID + ".permit")
+        let waiter = Task {
+            try await ProbeLaunchPermit.wait(runID: runID, stage: "A11", mode: "CRASH", directory: directory,
+                                            processID: 123, timeout: .seconds(2), interval: .milliseconds(1))
+        }
+        defer { waiter.cancel() }
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: permit.appendingPathExtension("consumed").path))
+        try Data("M2_PROBE_PERMIT:A11:CRASH:pid=123\n".utf8).write(to: permit, options: .atomic)
+        try await waiter.value
+        XCTAssertTrue(FileManager.default.fileExists(atPath: permit.appendingPathExtension("consumed").path))
+        do {
+            try await ProbeLaunchPermit.wait(runID: runID, stage: "A11", mode: "CRASH", directory: directory, processID: 123)
+            XCTFail("The same run must not execute twice")
+        } catch let error as ProbeDiagnostic { XCTAssertEqual(error.phase, .launchPermit) }
+    }
+
+    func testStandaloneProbeRejectsOtherHostsStagesAndModes() async throws {
+        for content in ["M2_PROBE_PERMIT:A11:CRASH:pid=124\n", "M2_PROBE_PERMIT:A12:CRASH:pid=123\n",
+                        "M2_PROBE_PERMIT:A11:RECOVER:pid=123\n", "M2_PROBE_PERMIT:A11:CRASH:pid=123", String(repeating: "x", count: 258)] {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let runID = UUID().uuidString
+            let permit = directory.appendingPathComponent("M2-" + runID + ".permit")
+            try Data(content.utf8).write(to: permit, options: .atomic)
+            do {
+                try await ProbeLaunchPermit.wait(runID: runID, stage: "A11", mode: "CRASH", directory: directory, processID: 123)
+                XCTFail("Mismatched or incomplete permit must not start the scenario")
+            } catch let error as ProbeDiagnostic { XCTAssertEqual(error.phase, .launchPermit) }
+            XCTAssertFalse(FileManager.default.fileExists(atPath: permit.appendingPathExtension("consumed").path))
+        }
+    }
+
+    func testStandaloneProbeMissingPermitTimesOutWithoutClaim() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let runID = UUID().uuidString
+        do {
+            try await ProbeLaunchPermit.wait(runID: runID, stage: "A11", mode: "CRASH", directory: directory,
+                                            processID: 123, timeout: .milliseconds(20), interval: .milliseconds(1))
+            XCTFail("An absent driver must not permit authentication operations")
+        } catch let error as ProbeDiagnostic { XCTAssertEqual(error.phase, .launchPermit) }
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: directory.path).isEmpty)
+    }
+
     func testRoutineDiagnosticPublicationDoesNotForceStorageSync() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

@@ -10,7 +10,7 @@ import os
 import errno
 from types import SimpleNamespace
 from pathlib import Path
-from crash_probe_runner import (ProcessExitWatcher,ProbeTimeline,ProbeRunnerError,host_exited,reset_boundary_evidence,run_crash,
+from crash_probe_runner import (ProcessExitWatcher,ProbeTimeline,ProbeRunnerError,host_exited,publish_launch_permit,reset_boundary_evidence,run_crash,
                                 run_file_probe,run_file_probe_pair,stop_group,wait_ready)
 from unittest.mock import Mock,patch
 
@@ -169,6 +169,106 @@ class FileProbeRunnerTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'Marked simulator host did not exit'):
                     run_file_probe([],log,result,'A11','RECOVER',timeout=30)
             self.assertEqual(clock[0],6)
+
+class LaunchPermitTests(unittest.TestCase):
+    def test_delayed_launcher_does_not_repeat_a_fast_crash_scenario(self):
+        # Reproduce a launcher that restarts an app which exits before launch
+        # completion. The child must wait, so only one host mutates the fixture.
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);result=root/'result.log';permit=root/'result.permit'
+            attempts=root/'attempts';mutations=root/'mutations';launchlog=root/'launch.log'
+            child='''import os,pathlib,time
+root=pathlib.Path(ROOT)
+permit=root/'result.permit'
+deadline=time.monotonic()+3
+while not permit.exists() and time.monotonic()<deadline:time.sleep(.01)
+assert permit.read_text()=='M2_PROBE_PERMIT:A11:CRASH:pid='+str(os.getpid())+'\\n'
+with (root/'mutations').open('a') as f:f.write(str(os.getpid())+'\\n')
+(root/'result.log').write_text('M2_PROBE_STARTED:A11:CRASH:pid='+str(os.getpid())+'\\nM2_BOUNDARY_REACHED:A11:durable-state-verified:pid='+str(os.getpid())+'\\n')
+os._exit(73)
+'''.replace('ROOT',repr(str(root)))
+            launcher='''import pathlib,subprocess,sys,time
+root=pathlib.Path(ROOT)
+def start():
+    with (root/'attempts').open('a') as f:f.write('launch\\n')
+    return subprocess.Popen([sys.executable,'-c',CHILD],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+p=start()
+time.sleep(.2)
+assert not (root/'mutations').exists(), 'Scenario ran before launcher finished'
+if p.poll() is not None:p=start()
+print('org.stationcat.music.recoveryprobe: '+str(p.pid),flush=True)
+'''.replace('ROOT',repr(str(root))).replace('CHILD',repr(child))
+            value=run_file_probe([sys.executable,'-u','-c',launcher],launchlog,result,'A11','CRASH',timeout=4,permitfile=permit)
+            self.assertTrue(value['launchPermitConfirmed'])
+            self.assertEqual(attempts.read_text().splitlines(),['launch'])
+            self.assertEqual(mutations.read_text().splitlines(),[str(value['hostPID'])])
+
+    def test_failed_launch_never_publishes_permit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);log=root/'launch';permit=root/'permit'
+            process=Mock();process.pid=222;process.poll.return_value=1
+            def launch(*args,**kwargs):
+                log.write_text('org.stationcat.music.recoveryprobe: 333\n');return process
+            with patch('crash_probe_runner.subprocess.Popen',side_effect=launch):
+                with self.assertRaisesRegex(ProbeRunnerError,'launch command failed'):
+                    run_file_probe([],log,root/'result','A11','CRASH',permitfile=permit)
+            self.assertFalse(permit.exists())
+
+    def test_pid_stdout_without_launcher_exit_does_not_grant_permission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);log=root/'launch';permit=root/'permit';result=root/'result'
+            process=Mock();process.pid=222;process.poll.side_effect=[None,0,0]
+            def launch(*args,**kwargs):
+                log.write_text('org.stationcat.music.recoveryprobe: 333\n');return process
+            def sleep(_):
+                self.assertFalse(permit.exists())
+                result.write_text('M2_PROBE_STARTED:A11:CRASH:pid=333\nM2_BOUNDARY_REACHED:A11:durable-state-verified:pid=333\n')
+            with patch('crash_probe_runner.subprocess.Popen',side_effect=launch), patch('crash_probe_runner.host_exited',side_effect=[False,True]), patch('crash_probe_runner.time.sleep',side_effect=sleep):
+                self.assertTrue(run_file_probe([],log,result,'A11','CRASH',permitfile=permit)['launchPermitConfirmed'])
+            self.assertEqual(permit.read_text(),'M2_PROBE_PERMIT:A11:CRASH:pid=333\n')
+
+    def test_partial_pid_line_cannot_grant_permission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);log=root/'launch';permit=root/'permit';result=root/'result'
+            process=Mock();process.pid=222;process.poll.side_effect=[None,0,0]
+            def launch(*args,**kwargs):
+                log.write_text('org.stationcat.music.recoveryprobe: 33');return process
+            def sleep(_):
+                self.assertFalse(permit.exists())
+                log.write_text('org.stationcat.music.recoveryprobe: 333\n')
+                result.write_text('M2_PROBE_STARTED:A11:CRASH:pid=333\nM2_BOUNDARY_REACHED:A11:durable-state-verified:pid=333\n')
+            with patch('crash_probe_runner.subprocess.Popen',side_effect=launch), patch('crash_probe_runner.host_exited',return_value=True), patch('crash_probe_runner.time.sleep',side_effect=sleep):
+                value=run_file_probe([],log,result,'A11','CRASH',permitfile=permit)
+            self.assertEqual(value['hostPID'],333)
+
+    def test_started_without_driver_acknowledgement_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);log=root/'launch';permit=root/'permit';result=root/'result'
+            process=Mock();process.pid=222;process.poll.return_value=None
+            def launch(*args,**kwargs):
+                log.write_text('org.stationcat.music.recoveryprobe: 333\n')
+                result.write_text('M2_PROBE_STARTED:A11:CRASH:pid=333\n');return process
+            with patch('crash_probe_runner.subprocess.Popen',side_effect=launch), patch('crash_probe_runner.stop_group'):
+                with self.assertRaisesRegex(ProbeRunnerError,'before successful launch'):
+                    run_file_probe([],log,result,'A11','CRASH',permitfile=permit)
+            self.assertFalse(permit.exists())
+
+    def test_stale_permit_or_claim_is_rejected_before_launch(self):
+        for suffix in ('','.pending','.consumed'):
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);permit=root/'permit';stale=root/('permit'+suffix);stale.write_text('old')
+                with patch('crash_probe_runner.subprocess.Popen') as launch:
+                    with self.assertRaisesRegex(ProbeRunnerError,'must be fresh'):
+                        run_file_probe([],root/'launch',root/'result','A11','CRASH',permitfile=permit)
+                    launch.assert_not_called()
+                self.assertEqual(stale.read_text(),'old')
+
+    def test_atomic_permit_publication_never_replaces_an_existing_ticket(self):
+        with tempfile.TemporaryDirectory() as directory:
+            permit=Path(directory)/'permit';permit.write_text('old')
+            with self.assertRaises(FileExistsError):publish_launch_permit(permit,'A11','CRASH',333)
+            self.assertEqual(permit.read_text(),'old')
+            self.assertFalse(permit.with_name('permit.pending').exists())
 
 class DriverTimelineTests(unittest.TestCase):
     def test_success_records_phase_order_wall_and_monotonic_time(self):

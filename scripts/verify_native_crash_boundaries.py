@@ -80,6 +80,7 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
                     launch_log=prepared.enter_context(logfile.open('w'))
                     plans.append({'args':['xcrun','simctl','launch',simulator,bundle],
                                   'logfile':logfile,'resultfile':resultfile,'stage':stage,
+                                  'permitfile':resultfile.with_suffix('.permit'),
                                   'mode':mode,'env':env,'timeline':timeline,'launch_log':launch_log})
                 def failed(plan):
                     mode=plan['mode']
@@ -103,11 +104,20 @@ with tempfile.TemporaryDirectory(prefix='station-m2-boundary-') as directory:
                                 source.unlink()
                         except Exception as error:
                             if failure is None: failure=error
+                    # These per-run, non-secret control files never survive the pair.
+                    permitfile=plan['permitfile']
+                    for path in (permitfile, permitfile.with_name(permitfile.name+'.consumed'),
+                                 permitfile.with_name(permitfile.name+'.pending')):
+                        try: path.unlink(missing_ok=True)
+                        except Exception as error:
+                            if failure is None: failure=error
                     if failure is not None: raise failure
                 crash,recovery=run_file_probe_pair(plans,archive=archive,on_failure=failed)
+                assert crash['launchPermitConfirmed'] and recovery['launchPermitConfirmed'], 'Both hosts must wait for launch acknowledgement'
                 crash_evidence={'hostExitConfirmed':True,'crashedHostPID':crash['hostPID'],
                                 'recoveredHostPID':recovery['hostPID'],
                                 'evidenceTransport':crash['evidenceTransport'],
+                                'launchPermitsConfirmed':True,
                                 'hostExitAfterMarkerSeconds':crash['hostExitAfterMarkerSeconds'],
                                 'hostExitObservations':{'crash':crash['hostExitObservation'],
                                                         'recovery':recovery['hostExitObservation']}}

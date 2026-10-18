@@ -6,9 +6,10 @@ actor PlatformFixtureTransport: HTTPTransport {
     private let delay: Duration
     private let status: Int
     private let detailFailure: Bool
+    private let contentFailure: Bool
     private var detailCounts: [String: Int] = [:]
-    init(data: Data, delay: Duration = .zero, status: Int = 200, detailFailure: Bool = false) {
-        self.data = data; self.delay = delay; self.status = status; self.detailFailure = detailFailure
+    init(data: Data, delay: Duration = .zero, status: Int = 200, detailFailure: Bool = false, contentFailure: Bool = false) {
+        self.data = data; self.delay = delay; self.status = status; self.detailFailure = detailFailure; self.contentFailure = contentFailure
     }
     func send(_ request: URLRequest) async throws -> HTTPResult {
         guard request.httpMethod == "GET", let url = request.url,
@@ -19,11 +20,18 @@ actor PlatformFixtureTransport: HTTPTransport {
         try await Task.sleep(for: delay); try Task.checkCancellation()
         let prefix = PlatformMusicAPI.contentPath
         let isBookmark = url.path.hasSuffix("/bookmark")
-        let isDetail = url.path.hasPrefix(prefix + "/tracks/") && !isBookmark
+        let isClips = url.path.hasSuffix("/clips")
+        let isDetail = url.path.hasPrefix(prefix + "/tracks/") && !isBookmark && !isClips
+        if url.path.hasPrefix(prefix + "/assets/"), let lyrics = (object["lyrics"] as? [String: String])?[url.lastPathComponent] {
+            detailCounts[url.path, default: 0] += 1
+            return HTTPResult(status: contentFailure && detailCounts[url.path] == 1 ? 503 : status,
+                data: Data(lyrics.utf8), headers: ["content-type":"text/plain; charset=utf-8", "cache-control":"no-store"], finalURL: url)
+        }
         if isDetail { detailCounts[url.path, default: 0] += 1 }
         let body: Any?
         if url.path == prefix + "/tracks" { body = object["catalog"] }
         else if url.path == prefix + "/home" { body = object["home"] }
+        else if isClips { body = (object["clips"] as? [String: Any])?[url.deletingLastPathComponent().lastPathComponent] ?? ["schemaVersion":1, "locale":"en", "items":[], "nextCursor":NSNull()] }
         else if isBookmark,
             let detail = (object["details"] as? [String: Any])?[url.deletingLastPathComponent().lastPathComponent] as? [String: Any],
             let track = detail["track"] as? [String: Any] {

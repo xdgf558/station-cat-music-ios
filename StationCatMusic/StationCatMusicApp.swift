@@ -32,17 +32,32 @@ import SwiftUI
         if platformMode, environment == .mock {
             var fixtureName = "platform-catalog"
             var detailFailure = false
+            var contentFailure = false
             #if DEBUG && targetEnvironment(simulator)
             detailFailure = ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] == "detail-failure"
             if ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] == "catalog-categories" { fixtureName = "platform-albums" }
+            if ["song-content", "song-content-failure"].contains(ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] ?? "") {
+                fixtureName = "platform-song-content"
+                contentFailure = ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] == "song-content-failure"
+            }
             #endif
             let platformData = Bundle.main.url(forResource: fixtureName, withExtension: "json").flatMap { try? Data(contentsOf: $0) } ?? Data()
-            let fixture = PlatformFixtureTransport(data: platformData, delay: previewDelay, status: previewStatus, detailFailure: detailFailure)
+            let fixture = PlatformFixtureTransport(data: platformData, delay: previewDelay, status: previewStatus, detailFailure: detailFailure, contentFailure: contentFailure)
             if let platform = try? PlatformMusicAPI(explicitlyEnabled: true, transport: fixture) { client = platform }
         } else if platformMode, let origin = publicConfiguration.origin,
                   let platform = try? PlatformMusicAPI(origin: origin, explicitlyEnabled: true, transport: URLSessionTransport()) { client = platform }
         let webOrigin = platformMode ? (client as? any PlatformMusicProviding)?.webOrigin : runtime.musicWebOrigin
-        let directory = URL.applicationSupportDirectory.appending(path: "PersonalMusic")
+        var personalRoot = URL.applicationSupportDirectory.resolvingSymlinksInPath()
+        var bookmarkRoot = URL.cachesDirectory.resolvingSymlinksInPath()
+        #if DEBUG && targetEnvironment(simulator)
+        // A fresh test namespace isolates navigation/privacy scenarios from other
+        // simulator previews. Production and physical-device builds ignore it.
+        if environment == .mock, let raw = ProcessInfo.processInfo.environment["STATION_PERSONAL_TEST_NAMESPACE"], let id = UUID(uuidString: raw) {
+            personalRoot = personalRoot.appending(path: "PersonalUITests/" + id.uuidString)
+            bookmarkRoot = personalRoot
+        }
+        #endif
+        let directory = personalRoot.appending(path: "PersonalMusic")
         var libraryRemote: NativeLibraryAPI?
         if !platformMode, runtime.personalSyncEnabled, let native = client as? NativeMusicAPI, let auth = account.auth {
             libraryRemote = try? NativeLibraryAPI(configuration: native.configuration, explicitlyEnabled: true, auth: auth, transport: URLSessionTransport())
@@ -53,7 +68,7 @@ import SwiftUI
         let existingOffline = platformMode ? publicConfiguration.legacyOfflineOrigin.map {
             OfflineMusicCache(origin: $0, transport: LegacyOfflineManagementTransport())
         } : nil
-        let model = AppModel(client: client, library: ScopedLibrary(directory: directory), account: account, musicWebOrigin: webOrigin, libraryRemote: libraryRemote, environment: environment, artwork: artwork, offlineStorage: existingOffline, platformMode: platformMode, bookmarks: PlatformBookmarkStore(directory: URL.cachesDirectory.resolvingSymlinksInPath().appending(path: "PublicMusicBookmarks-v1")))
+        let model = AppModel(client: client, library: ScopedLibrary(directory: directory), account: account, musicWebOrigin: webOrigin, libraryRemote: libraryRemote, environment: environment, artwork: artwork, offlineStorage: existingOffline, platformMode: platformMode, bookmarks: PlatformBookmarkStore(directory: bookmarkRoot.appending(path: "PublicMusicBookmarks-v1")), personal: PlatformPersonalStore(directory: personalRoot.appending(path: "PlatformPersonal-v1")))
         if !platformMode, let native = client as? NativeMusicAPI, let host = native.configuration.origin.host {
             model.playback.attachSystem(SystemPlayback(playback: model.playback, artworkHost: host, artworkLoader: artwork))
         }

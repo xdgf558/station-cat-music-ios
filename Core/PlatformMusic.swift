@@ -23,6 +23,7 @@ nonisolated struct PlatformTrackDetail: Sendable {
     let track: Track
     let story: String
     let lyricsURL: URL?
+    var lyricsKind: String? = nil
 }
 nonisolated protocol PlatformMusicProviding: CatalogProviding {
     var webOrigin: URL { get }
@@ -31,11 +32,15 @@ nonisolated protocol PlatformMusicProviding: CatalogProviding {
     func platformDetail(_ track: Track, locale: String) async throws -> PlatformTrackDetail
     func resolvePlatformTrack(slug: String, locale: String) async throws -> PlatformTrackDetail
     func bookmark(_ track: Track, locale: String) async throws -> PlatformBookmark
+    func lyrics(_ detail: PlatformTrackDetail) async throws -> PlatformLyrics?
+    func clips(_ track: Track, locale: String) async throws -> [PlatformClip]
 }
 
 extension PlatformMusicProviding {
     func resolvePlatformTrack(slug: String, locale: String) async throws -> PlatformTrackDetail { throw APIError.networkDisabled }
     func bookmark(_ track: Track, locale: String) async throws -> PlatformBookmark { throw APIError.networkDisabled }
+    func lyrics(_ detail: PlatformTrackDetail) async throws -> PlatformLyrics? { nil }
+    func clips(_ track: Track, locale: String) async throws -> [PlatformClip] { [] }
 }
 
 /// Public website metadata only. This client never requests audio, a native
@@ -67,7 +72,7 @@ actor PlatformMusicAPI: PlatformMusicProviding {
         if next != locale { locale = next; localeVersion += 1 }
     }
     private func request<T: Decodable & Sendable>(_ path: String, query: [URLQueryItem], as: T.Type, cacheExpiry: ((Date) -> Void)? = nil) async throws -> T {
-        guard path == "/home" || path == "/tracks" || path.range(of: "^/tracks/[a-z0-9]+(?:-[a-z0-9]+)*(?:/bookmark)?$", options: .regularExpression) != nil else { throw APIError.invalidRequest }
+        guard path == "/home" || path == "/tracks" || path.range(of: "^/tracks/[a-z0-9]+(?:-[a-z0-9]+)*(?:/(?:bookmark|clips))?$", options: .regularExpression) != nil else { throw APIError.invalidRequest }
         var components = URLComponents(url: webOrigin, resolvingAgainstBaseURL: false)!
         components.path = Self.contentPath + path
         components.queryItems = query
@@ -190,7 +195,56 @@ actor PlatformMusicAPI: PlatformMusicProviding {
         let story = result.track.story ?? ""
         guard Self.story(story) else { throw APIError.invalidPayload }
         let lyrics = try result.track.lyricsUrl.map { try assetURL($0, display: false) }
-        return PlatformTrackDetail(track: track, story: story, lyricsURL: lyrics)
+        return PlatformTrackDetail(track: track, story: story, lyricsURL: lyrics, lyricsKind: result.track.lyricsKind)
+    }
+    func lyrics(_ detail: PlatformTrackDetail) async throws -> PlatformLyrics? {
+        guard let url = detail.lyricsURL else { return nil }
+        guard PlatformContentURL.valid(url) else { throw APIError.invalidRequest }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 5)
+        request.httpMethod = "GET"; request.httpShouldHandleCookies = false
+        request.setValue("text/plain", forHTTPHeaderField: "Accept")
+        let result = try await transport.send(request)
+        try Task.checkCancellation()
+        guard result.status == 200 else { throw APIError.rejected(result.status) }
+        let mime = result.headers.first { $0.key.lowercased() == "content-type" }?.value
+            .split(separator: ";", maxSplits: 1).first?.trimmingCharacters(in: .whitespaces).lowercased()
+        guard result.finalURL == url, mime == "text/plain" else { throw APIError.invalidPayload }
+        return try PlatformLyrics(data: result.data, kind: detail.lyricsKind)
+    }
+    func clips(_ track: Track, locale: String) async throws -> [PlatformClip] {
+        guard Self.uuid(track.id), let release = track.release, Self.slug(release.slug), Self.locales.contains(locale) else { throw APIError.invalidRequest }
+        let version = localeVersion
+        var items: [PlatformClip] = [], cursor: String?, seen = Set<String>()
+        // At most three visible clips and five source pages; filtered unpublished
+        // rows can legitimately produce an empty page with a continuation cursor.
+        for _ in 0..<5 {
+            var query = [URLQueryItem(name: "locale", value: locale), .init(name: "limit", value: "3")]
+            if let cursor { query.append(.init(name: "cursor", value: cursor)) }
+            let page = try await request("/tracks/" + release.slug + "/clips", query: query, as: PlatformClipPage.self)
+            try current(version)
+            guard page.schemaVersion == 1, page.locale == locale, page.items.count <= 3 else { throw APIError.invalidPayload }
+            for value in page.items {
+                guard Self.uuid(value.id), value.trackId.lowercased() == track.id.lowercased(),
+                      value.track.id.lowercased() == track.id.lowercased(),
+                      value.track.href == Self.detailPath(locale: locale, slug: release.slug),
+                      Self.plain(value.track.title, max: 200, required: true),
+                      value.revision > 0, value.revision <= 9_007_199_254_740_991,
+                      ["short_video", "mv"].contains(value.type), Self.locales.contains(value.originalLocale),
+                      Self.plain(value.title, max: 200, required: true), Self.plain(value.summary, max: 500),
+                      value.durationMs.isFinite, value.durationMs > 0, value.durationMs <= 86_400_000,
+                      value.durationMs.rounded() == value.durationMs,
+                      let published = Self.date(value.publishedAt), published <= now(), published.timeIntervalSince1970 >= 0,
+                      !items.contains(where: { $0.id.lowercased() == value.id.lowercased() }) else { throw APIError.invalidPayload }
+                items.append(PlatformClip(id: value.id, trackID: track.id, revision: value.revision,
+                    title: value.title, summary: value.summary, duration: value.durationMs / 1000,
+                    posterURL: try assetURL(value.posterUrl, display: false), mediaURL: try assetURL(value.mediaUrl, display: false)))
+            }
+            if items.count >= 3 { return Array(items.prefix(3)) }
+            guard let next = page.nextCursor else { return items }
+            guard Self.cursor(next), seen.insert(next).inserted else { throw APIError.invalidPayload }
+            cursor = next
+        }
+        return items
     }
     private func project(_ value: PlatformTrackDTO, locale: String) throws -> Track {
         guard Self.uuid(value.id), Self.slug(value.slug), value.revision > 0, value.revision <= 9_007_199_254_740_991,
@@ -325,9 +379,18 @@ nonisolated private struct PlatformTrackDTO: Decodable, Sendable {
     let coverCacheVersion: String?
     let albums: [PlatformAlbumMembership]?
     let preview: Preview?; let platformAvailability: Availability; let platforms: [PlatformLinkDTO]
-    let story: String?; let lyricsUrl: String?
+    let story: String?; let lyricsUrl: String?; let lyricsKind: String?
     struct Preview: Decodable, Sendable { let durationMs: Double; let revision: Int; let playbackPath: String }
     struct Availability: Decodable, Sendable { let state: String }
+}
+
+nonisolated private struct PlatformClipPage: Decodable, Sendable {
+    let schemaVersion: Int; let locale: String; let items: [Item]; let nextCursor: String?
+    struct Item: Decodable, Sendable {
+        let id, trackId, type, originalLocale, title, summary, publishedAt, posterUrl, mediaUrl: String
+        let revision: Int; let durationMs: Double; let track: Parent
+    }
+    struct Parent: Decodable, Sendable { let id, title, href: String }
 }
 nonisolated private struct PlatformLinkDTO: Decodable, Sendable {
     let id: String; let provider: String; let status: String; let href: String; let verifiedAt: String

@@ -1,0 +1,18 @@
+{
+  "bundle": "org.stationcat.music",
+  "version": "0.1.2",
+  "build": "12",
+  "publicMetadataEnabled": false,
+  "nativeServicesEnabled": false,
+  "backgroundAudio": false,
+  "requiredReasonManifest": "present",
+  "usesNonExemptEncryption": false,
+  "releaseNoteLocales": [
+    "en",
+    "ja",
+    "zh-Hans",
+    "zh-Hant"
+  ],
+  "appStorePrivacyLabelConfirmed": false,
+  "signedDistributionValidated": false
+}

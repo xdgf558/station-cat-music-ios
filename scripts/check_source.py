@@ -14,7 +14,11 @@ for p in files:
    assert text.count('wwwstationcat.org') == 1 and 'static let origin = "https://wwwstationcat.org"' in text,p
   else:assert 'wwwstationcat.org' not in text,p
 source='\n'.join(p.read_text() for p in (root/'Core').glob('*.swift'))
-assert source.count('AVPlayer()')==1
+assert source.count('AVPlayer()')==1  # One native music player; clips own a separate foreground-only item.
+clip=(root/'Core/PlatformClipPlayer.swift').read_text()
+assert 'Authorization' not in clip and 'bearer' not in clip and 'playbackUrl' not in clip
+assert 'PlatformContentURL.valid' in clip and 'player.isMuted = true' in clip
+assert 'URLCache or disk persistence' in clip
 assert 'case mock, development, staging, production' in source
 assert 'guard environment == .mock else' in source
 assert 'guard configuration.accountDeletionAllowed else' in source
@@ -31,4 +35,4 @@ assert 'kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly' in source
 assert 'kSecAttrSynchronizable as String: false' in source
 locales=json.loads((root/'Resources/Localizations.json').read_text())
 assert all(set(d)==set(locales['en']) for d in locales.values())
-print('Source guards passed: no recognizable embedded credentials/HTTP exceptions; one player owner; Mock networking boundary; Keychain storage policy; four locale parity.')
+print('Source guards passed: no recognizable embedded credentials/HTTP exceptions; one native music player and separate muted public-clip player; Mock networking boundary; Keychain storage policy; four locale parity.')

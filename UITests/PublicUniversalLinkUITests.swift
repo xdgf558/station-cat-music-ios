@@ -74,14 +74,15 @@ import XCTest
         XCTAssertTrue(app.tabBars.buttons["我的"].waitForExistence(timeout: 45))
         app.tabBars.buttons["我的"].tap()
         for _ in 0..<5 {
-            if app.buttons["helpEntry"].isHittable { break }
+            if app.buttons["settingsHelpEntry"].isHittable { break }
             app.swipeUp()
         }
+        app.buttons["settingsHelpEntry"].tap()
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (10)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.1 (11)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (10)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["支持从其他 App 的 Station Cat 歌曲链接进入对应作品页面；具体打开方式由 iOS 和来源 App 决定。"].exists)
-        capture(app, name: "public-links-build9-release-notes")
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.1 (11)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["“我的”改为收藏焦点布局，最近查看与设置分层进入，已有账号资料与旧文件按实际情况保留管理入口。"].exists)
+        capture(app, name: "public-links-current-release-notes")
     }
 }

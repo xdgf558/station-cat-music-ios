@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-18",
+  "version": "0.1.0",
+  "build": "11",
+  "xcode": "27.1 (27A9275)",
+  "runtime": "iOS 26.4.1 simulator",
+  "sourceBase": "99b926045c77f7102cf095233fe3c7706c52ab5f",
+  "branch": "codex/platform-my-hub",
+  "core": {
+    "result": "Passed",
+    "totalTestCount": 306,
+    "passedTests": 283,
+    "skippedTests": 23,
+    "failedTests": 0,
+    "runtimeWarnings": []
+  },
+  "ui": {
+    "result": "Passed",
+    "totalTestCount": 3,
+    "passedTests": 3,
+    "skippedTests": 0,
+    "failedTests": 0,
+    "runtimeWarnings": []
+  },
+  "openapi": {
+    "operations": 26,
+    "positiveFixtures": 67,
+    "negativeFixtures": 21,
+    "result": "passed"
+  },
+  "python": {
+    "platformAcceptance": 8,
+    "platformLinks": 3,
+    "failed": 0
+  },
+  "productionBuild": "unsigned; passed; all committed service flags remain closed",
+  "remoteCI": "not run",
+  "physicalDevice": "not run",
+  "installed": false,
+  "uploaded": false,
+  "deployed": false
+}

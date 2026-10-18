@@ -2,6 +2,7 @@
 .build-production/
 .build-platform/
 .build-public-preview/
+.build-my-hub/
 .venv/
 evidence/
 *.xcuserstate

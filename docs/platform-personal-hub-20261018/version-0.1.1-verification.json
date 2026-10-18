@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-18",
+  "version": "0.1.1",
+  "build": "11",
+  "scope": "Version-only follow-up; earlier full-suite results remain recorded against 0.1.0 (11).",
+  "productionBuild": "unsigned; passed",
+  "bundledVersionAndNotes": "matched project and source resources",
+  "releaseNotes": {
+    "locales": [
+      "en",
+      "zh-Hans",
+      "zh-Hant",
+      "ja"
+    ],
+    "currentEntries": [
+      "releasePersonalHub",
+      "releaseRecentlyViewed",
+      "releasePlatformPreference"
+    ]
+  },
+  "platformAcceptance": {
+    "passed": 8,
+    "failed": 0
+  },
+  "ui": {
+    "result": "Passed",
+    "passedTests": 2,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "runtimeWarnings": [],
+    "tests": [
+      "NavigationTests/testOfflineAndVersionPages",
+      "PlatformPersonalUITests/testPersonalHubNavigationPrivacyPreferenceAndNotes"
+    ],
+    "xcode": "27.1 (27A9275)",
+    "runtime": "iOS 26.4.1 simulator",
+    "resultBundle": "/tmp/station-version-011-ui-access.xcresult"
+  },
+  "remoteCI": "not run",
+  "physicalDevice": "not run",
+  "installed": false,
+  "uploaded": false
+}

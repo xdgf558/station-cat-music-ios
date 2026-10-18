@@ -108,6 +108,12 @@
 			"path" = "Core/PersonalLibrary.swift";
 			"sourceTree" = "<group>";
 		};
+		"FE68EE5EE8B71EBF90DD1899" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/PlatformAlbums.swift";
+			"sourceTree" = "<group>";
+		};
 		"7A562C32FEE7E50591CBC9D2" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -184,6 +190,12 @@
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
 			"path" = "StationCatMusic/OrbitTheme.swift";
+			"sourceTree" = "<group>";
+		};
+		"65A6598DB6404437038DBFA9" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "StationCatMusic/PlatformCatalogView.swift";
 			"sourceTree" = "<group>";
 		};
 		"17ECACA98DEA09271017391A" = {
@@ -318,6 +330,12 @@
 			"path" = "Tests/PersonalLibraryTests.swift";
 			"sourceTree" = "<group>";
 		};
+		"A449B43F62DC2DA9B66C5A6F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/PlatformAlbumTests.swift";
+			"sourceTree" = "<group>";
+		};
 		"1E5C6F0D540F194CE1DACCB1" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -402,10 +420,22 @@
 			"path" = "UITests/NavigationTests.swift";
 			"sourceTree" = "<group>";
 		};
+		"78EAB4CAC91BAD0547BD0CB2" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/PlatformCatalogUITests.swift";
+			"sourceTree" = "<group>";
+		};
 		"A8C10FD3801F7CD94B1A30B1" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
 			"path" = "UITests/PlatformMusicUITests.swift";
+			"sourceTree" = "<group>";
+		};
+		"E2C7837828CEB003AF7B9B32" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/PublicUniversalLinkUITests.swift";
 			"sourceTree" = "<group>";
 		};
 		"29F4B9F9E997A6078032077A" = {
@@ -448,6 +478,12 @@
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "text.json";
 			"path" = "contracts/fixtures/platform-catalog.json";
+			"sourceTree" = "<group>";
+		};
+		"533819F6A4470279D02A5CBB" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.json";
+			"path" = "contracts/fixtures/platform-albums.json";
 			"sourceTree" = "<group>";
 		};
 		"5036264C3DEA51F6A58CB4D8" = {
@@ -538,7 +574,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "8";
+				"CURRENT_PROJECT_VERSION" = "10";
 			};
 		};
 		"FBFB519E017124AD6A05AD21" = {
@@ -569,7 +605,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "8";
+				"CURRENT_PROJECT_VERSION" = "10";
 			};
 		};
 		"0E4CA93122EFD27B46D9D173" = {
@@ -600,7 +636,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "8";
+				"CURRENT_PROJECT_VERSION" = "10";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 			};
@@ -633,7 +669,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"MARKETING_VERSION" = "0.1.0";
-				"CURRENT_PROJECT_VERSION" = "8";
+				"CURRENT_PROJECT_VERSION" = "10";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
@@ -719,6 +755,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "DB0038DCEB72EA8E315F2AD2";
 		};
+		"41A3D7FC5D1DBF9F1FF8D7AD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "FE68EE5EE8B71EBF90DD1899";
+		};
 		"991A5B2FD1CFFF5BC5596A1F" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "7A562C32FEE7E50591CBC9D2";
@@ -771,6 +811,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "824EA7CD35A8DB6986EF92A8";
 		};
+		"37A50B2209A2161854B74E03" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "65A6598DB6404437038DBFA9";
+		};
 		"8D54F15A40659D0152F97F43" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "17ECACA98DEA09271017391A";
@@ -812,6 +856,7 @@
 				"598F26289E0042BF6AAF33F9",
 				"057B834ED0A3AF3CFA7959FB",
 				"7280D6AC381817C510257B57",
+				"41A3D7FC5D1DBF9F1FF8D7AD",
 				"991A5B2FD1CFFF5BC5596A1F",
 				"0374827B33A9162EE172B894",
 				"861AA8AD46ADEFDEF04CF1E0",
@@ -825,6 +870,7 @@
 				"EE55B14E07EAEC3341CB002D",
 				"F2922858E467258ADC072BCB",
 				"083280D0FCBD4DDEEE8E773B",
+				"37A50B2209A2161854B74E03",
 				"8D54F15A40659D0152F97F43",
 				"3A1654930F77A31331C915C8",
 				"D4983E69A605C3BC8D5BAFE3",
@@ -857,6 +903,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "012EED105FA0D4E6B584ABC1";
 		};
+		"88706ED470B69AE434202F12" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "533819F6A4470279D02A5CBB";
+		};
 		"0B56917201EABEEB79085C5A" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "5036264C3DEA51F6A58CB4D8";
@@ -873,6 +923,7 @@
 				"B87919DA7CA3E30D6D69F528",
 				"C421F6F8F9B24428752885FC",
 				"71C17F23D72F0F92092217F7",
+				"88706ED470B69AE434202F12",
 				"0B56917201EABEEB79085C5A",
 				"B308A2A29F0EE870A5A49B50"
 			);
@@ -1088,6 +1139,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "FCD10AFB9284D859368BED9F";
 		};
+		"FBA0B06D7724E7BA0FE1E6AF" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A449B43F62DC2DA9B66C5A6F";
+		};
 		"B6EA1DCC7A600A59E4F2E09B" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "1E5C6F0D540F194CE1DACCB1";
@@ -1161,6 +1216,7 @@
 				"7BDD640980F9C17A1705B888",
 				"5F913E4CA7FF4C27410787D8",
 				"E0CF1F637AC30A6DCE7B9535",
+				"FBA0B06D7724E7BA0FE1E6AF",
 				"B6EA1DCC7A600A59E4F2E09B",
 				"C721C0CCAE55800E7BE66A0A",
 				"911D4AC307556008E290DB94",
@@ -1349,9 +1405,17 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "AC2AB77181D707D00C92E57A";
 		};
+		"C98DB3EA3946EBFF585FB199" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "78EAB4CAC91BAD0547BD0CB2";
+		};
 		"4AE6932373B90A511546F04A" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "A8C10FD3801F7CD94B1A30B1";
+		};
+		"00F6D8CB630454B22F48FF0F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E2C7837828CEB003AF7B9B32";
 		};
 		"C398033C9ED2AC57D776D4C3" = {
 			"isa" = "PBXBuildFile";
@@ -1370,7 +1434,9 @@
 			"buildActionMask" = "2147483647";
 			"files" = (
 				"CFBFD44240B7907E82B791FD",
+				"C98DB3EA3946EBFF585FB199",
 				"4AE6932373B90A511546F04A",
+				"00F6D8CB630454B22F48FF0F",
 				"C398033C9ED2AC57D776D4C3",
 				"5FC20BA41AD368BFFF8B8D3F",
 				"3D4D5F42A829979972D82E0A"
@@ -1442,6 +1508,7 @@
 				"EF1760F643E607959BA7F5EA",
 				"AFDC51AFC58C7BC440756FD2",
 				"DB0038DCEB72EA8E315F2AD2",
+				"FE68EE5EE8B71EBF90DD1899",
 				"7A562C32FEE7E50591CBC9D2",
 				"F01B425C97BC9D5E54809A5C",
 				"9F05399A209B7408F3375C26",
@@ -1455,6 +1522,7 @@
 				"7BB274F117152DC9474186DA",
 				"0BFE1785CDA90690F8868973",
 				"824EA7CD35A8DB6986EF92A8",
+				"65A6598DB6404437038DBFA9",
 				"17ECACA98DEA09271017391A",
 				"A72639049DB3D571A6157C0E",
 				"51005BBCA731E333520173C2",
@@ -1477,6 +1545,7 @@
 				"9BA5FF573E59873D56CD17FB",
 				"5FD085A4FE41405F99407359",
 				"FCD10AFB9284D859368BED9F",
+				"A449B43F62DC2DA9B66C5A6F",
 				"1E5C6F0D540F194CE1DACCB1",
 				"A2BE37D7C64525545A2A1EE2",
 				"B4C295B31539682A50117C95",
@@ -1491,7 +1560,9 @@
 				"E430A6983A1E1BF1BBD55E14",
 				"88C3AD6BA91A898123D82801",
 				"AC2AB77181D707D00C92E57A",
+				"78EAB4CAC91BAD0547BD0CB2",
 				"A8C10FD3801F7CD94B1A30B1",
+				"E2C7837828CEB003AF7B9B32",
 				"29F4B9F9E997A6078032077A",
 				"7DB33EFE4E031BB44D5BA9B1",
 				"CCA3DCFF33635D624ADF50BB",
@@ -1499,6 +1570,7 @@
 				"6327A1005FF0B783151E530B",
 				"008A82717D421854262EDCC1",
 				"012EED105FA0D4E6B584ABC1",
+				"533819F6A4470279D02A5CBB",
 				"5036264C3DEA51F6A58CB4D8",
 				"E0E27618A2D2A8FEBDD49F35",
 				"3B77F288B912683599A8951E",

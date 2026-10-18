@@ -6,7 +6,7 @@ import Darwin
 
 // Only compile-time phases and error categories enter artifacts; never Error descriptions/userInfo.
 enum ProbePhase: String, Sendable {
-    case configuration, cleanup, seedRequest, seedDecode, sessionInstall, deletionPrepare, receiptWrite
+    case configuration, launchPermit, cleanup, seedRequest, seedDecode, sessionInstall, deletionPrepare, receiptWrite
     case authRestore, refreshRequest, evidenceRequest, evidenceDecode, evidenceRetry, heldPolling, boundaryValidation
     case journalRead, journalWrite, expectedRequestWrite, recoveryRead, recoveryEvidence, recoveryAssertions, recoveryCleanup
 }
@@ -122,6 +122,44 @@ enum ProbeReporter {
 }
 
 enum ProbeFailure: Error { case failed(String) }
+
+// Standalone simulator host only. The unique run ID, stage, mode and PID must
+// match the driver's completed launch; a second host cannot repeat mutations.
+enum ProbeLaunchPermit {
+    static func wait(runID: String, stage: String, mode: String, directory: URL,
+                     processID: Int32 = getpid(), timeout: Duration = .seconds(60),
+                     interval: Duration = .milliseconds(20)) async throws {
+        do {
+            guard UUID(uuidString: runID) != nil, ["A11", "A12", "A13"].contains(stage),
+                  ["CRASH", "RECOVER"].contains(mode), processID > 1 else {
+                throw ProbeFailure.failed("Invalid launch permit identity")
+            }
+            let permit = directory.appendingPathComponent("M2-" + runID + ".permit")
+            let consumed = permit.appendingPathExtension("consumed")
+            let expected = Data("M2_PROBE_PERMIT:\(stage):\(mode):pid=\(processID)\n".utf8)
+            let deadline = ContinuousClock.now.advanced(by: timeout)
+            while ContinuousClock.now < deadline {
+                try Task.checkCancellation()
+                if FileManager.default.fileExists(atPath: permit.path) {
+                    let file = try FileHandle(forReadingFrom: permit)
+                    let bytes: Data
+                    do { bytes = try file.read(upToCount: 257) ?? Data(); try file.close() }
+                    catch { try? file.close(); throw error }
+                    guard bytes == expected, ContinuousClock.now < deadline else {
+                        throw ProbeFailure.failed("Launch permit identity differs or expired")
+                    }
+                    let claim = open(consumed.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, S_IRUSR | S_IWUSR)
+                    guard claim >= 0 else { throw ProbeFailure.failed("Launch permit already consumed or unavailable") }
+                    guard close(claim) == 0 else { throw ProbeFailure.failed("Launch permit claim failed") }
+                    return
+                }
+                try await Task.sleep(for: interval)
+            }
+            throw ProbeFailure.failed("Launch permit was not received before deadline")
+        } catch { throw ProbeDiagnostic.capture(error, phase: .launchPermit) }
+    }
+}
+
 func probeUnwrap<T>(_ value: T?) throws -> T {
     guard let value else { throw ProbeFailure.failed("Missing probe value") }; return value
 }

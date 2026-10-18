@@ -233,6 +233,21 @@ platform.youtube|YouTube|YouTube|YouTube|YouTube
 platform.spotify|Spotify|Spotify|Spotify|Spotify
 artworkCacheSpace|Cover cache storage|封面缓存占用|封面快取空間|カバー画像のキャッシュ容量
 artworkCacheFiles|Cached covers|已缓存封面|已快取封面|保存済みのカバー画像
+catalogCategory.all|All|全部|全部|すべて
+catalogCategory.singles|Singles|单曲|單曲|シングル
+catalogCategory.albums|Albums|专辑|專輯|アルバム
+catalogCategories|Browse by category|作品分类|作品分類|カテゴリ
+catalogSearch|Search songs and albums|搜索歌曲、专辑|搜尋歌曲、專輯|曲・アルバムを検索
+catalogClearSearch|Clear search|清除搜索|清除搜尋|検索をクリア
+catalogAlbumWorks|Albums|专辑作品|專輯作品|アルバム作品
+catalogTrackCount|%d songs|%d 首|%d 首|%d 曲
+catalogNoAlbums|No albums yet|暂无专辑|暫無專輯|アルバムはまだありません
+catalogNoSingles|No singles in this list|暂无单曲|暫無單曲|シングルはまだありません
+catalogBrowseAll|Browse all works to find something you like.|可以先到全部作品中看看。|可以先到全部作品中看看。|すべての作品から探してみましょう。
+catalogClassificationUnavailable|Some category information is unavailable. You can still browse all works.|部分分类资料暂时无法载入，仍可查看全部作品。|部分分類資料暫時無法載入，仍可查看全部作品。|一部の分類を取得できません。すべての作品は引き続き表示できます。
+catalogAlbumUnavailable|This album has changed or is no longer available.|此专辑已更新或暂不可用。|此專輯已更新或暫不可用。|このアルバムは更新されたか、現在表示できません。
+releaseCatalogCategories|Browse All, Singles and Albums. Open an album to see its songs in order, and search within each category.|曲库新增全部、单曲和专辑分类；专辑以双列封面展示，点开查看有序曲目，并支持分类搜索。|曲庫新增全部、單曲和專輯分類；專輯以雙欄封面展示，點開查看依序排列的曲目，並支援分類搜尋。|ライブラリに「すべて・シングル・アルバム」を追加。アルバムの収録曲を曲順で表示し、カテゴリ内で検索できます。
+releaseUniversalLinks|Open supported Station Cat song links from other apps directly in the matching work page. Opening behavior depends on iOS and the source app.|支持从其他 App 的 Station Cat 歌曲链接进入对应作品页面；具体打开方式由 iOS 和来源 App 决定。|支援從其他 App 的 Station Cat 歌曲連結進入對應作品頁面；實際開啟方式由 iOS 和來源 App 決定。|他のアプリから対応する Station Cat の曲リンクで作品ページを開けます。開き方は iOS とリンク元のアプリによって異なります。
 releaseSongLinks|Song links can load a work directly, including supported campaign tags, even before it appears in your catalog.|歌曲链接可直接查询作品，并支持限定的推广来源参数，无需等待作品进入本机曲库。|歌曲連結可直接查詢作品，並支援限定的推廣來源參數，無需等待作品進入本機曲庫。|対応するキャンペーン情報付きの曲リンクから、一覧にまだない作品も直接読み込めます。
 releaseFavoriteReliability|Favorites remain visible offline. Permitted saved names appear while fresh; otherwise a saved-work placeholder stays available.|断网时收藏数量和条目仍保留；有效期内显示已保存的作品名称，否则显示收藏占位。|離線時收藏數量和項目仍保留；有效期內顯示已儲存的作品名稱，否則顯示收藏佔位。|オフラインでもお気に入りの件数と項目を保持。有効な保存情報があれば作品名を表示し、期限後も保存済みの項目を残します。
 releaseDetailErrors|Song details distinguish network failures and unavailable addresses, with a retry option.|歌曲详情区分网络失败和地址失效，并提供重试入口。|歌曲詳情區分網路失敗和位址失效，並提供重試入口。|曲の詳細で通信エラーと無効なアドレスを区別し、再試行できます。

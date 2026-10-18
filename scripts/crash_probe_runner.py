@@ -24,14 +24,14 @@ class ProbeTimeline:
     Never accepts command arguments, environment values, response data or exception
     messages. The file remains useful when a launcher or process check stalls.
     """
-    EVENTS = frozenset(('prepared', 'launch_begin', 'launch_returned', 'pid_observed',
+    EVENTS = frozenset(('prepared', 'launch_begin', 'launch_returned', 'pid_observed', 'launch_permit_published',
                         'startup_observed', 'boundary_observed', 'host_exit_confirmed',
                         'launcher_stop_begin', 'launcher_stop_done', 'failed'))
     CATEGORIES = frozenset(('host_exit_check_timeout', 'host_exit_check_failed',
                            'invalid_host_pid', 'launch_failed', 'probe_failed',
                            'evidence_pid_mismatch', 'startup_missing', 'cleanup_missing',
                            'host_did_not_exit', 'boundary_missing', 'launch_pid_missing',
-                           'boundary_timeout', 'io_error', 'process_timeout', 'unexpected'))
+                           'boundary_timeout', 'launch_permit_failed', 'io_error', 'process_timeout', 'unexpected'))
 
     def __init__(self, path, stage, mode):
         if stage not in ('A11', 'A12', 'A13') or mode not in ('CRASH', 'RECOVER'):
@@ -235,8 +235,27 @@ def run_crash(args, logfile, stage, timeout=300, env=None):
                 if watcher is not None:watcher.close()
 
 
+def publish_launch_permit(path, stage, mode, pid):
+    """Acknowledge one successfully launched PID before it may touch auth state.
+
+    Atomic, exclusive publication: a partial file or an earlier invocation can
+    never grant permission. This contains no credential or fixture proof.
+    """
+    if stage not in ('A11', 'A12', 'A13') or mode not in ('CRASH', 'RECOVER') or type(pid) is not int or pid <= 1:
+        raise ProbeRunnerError('launch_permit_failed', 'Invalid probe launch permit')
+    pending = path.with_name(path.name + '.pending')
+    payload = f'M2_PROBE_PERMIT:{stage}:{mode}:pid={pid}\n'.encode('ascii')
+    with pending.open('xb') as target:
+        os.chmod(pending, 0o600)
+        target.write(payload)
+    try:
+        os.link(pending, path)  # Publish complete bytes without replacing an existing permit.
+    finally:
+        pending.unlink()
+
+
 def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None,
-                   timeline=None, launch_log=None):
+                   timeline=None, launch_log=None, permitfile=None):
     """simctl exits after launch; trust unique durable app evidence + actual host exit.
 
     No auto-relaunch: once a refresh may have committed, the original operation and
@@ -244,10 +263,14 @@ def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None
     """
     if resultfile.exists():
         raise RuntimeError('Probe result path must be fresh')
+    if permitfile is not None and any(p.exists() or p.is_symlink() for p in
+                                      (permitfile, permitfile.with_name(permitfile.name + '.pending'),
+                                       permitfile.with_name(permitfile.name + '.consumed'))):
+        raise ProbeRunnerError('launch_permit_failed', 'Probe launch permit path must be fresh')
     if stage not in ('A11', 'A12', 'A13') or mode not in ('CRASH', 'RECOVER'):
         raise ValueError('Invalid probe stage or mode')
     started=time.monotonic(); boundary_observed=None; exit_wait_started=None
-    pid=None; startup_observed=False; failure=None; process=None;watcher=None
+    pid=None; startup_observed=False; failure=None; process=None;watcher=None;permit_published=False
     def record(event, **fields):
         if timeline is not None: timeline.record(event, **fields)
     def fail(category, message): raise ProbeRunnerError(category, message)
@@ -263,7 +286,8 @@ def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None
             record('launch_returned')
             while time.monotonic()-started < timeout:
                 launch=logfile.read_text(errors='replace')
-                launched=re.search(r'^org\.stationcat\.music\.recoveryprobe: (\d+)$',launch,re.M)
+                # Require a complete line; a partial PID at EOF is not a launch result.
+                launched=re.search(r'^org\.stationcat\.music\.recoveryprobe: (\d+)\r?\n',launch,re.M)
                 if launched:
                     candidate=int(launched.group(1))
                     if candidate<=1 or candidate in (os.getpid(),process.pid): fail('invalid_host_pid', 'Invalid simulator host PID')
@@ -272,7 +296,12 @@ def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None
                     elif pid != candidate: fail('evidence_pid_mismatch', 'Probe launch PID changed')
                 code=process.poll()
                 if code is not None and code!=0: fail('launch_failed', 'Probe launch command failed')
+                if permitfile is not None and not permit_published and code == 0 and pid is not None:
+                    publish_launch_permit(permitfile, stage, mode, pid)
+                    permit_published=True; record('launch_permit_published', pid=pid)
                 content=read_result()
+                if permitfile is not None and not permit_published and 'M2_PROBE_STARTED:' in content:
+                    fail('launch_permit_failed', 'Probe ran before successful launch acknowledgement')
                 if pid is not None and not startup_observed and 'M2_PROBE_STARTED:'+stage+':'+mode+':pid='+str(pid) in content:
                     startup_observed=True; record('startup_observed', pid=pid)
                 if 'M2_PROBE_FAILED' in content: fail('probe_failed', 'Probe reported failure; see durable evidence')
@@ -295,6 +324,7 @@ def run_file_probe(args, logfile, resultfile, stage, mode, timeout=300, env=None
                         if host_exited(pid,watcher):
                             record('host_exit_confirmed', pid=pid)
                             return {'hostExitConfirmed':True,'hostPID':pid,'evidenceTransport':'unique simulator-container file',
+                                    'launchPermitConfirmed':permit_published,
                                     'hostExitAfterMarkerSeconds':round(time.monotonic()-exit_wait_started,3),
                                     'hostExitObservation':watcher.confirmation}
                         if time.monotonic()-exit_wait_started > 5: fail('host_did_not_exit', 'Marked simulator host did not exit')

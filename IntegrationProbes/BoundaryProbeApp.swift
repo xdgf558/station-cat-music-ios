@@ -16,6 +16,14 @@ import Darwin
             do {
                 try ProbeReporter.lifecycle(.scenarioTaskEntered)
                 let config = try CrashProbeConfiguration.load()
+                // A very fast _exit during launch can make the simulator launch
+                // another host before simctl returns its PID. Do not touch the
+                // fixture/Keychain until that exact launch has been acknowledged.
+                try ProbeReporter.phase(.launchPermit)
+                let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                try await ProbeLaunchPermit.wait(
+                    runID: ProcessInfo.processInfo.environment["M2_PROBE_RUN_ID"] ?? "",
+                    stage: config.stage, mode: config.mode, directory: directory)
                 try ProbeReporter.emit("M2_PROBE_STARTED:\(config.stage):\(config.mode):pid=\(getpid())")
                 let scenario = NativeCrashScenario()
                 if config.mode == "CRASH" { try await scenario.testCrashAtRefreshBoundary() }

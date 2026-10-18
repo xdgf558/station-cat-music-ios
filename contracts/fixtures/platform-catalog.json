@@ -43,7 +43,8 @@
           }
         ],
         "story": "These are synthetic development records. Platform links do not prove a real release.",
-        "lyricsUrl": null
+        "lyricsUrl": null,
+        "albums": []
       },
       {
         "id": "22222222-2222-4222-8222-222222222222",
@@ -69,7 +70,8 @@
         },
         "platforms": [],
         "story": "An unreleased synthetic example, with no listening button.",
-        "lyricsUrl": null
+        "lyricsUrl": null,
+        "albums": []
       }
     ],
     "nextCursor": null
@@ -134,7 +136,8 @@
           }
         ],
         "story": "These are synthetic development records. Platform links do not prove a real release.",
-        "lyricsUrl": null
+        "lyricsUrl": null,
+        "albums": []
       },
       "related": []
     },
@@ -165,7 +168,8 @@
         },
         "platforms": [],
         "story": "An unreleased synthetic example, with no listening button.",
-        "lyricsUrl": null
+        "lyricsUrl": null,
+        "albums": []
       },
       "related": []
     }

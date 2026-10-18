@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-17",
+  "version": "0.1.0",
+  "build": "10",
+  "designChoice": 2,
+  "unitTests": {
+    "passed": 36,
+    "failed": 0,
+    "resultBundle": ".build/catalog-categories-unit-20261017.xcresult"
+  },
+  "uiTests": {
+    "initialPassed": 5,
+    "finalCategoryPassed": 3,
+    "finalCategoryFailed": 0,
+    "finalResultBundle": ".build/catalog-categories-ui-v3-20261017.xcresult",
+    "iteration2": "Failed Japanese AX category accessibility; replaced horizontal rail by native menu at accessibility sizes, then reran all category tests"
+  },
+  "sourceGuards": "passed",
+  "pythonReleaseAcceptance": 8,
+  "pythonPublicLinks": 3,
+  "pairedWebsite": {
+    "branch": "codex/public-album-categories",
+    "publicSuitePassed": 64,
+    "publicSuiteFailed": 0,
+    "publicUnitSubsetPassed": 32,
+    "actualD1RuntimeSubsetPassed": 9,
+    "buildPages": 185,
+    "allowEmptySerialContent": true,
+    "productionDeployableBuild": false
+  },
+  "toolchain": {
+    "xcode": "27.1 (27A9275)",
+    "simulator": "iPhone 18 Pro / iOS 27.0",
+    "stableCI": "not run",
+    "physicalDevice": "not run"
+  },
+  "builtProductionInspection": {
+    "bundle": "org.stationcat.music",
+    "version": "0.1.0",
+    "build": "10",
+    "publicMetadataEnabled": false,
+    "nativeServicesEnabled": false,
+    "backgroundAudio": false,
+    "requiredReasonManifest": "present",
+    "usesNonExemptEncryption": false,
+    "releaseNoteLocales": [
+      "en",
+      "ja",
+      "zh-Hans",
+      "zh-Hant"
+    ],
+    "appStorePrivacyLabelConfirmed": false,
+    "signedDistributionValidated": false
+  },
+  "fileSHA256": {
+    "Core/PlatformAlbums.swift": "1890c2e244192363cad0700507b8dac09724454bde0c5662c0ea1ed5ffe15497",
+    "Core/PlatformMusic.swift": "266781a1e0b65baac8294fd8019c57b5791bbb53fc355080e829b8e8fc9fa5e3",
+    "StationCatMusic/PlatformCatalogView.swift": "0b74fc09c86ce4ec89fa1cde9fd61fe5b48fb8f40b65a9e3d54ccad9529c8b4e",
+    "StationCatMusic/AppModel.swift": "e5c5e79ac7741315aef8449a0f5d6679c3903149ed4f3be0fe60f0329d1dc6b5",
+    "Resources/Localizations.json": "45f6991113a31a4534513b35de0e1454fd15312920f11b1963b93d5b2fd424c4"
+  },
+  "deployment": false,
+  "phoneInstallation": false,
+  "testFlightUpload": false,
+  "designQA": "passed"
+}

@@ -56,12 +56,13 @@ import XCTest
         app.navigationBars.buttons.firstMatch.tap()
         for _ in 0..<4 { if app.buttons["helpEntry"].isHittable { break }; app.swipeUp() }
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.0 (10)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.2 (12)")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["privacyPolicyLink"].firstMatch.exists)
         XCTAssertTrue(app.descendants(matching: .any)["termsLink"].firstMatch.exists)
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.0 (10)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["曲库新增全部、单曲和专辑分类；专辑以双列封面展示，点开查看有序曲目，并支持分类搜索。"].exists)
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.2 (12)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["歌曲详情新增歌词、短片、故事分栏，保留清晰的平台收听入口。"].exists)
+        XCTAssertTrue(app.staticTexts["已发布歌词支持原生阅读、字号调整和展开收起。"].exists)
         let release = XCTAttachment(screenshot: app.screenshot()); release.name = "Version-Release-Notes"; release.lifetime = .keepAlways; add(release)
     }
     func testThreeTabsAndPlayerNeverAutoPlays() {

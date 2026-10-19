@@ -1,0 +1,67 @@
+{
+  "candidate": {
+    "version": "0.1.2",
+    "build": "12"
+  },
+  "date": "2026-10-18",
+  "toolchain": {
+    "xcode": "27.1 (27A9275)",
+    "simulator": "iPhone 17 Pro / iOS 26.4.1",
+    "viewportPoints": [
+      402,
+      874
+    ],
+    "screenshotPixels": [
+      1206,
+      2622
+    ]
+  },
+  "coreSuite": {
+    "total": 316,
+    "passed": 293,
+    "skipped": 23,
+    "failed": 0,
+    "resultBundle": ".build/song-content-core-final.xcresult"
+  },
+  "contentAndPlatformSuite": {
+    "total": 21,
+    "passed": 21,
+    "failed": 0,
+    "skipped": 0,
+    "unitTests": 12,
+    "uiTests": 9,
+    "resultBundle": ".build/song-content-final.xcresult"
+  },
+  "python": {
+    "platformRelease": 8,
+    "platformLinks": 3,
+    "failed": 0
+  },
+  "productionSimulatorBuild": "passed",
+  "deviceInstalled": false,
+  "testFlightUploaded": false,
+  "websiteChanged": false,
+  "newClipsPublished": 0,
+  "sourceSHA256": {
+    "Core/PlatformMusic.swift": "f41e182c0d38e33ec2a76b76d9ddd9a30a542430d9295348ca46dd260e533141",
+    "Core/PlatformContent.swift": "12c41e23e61fe0aa3a90fa2c3e29a303cd269c1a9dbf896419f78d17144c8c93",
+    "Core/PlatformClipPlayer.swift": "3703757702924de09aad95cfe16601c1d3e2adf32a2549c3902c633bb920b343",
+    "StationCatMusic/PlatformMusicDetailView.swift": "034f62f726b9ced02300163f64d6455110bff3c5c17b647dea301df189067d4e",
+    "Tests/PlatformContentTests.swift": "c12172c4e535350da6d72858c4a44d1c07575ebeb1a4b5ad703f41c8544ede7c",
+    "UITests/PlatformContentUITests.swift": "bc44cb772257a8b5b441f34d6db4de99acf04a3c4693d13ad1c5d3742dfb9b51",
+    "scripts/generate_project.py": "541863ca2a0de1b98da0d413d8984db503f52061ec53486cec291c976148b1b7",
+    "Resources/Localizations.json": "2e60f9b49d2509cc57cbb28eb5671fd45d78eb760b3489ea3a0a444c2dc2f8cd"
+  },
+  "limits": [
+    "Local Xcode validation is not the fixed remote CI run.",
+    "Mock content screenshots are not evidence of published lyrics, stories or videos.",
+    "No physical-device, VoiceOver narration or distribution-signing acceptance."
+  ],
+  "accessibilityRefinement": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "resultBundle": ".build/song-content-accessibility-final.xcresult"
+  }
+}

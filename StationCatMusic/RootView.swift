@@ -269,7 +269,34 @@ struct RootView: View {
             }
         }.padding(.vertical, 14).overlay(alignment: .bottom) { Rectangle().fill(Palette.line).frame(height: 0.5) }
     }
-    private var library: some View {
+    @ViewBuilder private var library: some View {
+        if model.platformMode {
+            PlatformLibraryHome(model: model, favorites: { favoritesPage }, settings: { platformSettingsPage })
+        } else { legacyLibrary }
+    }
+    private var platformSettingsPage: some View {
+        libraryPage("settingsHelp", id: "settingsHelpPage") {
+            Section {
+                NavigationLink { preferencesPage } label: { Label(model.t("preferences"), systemImage: "slider.horizontal.3") }.accessibilityIdentifier("preferencesEntry")
+                NavigationLink { privacyPage } label: { Label(model.t("privacyStorage"), systemImage: "hand.raised") }.accessibilityIdentifier("privacyEntry")
+                NavigationLink { helpPage } label: { Label(model.t("aboutSupport"), systemImage: "questionmark.circle") }.accessibilityIdentifier("helpEntry")
+            }.listRowBackground(Palette.panel)
+            if model.hasLegacyOfflineFiles || !model.recent.isEmpty || model.account.enabled || model.account.scope.accountID != nil || !model.account.deletionHistory.isEmpty {
+                Section(model.t("legacyData")) {
+                    if !model.recent.isEmpty {
+                        NavigationLink { historyPage } label: { Label(model.t("legacyListeningHistory"), systemImage: "clock.arrow.circlepath") }.accessibilityIdentifier("historyEntry")
+                    }
+                    if model.hasLegacyOfflineFiles {
+                        NavigationLink { offlinePage } label: { Label(model.t("platformCacheManagement"), systemImage: "arrow.down.circle") }.accessibilityIdentifier("offlineEntry")
+                    }
+                    if model.account.enabled || model.account.scope.accountID != nil || !model.account.deletionHistory.isEmpty {
+                        NavigationLink { accountPage } label: { Label(model.t("accountSecurity"), systemImage: "person.crop.circle") }.accessibilityIdentifier("accountEntry")
+                    }
+                }.listRowBackground(Palette.panel)
+            }
+        }.task { await model.refreshOffline() }
+    }
+    private var legacyLibrary: some View {
         ScrollView {
             VStack(spacing: 22) {
                 NavigationLink { accountPage } label: {
@@ -337,6 +364,7 @@ struct RootView: View {
         Form { content() }.accessibilityIdentifier(id)
             .scrollContentBackground(.hidden).background { OrbitBackground() }
             .navigationTitle(model.t(title)).navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
             .safeAreaInset(edge: .bottom) { miniPlayer }
     }
     private var accountPage: some View {
@@ -437,11 +465,16 @@ struct RootView: View {
         }
     }
     private var historyPage: some View {
-        libraryPage("recent", id: "historyPage") {
+        libraryPage(model.platformMode ? "legacyListeningHistory" : "recent", id: "historyPage") {
             Section {
                 let recentTracks = model.recentTracks
-                ForEach(recentTracks) { track in libraryRow(track, list: recentTracks) }
-                if recentTracks.isEmpty { Label(model.t("noRecent"), systemImage: "clock").font(.subheadline).foregroundStyle(Palette.muted) }
+                if model.platformMode {
+                    ForEach(model.recent, id: \.trackId) { item in
+                        if let track = recentTracks.first(where: { $0.id == item.trackId }) { libraryRow(track, list: recentTracks) }
+                        else { Label(model.t("legacyRecordedWork"), systemImage: "music.note").foregroundStyle(Palette.muted) }
+                    }
+                } else { ForEach(recentTracks) { track in libraryRow(track, list: recentTracks) } }
+                if model.recent.isEmpty { Label(model.t("noRecent"), systemImage: "clock").font(.subheadline).foregroundStyle(Palette.muted) }
             }.listRowBackground(Palette.panel)
             Section { Text(model.t(model.platformMode ? "platformHistoryDetail" : model.historyEnabled ? "historyOnDetail" : "historyOffDetail")).font(.footnote).foregroundStyle(Palette.muted) }.listRowBackground(Palette.panel)
         }
@@ -492,11 +525,19 @@ struct RootView: View {
     }
     private var privacyPage: some View {
         libraryPage("privacyStorage", id: "privacyPage") {
-            Section(model.t("recent")) {
-                Toggle(model.t("historyEnabled"), isOn: Binding(get: { model.historyEnabled }, set: { value in Task { await model.setHistory(value) } }))
-                Button(model.t("clearHistory"), role: .destructive) { confirmHistoryClear = true }
-                Text(model.t(model.libraryStatus)).font(.caption).foregroundStyle(Palette.muted)
-            }.listRowBackground(Palette.panel)
+            if model.platformMode {
+                Section {
+                    NavigationLink { PlatformVisitsPage(model: model) } label: { Label(model.t("recentlyViewed"), systemImage: "clock") }
+                    Text(model.t("viewingPrivacy")).font(.footnote).foregroundStyle(Palette.muted)
+                }.listRowBackground(Palette.panel)
+            }
+            if !model.platformMode || !model.recent.isEmpty {
+                Section(model.t(model.platformMode ? "legacyListeningHistory" : "recent")) {
+                    if !model.platformMode { Toggle(model.t("historyEnabled"), isOn: Binding(get: { model.historyEnabled }, set: { value in Task { await model.setHistory(value) } })) }
+                    Button(model.t("clearHistory"), role: .destructive) { confirmHistoryClear = true }
+                    Text(model.t(model.libraryStatus)).font(.caption).foregroundStyle(Palette.muted)
+                }.listRowBackground(Palette.panel)
+            }
             Section {
                 LabeledContent(model.t("artworkCacheSpace"), value: artworkUsage).accessibilityIdentifier("artworkCacheSpace")
                 LabeledContent(model.t("artworkCacheFiles"), value: model.artworkCacheUsage.map { $0.files.formatted() } ?? "—")
@@ -552,9 +593,19 @@ struct RootView: View {
         libraryPage("releaseNotes", id: "releaseNotesPage") {
             Section {
                 Text("Station Cat Music · " + appVersion).font(.headline)
-                Text("2026-10-17").font(.caption).foregroundStyle(Palette.muted)
+                Text("2026-10-18").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("releaseSongContent"), systemImage: "text.book.closed")
+                Label(model.t("releaseLyricsReader"), systemImage: "text.alignleft")
+                Label(model.t("releaseContentStates"), systemImage: "arrow.clockwise")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 0.1.1 (11) · 2026-10-18") {
+                Label(model.t("releasePersonalHub"), systemImage: "heart")
+                Label(model.t("releaseRecentlyViewed"), systemImage: "clock")
+                Label(model.t("releasePlatformPreference"), systemImage: "music.note")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 0.1.0 (10) · 2026-10-17") {
                 Label(model.t("releaseCatalogCategories"), systemImage: "square.stack")
             }.listRowBackground(Palette.panel)
             Section(model.t("previousUpdates") + " · 0.1.0 (9) · 2026-10-17") {

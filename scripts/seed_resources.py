@@ -1,7 +1,34 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''cancel|Cancel|取消|取消|キャンセル
+rows='''contentTab.lyrics|Lyrics|歌词|歌詞|歌詞
+contentTab.clips|Clips|短片|短片|動画
+contentTab.story|Story|故事|故事|ストーリー
+contentLyricsTitle|Lyrics|全部歌词|全部歌詞|歌詞
+contentStoryTitle|The story behind the song|创作故事|創作故事|曲にまつわるストーリー
+listenOnPlatform|Listen on {platform}|在{platform}收听|在{platform}收聽|{platform}で聴く
+lyricsEmpty|Lyrics have not been published for this song yet.|这首歌暂未发布歌词。|這首歌暫未發佈歌詞。|この曲の歌詞はまだ公開されていません。
+clipsEmpty|No clips yet. You can still listen on a music platform above.|暂无短片，可通过上方音乐平台收听。|暫無短片，可透過上方音樂平台收聽。|動画はまだありません。上の配信サービスから曲を聴けます。
+storyEmpty|The story behind this song has not been published yet.|这首歌的创作故事暂未发布。|這首歌的創作故事暫未發佈。|この曲のストーリーはまだ公開されていません。
+contentLoading|Loading content…|正在载入内容…|正在載入內容…|コンテンツを読み込み中…
+contentLoadFailure|Could not load this content. Please retry.|内容暂时未能载入，请重试。|內容暫時無法載入，請重試。|コンテンツを読み込めませんでした。再試行してください。
+contentWithdrawn|This content is no longer available. Retry to check for updates.|此内容已不可用，可重试检查更新。|此內容已無法使用，可重試檢查更新。|このコンテンツは現在利用できません。再試行して最新の状態を確認してください。
+lyricTextSize|Lyrics text size|歌词字号|歌詞字級|歌詞の文字サイズ
+lyricSize.18|Standard|标准|標準|標準
+lyricSize.21|Large|大|大|大
+lyricSize.24|Extra large|更大|更大|特大
+lyricsExpand|Read all lyrics|展开全部歌词|展開全部歌詞|歌詞をすべて表示
+lyricsCollapse|Show less|收起歌词|收起歌詞|折りたたむ
+clipWatch|Watch clip|观看短片|觀看短片|動画を見る
+clipUnmute|Turn sound on|开启声音|開啟聲音|音声をオン
+clipMute|Mute|静音|靜音|消音
+clipStop|Close video|关闭视频|關閉影片|動画を閉じる
+clipMutedHint|Clips start only when tapped, with sound off. They stop when you leave this page.|短片需点击观看，初始静音；离开页面后停止。|短片需點擊觀看，初始靜音；離開頁面後停止。|動画はタップすると消音で始まり、この画面を離れると停止します。
+clipPlayFailure|This clip could not be played. Please retry.|短片暂时无法播放，请重试。|短片暫時無法播放，請重試。|動画を再生できませんでした。再試行してください。
+releaseSongContent|Song details now separate lyrics, clips and stories, while keeping your listening platform close.|歌曲详情新增歌词、短片、故事分栏，保留清晰的平台收听入口。|歌曲詳情新增歌詞、短片、故事分欄，保留清楚的平台收聽入口。|曲の詳細を歌詞・動画・ストーリーに分け、配信サービスへの入口もわかりやすく配置しました。
+releaseLyricsReader|Read published lyrics with adjustable text size and expand or collapse the full text.|已发布歌词支持原生阅读、字号调整和展开收起。|已發佈歌詞支援原生閱讀、字級調整及展開收起。|公開済みの歌詞をアプリ内で読めます。文字サイズの変更と全文の展開・折りたたみに対応しました。
+releaseContentStates|Each content section has its own empty and retry states. Clips start only after a tap and are muted initially.|各栏目分别显示暂无内容和重试状态；短片需点击观看，初始静音。|各欄目分別顯示暫無內容與重試狀態；短片需點擊觀看，初始靜音。|各欄に未公開と再試行の状態を用意。動画はタップした場合のみ、最初は消音で再生します。
+cancel|Cancel|取消|取消|キャンセル
 recent|Recently played|最近播放|最近播放|最近再生した曲
 noRecent|No listening history yet.|暂无播放记录。|暫無播放記錄。|再生履歴はありません。
 historyEnabled|Save listening history|保存播放历史|儲存播放歷史|再生履歴を保存
@@ -246,6 +273,32 @@ catalogNoSingles|No singles in this list|暂无单曲|暫無單曲|シングル�
 catalogBrowseAll|Browse all works to find something you like.|可以先到全部作品中看看。|可以先到全部作品中看看。|すべての作品から探してみましょう。
 catalogClassificationUnavailable|Some category information is unavailable. You can still browse all works.|部分分类资料暂时无法载入，仍可查看全部作品。|部分分類資料暫時無法載入，仍可查看全部作品。|一部の分類を取得できません。すべての作品は引き続き表示できます。
 catalogAlbumUnavailable|This album has changed or is no longer available.|此专辑已更新或暂不可用。|此專輯已更新或暫不可用。|このアルバムは更新されたか、現在表示できません。
+personalIntro|Save what you love. Discover at your pace.|收藏喜欢，慢慢发现。|收藏喜歡，慢慢發現。|好きな作品を残して、自分のペースで。
+viewFavorites|View favorites|查看收藏|查看收藏|お気に入りを見る
+recentlyViewed|Recently viewed|最近查看|最近查看|最近見た作品
+noViewed|Open a work to find it here next time.|打开作品详情，下次在这里找到。|開啟作品詳情，下次在這裡找到。|作品の詳細を開くと、ここに表示されます。
+viewedPlaceholder|Previously viewed work|查看过的作品|查看過的作品|閲覧した作品
+viewedAwaitingUpdate|Connect to update work details|联网后更新作品资料|連線後更新作品資料|接続後に作品情報を更新
+viewedToday|Today|今天|今天|今日
+viewedYesterday|Yesterday|昨天|昨天|昨日
+saveViewed|Save browsing history|保存浏览记录|儲存瀏覽記錄|閲覧履歴を保存
+clearViewed|Clear browsing history|清空浏览记录|清空瀏覽記錄|閲覧履歴を消去
+clearViewedConfirm|Clear recently viewed works on this device?|清空本机的最近查看记录？|清空本機的最近查看記錄？|この端末の閲覧履歴を消去しますか？
+viewingHistoryOff|Browsing history is off.|浏览记录已关闭。|瀏覽記錄已關閉。|閲覧履歴はオフです。
+viewingPrivacy|Only on this device: up to 100 works viewed in the last 30 days. Turning this off also clears these entries. This is separate from listening history and does not record plays on other platforms. Names are shown only while their permitted cache is valid; opening always checks online.|仅在本机保留最近 30 天、最多 100 首查看记录；关闭时会清空。与播放历史分开，不记录外部平台的实际播放。名称仅在允许的缓存期内展示，打开作品时会重新联网核验。|僅在本機保留最近 30 天、最多 100 首查看記錄；關閉時會清空。與播放歷史分開，不記錄外部平台的實際播放。名稱僅在允許的快取期內顯示，開啟作品時會重新連線核驗。|過去30日間、最大100件をこの端末だけに保存します。オフにすると消去されます。再生履歴とは別で、外部サービスの再生は記録しません。作品名は許可されたキャッシュ期間のみ表示し、開く際はオンラインで再確認します。
+preferredPlatform|Preferred music platform|常用音乐平台|常用音樂平台|よく使う音楽サービス
+platformDefault|Follow website order|跟随网站排序|跟隨網站排序|サイトの順序に従う
+platformPreferenceDetail|Your choice is saved on this device and shown first when a work has a verified link to that platform. Other available platforms remain visible. This setting does not open another app or start playback.|偏好仅保存在本机。作品有已核验的对应链接时会优先显示，仍保留其他可用平台。选择偏好不会打开外部 App 或开始播放。|偏好僅儲存在本機。作品有已核驗的對應連結時會優先顯示，仍保留其他可用平台。選擇偏好不會開啟外部 App 或開始播放。|設定はこの端末に保存します。確認済みのリンクがある場合に先頭へ表示し、他の配信先も残します。設定するだけで外部アプリを開いたり再生したりすることはありません。
+preferredPlatformMissing|This work has no confirmed link for your preferred platform. Choose another available platform below.|这首作品暂无常用平台的已确认入口，可选择下方其他平台。|這首作品暫無常用平台的已確認入口，可選擇下方其他平台。|この作品には設定したサービスの確認済みリンクがありません。下の配信先から選べます。
+yourPreferredPlatform|Your preferred platform|你的常用平台|你的常用平台|よく使うサービス
+settingsHelp|Settings & help|设置与帮助|設定與說明|設定とヘルプ
+legacyData|Earlier local data|历史资料|歷史資料|以前の端末内データ
+legacyListeningHistory|Earlier listening history|旧播放记录|舊播放記錄|以前の再生履歴
+legacyRecordedWork|Earlier recorded work · details unavailable|旧记录作品 · 资料暂不可用|舊記錄作品 · 資料暫不可用|以前の記録 · 作品情報を取得できません
+personalSaveError|Local preferences or browsing history could not be read or saved. Retry, then check your selection.|本机偏好或浏览记录读取、保存失败。请重试后核对设置。|本機偏好或瀏覽記錄讀取、儲存失敗。請重試後核對設定。|端末の設定や閲覧履歴を読み込み、保存できませんでした。再試行して設定を確認してください。
+releasePersonalHub|A new Me page highlights favorites, with recently viewed works and settings one step away. Earlier account data and files stay available where applicable.|“我的”改为收藏焦点布局，最近查看与设置分层进入，已有账号资料与旧文件按实际情况保留管理入口。|「我的」改為收藏焦點版面，最近查看與設定分層進入，既有帳號資料與舊檔案依實際情況保留管理入口。|「マイ」をお気に入り中心の画面に刷新。最近見た作品や設定へ移動しやすくし、既存データの管理入口は必要な場合に残します。
+releaseRecentlyViewed|Recently viewed works are stored locally, separately from listening history. Keep up to 100 entries for 30 days, with controls to turn saving off or clear them.|新增独立的本机“最近查看”，保留最近 30 天、最多 100 首，可关闭或清空，不把浏览计作播放。|新增獨立的本機「最近查看」，保留最近 30 天、最多 100 首，可關閉或清空，不將瀏覽計作播放。|再生履歴とは別に「最近見た作品」を端末へ保存。過去30日間、最大100件を保持し、保存の停止や消去ができます。
+releasePlatformPreference|Choose a preferred music platform. Its verified links appear first; when absent, other available platforms remain visible.|可设置常用音乐平台，优先显示已核验的对应入口；未发布到该平台时仍显示其他可用平台。|可設定常用音樂平台，優先顯示已核驗的對應入口；未發佈至該平台時仍顯示其他可用平台。|よく使う音楽サービスを設定し、確認済みリンクを先頭に表示。対応リンクがない作品でも他の配信先を選べます。
 releaseCatalogCategories|Browse All, Singles and Albums. Open an album to see its songs in order, and search within each category.|曲库新增全部、单曲和专辑分类；专辑以双列封面展示，点开查看有序曲目，并支持分类搜索。|曲庫新增全部、單曲和專輯分類；專輯以雙欄封面展示，點開查看依序排列的曲目，並支援分類搜尋。|ライブラリに「すべて・シングル・アルバム」を追加。アルバムの収録曲を曲順で表示し、カテゴリ内で検索できます。
 releaseUniversalLinks|Open supported Station Cat song links from other apps directly in the matching work page. Opening behavior depends on iOS and the source app.|支持从其他 App 的 Station Cat 歌曲链接进入对应作品页面；具体打开方式由 iOS 和来源 App 决定。|支援從其他 App 的 Station Cat 歌曲連結進入對應作品頁面；實際開啟方式由 iOS 和來源 App 決定。|他のアプリから対応する Station Cat の曲リンクで作品ページを開けます。開き方は iOS とリンク元のアプリによって異なります。
 releaseSongLinks|Song links can load a work directly, including supported campaign tags, even before it appears in your catalog.|歌曲链接可直接查询作品，并支持限定的推广来源参数，无需等待作品进入本机曲库。|歌曲連結可直接查詢作品，並支援限定的推廣來源參數，無需等待作品進入本機曲庫。|対応するキャンペーン情報付きの曲リンクから、一覧にまだない作品も直接読み込めます。

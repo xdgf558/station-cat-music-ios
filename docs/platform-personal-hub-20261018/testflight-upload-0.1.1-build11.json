@@ -1,0 +1,79 @@
+{
+  "recordedAt": "2026-10-18T13:54:53.785608+00:00",
+  "appStoreConnectAppId": "6822797145",
+  "appStoreConnectURL": "https://appstoreconnect.apple.com/apps/6822797145/testflight/ios",
+  "bundleIdentifier": "org.stationcat.music",
+  "teamId": "2AM5S7BM2N",
+  "version": "0.1.1",
+  "build": "11",
+  "sourceBaseRevision": "99b926045c77f7102cf095233fe3c7706c52ab5f",
+  "includesUncommittedChanges": true,
+  "sourceManifestSHA256": "e03f34dd93dbbee39bd698f9fc2ba41755bf9f80c4d7a2ae93d069deb2f70b0d",
+  "currentCandidateRemoteCI": "not run; local validation recorded separately",
+  "toolchain": "Xcode 27.1 (27A9275)",
+  "archiveSucceeded": true,
+  "distributionExportSucceeded": true,
+  "uploaded": true,
+  "uploadCompletedAt": "2026-10-18T13:54:31.047962+00:00",
+  "appleProcessingStateAtUploadCompletion": "processing",
+  "processingCompletionVerified": false,
+  "appStoreSubmitted": false,
+  "testersInvited": false,
+  "installedOnPhone": false,
+  "physicalDeviceTestsRun": false,
+  "checks": {
+    "passed": true,
+    "phase": "distribution",
+    "bundle": "org.stationcat.music",
+    "version": "0.1.1",
+    "build": "11",
+    "publicMetadataEnabled": true,
+    "nativeServicesEnabled": false,
+    "backgroundAudio": false,
+    "requiredReasonManifest": "present",
+    "usesNonExemptEncryption": false,
+    "releaseNoteLocales": [
+      "en",
+      "ja",
+      "zh-Hans",
+      "zh-Hant"
+    ],
+    "appStorePrivacyLabelConfirmed": false,
+    "signedDistributionValidated": true,
+    "publicLinksEnabled": true,
+    "associatedDomains": [
+      "applinks:wwwstationcat.org"
+    ],
+    "team": "2AM5S7BM2N",
+    "xcodeBuild": "27A9275",
+    "sdkName": "iphoneos27.1",
+    "sdkBuild": "24A94232",
+    "minimumOS": "18.0",
+    "getTaskAllow": false,
+    "betaReportsActive": true,
+    "sourceBaseRevision": "99b926045c77f7102cf095233fe3c7706c52ab5f",
+    "sourceManifestSHA256": "e03f34dd93dbbee39bd698f9fc2ba41755bf9f80c4d7a2ae93d069deb2f70b0d",
+    "includesUncommittedChanges": true,
+    "artifactHashes": {
+      "StationCatMusic": "d7a992c953ca63554132bd76d5ba818e50404fd3f27e3a058f37008bacac8ea1",
+      "Info.plist": "f698f92195cac9c3e7b3318aa0c1dddf651686f1738c2dc9493c1cb19075f14a",
+      "Localizations.json": "1d233c07183440872ed53ef5f760d2c0aaad7e22d9e5cded4e35fe0302b566dd",
+      "PrivacyInfo.xcprivacy": "7605f33de027658dc05989f2e028e90225fc3e8369c7af5c8c228774497e8e6b"
+    },
+    "verificationIPASHA256": "c9a448ad4470d6712730c968ef17cc73d7392d0b35901d6e89f3323077f115e5"
+  },
+  "verificationIPASHA256": "c9a448ad4470d6712730c968ef17cc73d7392d0b35901d6e89f3323077f115e5",
+  "verificationIPANote": "Hash is for the separately exported verification IPA, not Xcode temporary upload packaging.",
+  "uploadLogSHA256": "3cacd7a2e9752ff47da1cbed300b7036809f69e5da4c8284a82413b8a6a9dc5d",
+  "releaseNoteLocales": [
+    "en",
+    "ja",
+    "zh-Hans",
+    "zh-Hant"
+  ],
+  "currentReleaseNotes": [
+    "releasePersonalHub",
+    "releaseRecentlyViewed",
+    "releasePlatformPreference"
+  ]
+}

@@ -34,6 +34,14 @@ import Observation
     let playback: PlaybackService
     let library: ScopedLibrary
     let bookmarks: PlatformBookmarkStore
+    let personal: PlatformPersonalStore
+    private(set) var personalState: PlatformPersonalState?
+    private(set) var personalBusy = false
+    private(set) var personalError = false
+    private var personalGeneration = 0
+    private var visitIntent: UUID?
+    private var visitEpoch: UUID?
+    private var visitRecorded = false
     private(set) var favoriteBookmarks: [String: PlatformBookmark] = [:]
     private(set) var unavailableFavorites: Set<String> = []
     @ObservationIgnored private var bookmarkTask: Task<Void, Never>?
@@ -93,7 +101,7 @@ import Observation
     private var platformRoutingReady = false
     private var operation = 0
     @ObservationIgnored private var catalogTask: Task<Void, Never>?
-    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader(), offlineStorage: OfflineMusicCache? = nil, platformMode: Bool = false, bookmarks: PlatformBookmarkStore = PlatformBookmarkStore()) { self.bookmarks = bookmarks; self.artwork = artwork; self.libraryRemote = platformMode ? nil : libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.platformMode = platformMode; self.musicWebOrigin = platformMode ? (client as? any PlatformMusicProviding)?.webOrigin : MusicLink.webOrigin(musicWebOrigin)
+    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader(), offlineStorage: OfflineMusicCache? = nil, platformMode: Bool = false, bookmarks: PlatformBookmarkStore = PlatformBookmarkStore(), personal: PlatformPersonalStore = PlatformPersonalStore()) { self.personal = personal; self.bookmarks = bookmarks; self.artwork = artwork; self.libraryRemote = platformMode ? nil : libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.platformMode = platformMode; self.musicWebOrigin = platformMode ? (client as? any PlatformMusicProviding)?.webOrigin : MusicLink.webOrigin(musicWebOrigin)
         if !platformMode, let native = client as? NativeMusicAPI {
             let cache = offlineStorage ?? OfflineMusicCache(origin: native.configuration.origin)
             offlineCache = cache; playback.offlineCache = cache; playback.configure(authorizer: native)
@@ -106,6 +114,7 @@ import Observation
             self.libraryGeneration += 1; self.syncTask?.cancel(); self.libraryBusy = false; self.scopeTransition = false
             self.bookmarkTask?.cancel(); self.detailTask?.cancel()
             self.favorites = []; self.favoriteBookmarks = [:]; self.unavailableFavorites = []
+            self.personalGeneration += 1; self.personalState = nil; self.personalBusy = false; self.visitIntent = nil
             self.platformDetail = nil; self.platformDetailGeneration += 1
             self.platformPendingSlug = nil; self.platformExpectedID = nil; self.platformAttribution = [:]
             self.showPlayer = false; self.recent = []; self.playback.clear()
@@ -114,6 +123,7 @@ import Observation
             guard let self else { throw APIError.storageUnavailable }
             try await self.library.removeDeletedAccountData(scope: deletedScope)
             try await self.bookmarks.removeDeletedAccount(scope: deletedScope)
+            try await self.personal.removeDeletedAccount(scope: deletedScope)
         }
         playback.onListen = { [weak self] track, variant, audible, position, eventID in
             guard let self else { return }; let scope = self.scope, generation = self.libraryGeneration
@@ -131,6 +141,7 @@ import Observation
         if let initializationTask { await initializationTask.value; return }
         let work = Task { @MainActor [weak self] in
             guard let self else { return }
+            await self.refreshPersonal()
             await self.refreshLibrary()
             await self.refreshOffline()
             // Restore can finish as guest/unavailable. In either case the public
@@ -303,6 +314,77 @@ import Observation
             return PlatformFavoriteRow(id: id, track: current[id], bookmark: cached)
         }
     }
+    var platformVisits: [PlatformVisitRow] {
+        var current: [String: Track] = [:]
+        for track in tracks + featuredTracks + (platformDetail.map { [$0.track] } ?? []) where current[track.id] == nil { current[track.id] = track }
+        return (personalState?.visits ?? []).filter {
+            $0.viewedAt > Date().addingTimeInterval(-PlatformPersonalStore.retention) && $0.viewedAt <= Date().addingTimeInterval(2)
+        }.map { item in
+            PlatformVisitRow(visit: item, track: current[item.id], bookmark: favoriteBookmarks[item.id].flatMap { $0.usable(at: Date()) ? $0 : nil })
+        }
+    }
+    var preferredPlatform: PlatformProvider? { personalState?.preferred }
+    var hasLegacyOfflineFiles: Bool { offlineBytes > 0 || !offlineSongs.isEmpty }
+    var platformPresentationIDs: Set<String> { favorites.union(personalState?.visits.map(\.id) ?? []) }
+    func orderedPlatformLinks(_ links: [PlatformLink]) -> [PlatformLink] { personalState?.orderedLinks(links) ?? links }
+    func refreshPersonal() async {
+        guard platformMode, !personalBusy else { return }
+        let captured = scope, generation = personalGeneration
+        do {
+            let state = try await personal.snapshot(scope: captured)
+            guard scope == captured, personalGeneration == generation else { return }
+            acceptPersonal(state)
+        } catch { if scope == captured, personalGeneration == generation { personalError = true } }
+    }
+    private func acceptPersonal(_ state: PlatformPersonalState) {
+        guard personalState == nil || state.revision >= personalState!.revision else { return }
+        personalState = state; personalError = false
+    }
+    func setPreferredPlatform(_ provider: PlatformProvider?) async {
+        await updatePersonal { try await self.personal.setPreferred(provider, scope: $0) }
+    }
+    func setBrowsingHistory(_ enabled: Bool) async {
+        await updatePersonal { try await self.personal.setHistory(enabled, scope: $0) }
+    }
+    func clearBrowsingHistory() async {
+        await updatePersonal { try await self.personal.clearHistory(scope: $0) }
+    }
+    private func updatePersonal(_ update: (AccountScope) async throws -> PlatformPersonalState) async {
+        guard platformMode, !scopeTransition, !personalBusy else { return }
+        let captured = scope
+        personalGeneration += 1; let generation = personalGeneration
+        personalBusy = true
+        defer { if scope == captured, generation == personalGeneration { personalBusy = false } }
+        do {
+            let state = try await update(captured)
+            guard scope == captured, generation == personalGeneration else { return }
+            acceptPersonal(state)
+            favoriteBookmarks = favoriteBookmarks.filter { platformPresentationIDs.contains($0.key) }
+            refreshFavoriteBookmarks()
+        } catch { if scope == captured, generation == personalGeneration { personalError = true } }
+    }
+    private func beginPlatformVisit() {
+        visitIntent = UUID(); visitRecorded = false
+        visitEpoch = personalBusy ? nil : personalState.flatMap { $0.historyEnabled ? $0.historyEpoch : nil }
+    }
+    private func recordPlatformVisit(_ track: Track, intent: UUID?, epoch: UUID?, scope captured: AccountScope) async {
+        guard let intent, intent == visitIntent, !visitRecorded, let epoch,
+              personalState?.historyEpoch == epoch, !personalBusy, scope == captured,
+              showPlayer, let slug = track.release?.slug else { return }
+        visitRecorded = true
+        let generation = personalGeneration
+        do {
+            let state = try await personal.record(id: track.id, slug: slug, epoch: epoch, scope: captured)
+            guard scope == captured, generation == personalGeneration else { return }
+            acceptPersonal(state)
+        } catch { if scope == captured, generation == personalGeneration { personalError = true; if visitIntent == intent { visitRecorded = false } } }
+    }
+    func openPlatformVisit(_ row: PlatformVisitRow) {
+        guard platformMode else { return }
+        beginPlatformVisit()
+        playback.clear(); platformAttribution = [:]; showPlayer = true
+        resolvePlatformSelection(slug: row.visit.slug, expectedID: row.id)
+    }
     var favoriteCount: Int { platformMode ? favorites.count : favoriteTracks.count }
     var favoriteTracks: [Track] { tracks.filter { favorites.contains($0.id) } }
     var platformAlbums: [PlatformAlbum] { (try? PlatformAlbum.catalog(tracks)) ?? [] }
@@ -330,7 +412,7 @@ import Observation
             if platformMode {
                 let cached = (try? await bookmarks.snapshots(scope: captured)) ?? [:]
                 guard scope == captured, libraryGeneration == generation else { return }
-                favoriteBookmarks = cached.filter { favorites.contains($0.key) }
+                favoriteBookmarks = cached.filter { platformPresentationIDs.contains($0.key) }
             }
             libraryStatus = value.conflict ? "libraryConflict" : value.pending > 0 ? "libraryPending" : captured.accountID != nil && libraryRemote != nil && value.synced ? "librarySynced" : "libraryLocal"
         } catch { if scope == captured && libraryGeneration == generation { libraryStatus = "libraryError" } }
@@ -352,13 +434,14 @@ import Observation
         platformRoutingReady = false
         libraryGeneration += 1; syncTask?.cancel(); libraryBusy = false
         let transition = libraryGeneration
+        personalGeneration += 1; personalState = nil; personalBusy = false; personalError = false; visitIntent = nil
         bookmarkTask?.cancel(); favoriteBookmarks = [:]; unavailableFavorites = []; platformPendingSlug = nil; platformExpectedID = nil; platformAttribution = [:]
         operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; platformDetailGeneration += 1; platformDetail = nil; platformDetailFailure = false; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.clear(); tracks = []; favorites = []; recent = []
         await library.selectScope(scope)
         guard transition == libraryGeneration else { return }
         self.scope = scope; scopeTransition = false
         await library.releaseInactiveScopes(keeping: scope)
-        await refreshLibrary(); syncLibrary()
+        await refreshPersonal(); await refreshLibrary(); syncLibrary()
     }
     func toggleFavorite(_ track: Track) async {
         await toggleFavoriteID(track.id)
@@ -376,11 +459,13 @@ import Observation
         guard platformMode, let platformCatalog else { return }
         bookmarkTask?.cancel()
         let captured = scope, generation = libraryGeneration, locale = locale
-        let rows = platformFavorites
+        var rows = platformFavorites
+        rows += platformVisits.filter { !favorites.contains($0.id) }.map { PlatformFavoriteRow(id: $0.id, track: $0.track, bookmark: $0.bookmark) }
+        let retained = platformPresentationIDs
         bookmarkTask = Task { [weak self] in
             guard let self else { return }
-            try? await self.bookmarks.retain(self.favorites, scope: captured)
-            // At most three requests at once; only actual favorites lacking a
+            try? await self.bookmarks.retain(retained, scope: captured)
+            // At most three requests at once; only saved/viewed works lacking a
             // fresh locale/revision snapshot. This never delays catalog display.
             let needed = rows.compactMap { row -> Track? in
                 guard let track = row.track else { return nil }
@@ -395,10 +480,10 @@ import Observation
                     }
                     for await item in group {
                         guard !Task.isCancelled, self.scope == captured, self.libraryGeneration == generation,
-                              self.locale == locale, let item, self.favorites.contains(item.id) else { continue }
+                              self.locale == locale, let item, self.platformPresentationIDs.contains(item.id) else { continue }
                         do {
                             try await self.bookmarks.save(item, scope: captured)
-                            guard self.scope == captured, self.libraryGeneration == generation, self.favorites.contains(item.id) else { continue }
+                            guard self.scope == captured, self.libraryGeneration == generation, self.platformPresentationIDs.contains(item.id) else { continue }
                             self.favoriteBookmarks[item.id] = item
                         } catch { /* Favorite IDs remain durable even if the optional display cache is full. */ }
                     }
@@ -409,6 +494,7 @@ import Observation
     func openPlatformFavorite(_ row: PlatformFavoriteRow) {
         if let track = row.track { selectPlatformTrack(track) }
         else if let bookmark = row.bookmark, bookmark.usable(at: Date()) {
+            beginPlatformVisit()
             playback.clear(); platformAttribution = [:]; showPlayer = true
             resolvePlatformSelection(slug: bookmark.slug, expectedID: row.id)
         } else {
@@ -484,6 +570,7 @@ import Observation
     }
     func selectPlatformTrack(_ track: Track) {
         guard platformMode, let release = track.release else { return }
+        beginPlatformVisit()
         playback.select(track) // Stops any old item; no audio source or grant is requested.
         platformAttribution = [:]; showPlayer = true
         resolvePlatformSelection(slug: release.slug, expectedID: track.id)
@@ -497,6 +584,7 @@ import Observation
         platformPendingSlug = slug; platformExpectedID = expectedID
         guard let platformCatalog else { platformDetailFailure = true; return }
         let generation = platformDetailGeneration, locale = locale, startedScope = scope
+        let intent = visitIntent, epoch = visitEpoch
         let selected = playback.selectedTrack.flatMap { $0.id == expectedID && $0.release?.slug == slug ? $0 : nil }
         detailTask = Task { [weak self] in
             do {
@@ -510,6 +598,8 @@ import Observation
                 self.platformDetail = value
                 self.platformExpectedID = value.track.id
                 self.unavailableFavorites.remove(value.track.id)
+                await self.recordPlatformVisit(value.track, intent: intent, epoch: epoch, scope: startedScope)
+                guard !Task.isCancelled, self.platformDetailGeneration == generation, self.scope == startedScope else { return }
                 self.refreshFavoriteBookmarks()
             } catch {
                 guard let self, !Task.isCancelled, self.platformDetailGeneration == generation,
@@ -568,6 +658,7 @@ import Observation
                 return item.release?.slug == target.slug
             }
             guard let slug = target.slug ?? track?.release?.slug else { linkUnavailable = true; return }
+            beginPlatformVisit()
             linkUnavailable = false; platformAttribution = target.attribution
             if let track { playback.select(track) } else { playback.clear() }
             showPlayer = true

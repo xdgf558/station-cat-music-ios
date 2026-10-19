@@ -1,0 +1,123 @@
+{
+  "catalog": {
+    "schemaVersion": 1,
+    "locale": "en",
+    "items": [
+      {
+        "id": "883d3be1-2f28-4d81-b590-c3be6d80e8cd",
+        "slug": "track-883d3be1-2f28-4d81-b590-c3be6d80e8cd",
+        "revision": 3,
+        "originalLocale": "zh-Hans",
+        "title": "屏幕朝下",
+        "artist": "Station Cat",
+        "summary": "",
+        "durationMs": null,
+        "href": "/en/music/tracks/track-883d3be1-2f28-4d81-b590-c3be6d80e8cd/",
+        "coverUrl": null,
+        "preview": null,
+        "fullPlayback": null,
+        "platformAvailability": {
+          "state": "available",
+          "notes": []
+        },
+        "platforms": [
+          {
+            "id": "03effd08-44ae-44b6-91a9-1f26752f6131",
+            "provider": "netease",
+            "status": "live",
+            "href": "https://music.163.com/song?id=3446748064",
+            "verifiedAt": "2026-10-18T06:53:00.000Z"
+          }
+        ],
+        "albums": [
+          {
+            "id": "9cb793a6-122f-454d-a1dc-cc67b24ff135",
+            "slug": "hou-lai-wo-men-kai-shi-she-fang",
+            "title": "后来，我们开始设防",
+            "summary": "",
+            "version": 4,
+            "position": 2
+          }
+        ],
+        "story": "界面验证示例：创作故事会显示网站已发布的文字。这里仅验证段落排版，不代表歌曲已发布故事。",
+        "lyricsUrl": "/api/station/content/assets/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "lyricsKind": "txt"
+      }
+    ],
+    "nextCursor": null
+  },
+  "home": {
+    "schemaVersion": 1,
+    "home": {
+      "locale": "en",
+      "fixture": false,
+      "music": {
+        "id": "883d3be1-2f28-4d81-b590-c3be6d80e8cd",
+        "title": "屏幕朝下",
+        "artist": "Station Cat",
+        "summary": "",
+        "coverUrl": null,
+        "href": "/en/music/tracks/track-883d3be1-2f28-4d81-b590-c3be6d80e8cd/"
+      },
+      "selectedTracks": []
+    }
+  },
+  "details": {
+    "track-883d3be1-2f28-4d81-b590-c3be6d80e8cd": {
+      "schemaVersion": 1,
+      "locale": "en",
+      "track": {
+        "id": "883d3be1-2f28-4d81-b590-c3be6d80e8cd",
+        "slug": "track-883d3be1-2f28-4d81-b590-c3be6d80e8cd",
+        "revision": 3,
+        "originalLocale": "zh-Hans",
+        "title": "屏幕朝下",
+        "artist": "Station Cat",
+        "summary": "",
+        "durationMs": null,
+        "href": "/en/music/tracks/track-883d3be1-2f28-4d81-b590-c3be6d80e8cd/",
+        "coverUrl": null,
+        "preview": null,
+        "fullPlayback": null,
+        "platformAvailability": {
+          "state": "available",
+          "notes": []
+        },
+        "platforms": [
+          {
+            "id": "03effd08-44ae-44b6-91a9-1f26752f6131",
+            "provider": "netease",
+            "status": "live",
+            "href": "https://music.163.com/song?id=3446748064",
+            "verifiedAt": "2026-10-18T06:53:00.000Z"
+          }
+        ],
+        "albums": [
+          {
+            "id": "9cb793a6-122f-454d-a1dc-cc67b24ff135",
+            "slug": "hou-lai-wo-men-kai-shi-she-fang",
+            "title": "后来，我们开始设防",
+            "summary": "",
+            "version": 4,
+            "position": 2
+          }
+        ],
+        "story": "界面验证示例：创作故事会显示网站已发布的文字。这里仅验证段落排版，不代表歌曲已发布故事。",
+        "lyricsUrl": "/api/station/content/assets/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "lyricsKind": "txt"
+      },
+      "related": []
+    }
+  },
+  "lyrics": {
+    "cccccccc-cccc-4ccc-8ccc-cccccccccccc": "手机亮了一下 你把消息回完\n顺手扣向桌面 说先吃完饭\n汤还冒着热气 我却盯着桌沿\n想讲的那件小事 停在半句之间\n\n从前你收到笑话 就推到我面前\n我还没看完 你就笑弯了眼\n你说消息太多 想清静一点\n我点头说也好 筷子停在碗边\n\n本来想问 今天累不累\n开口却问 刚才那是谁\n你放下筷子 我说没事\n那句关心 我又收回\n\n屏幕朝下\n关心怎么 问成了盘查\n明明只想 靠近你一下\n开口却是 刚才谁找你啊\n\n屏幕朝下\n沉默怎么 成了回答\n这一张餐桌 没有多么大\n一句相信 却被想得太复杂\n\n后来我在阳台 把工作消息回完\n回屋把手机 也扣在桌沿\n你问怎么这么久 我说在改方案\n话还没说完 我先移开视线\n\n从前偶尔晚归 你会替我热饭\n如今走到门前 先把话想一遍\n你少讲起同事 我少提起不安\n连随口的小事 都要先排练\n\n我怕你多想 你怕我隐瞒\n越急着解释 越像在争辩\n从前靠近 就能说起心烦\n如今一句坦白 也被听成遮掩\n\n屏幕朝下\n关心怎么 问成了盘查\n明明只想 靠近你一下\n开口却是 刚才谁找你啊\n\n屏幕朝下\n沉默怎么 成了回答\n这一张餐桌 没有多么大\n一句相信 却被想得太复杂\n\n不想翻完 你的每条对话\n不该让你 为沉默作答\n只怀念 那些难熬的晚上\n你把心事 在我身边放下\n\n我越怕失去 语气越尖\n你怕再争吵 话只说一半\n\n屏幕朝下\n今晚谁也 没再说重话\n你把冷掉的饭菜 再热一下\n我没再追问 心却没放下\n\n屏幕朝下\n我们还坐在 同一盏灯下\n没说开的疑问 还在心里长大\n想说我很怕\n却只问 饭菜还够不够啊\n\n你把剩下的汤 往我面前端\n两部手机并排 都扣在桌面\n我说不用再盛 你又添半碗\n那句想说的话 谁也没说完"
+  },
+  "clips": {
+    "track-883d3be1-2f28-4d81-b590-c3be6d80e8cd": {
+      "schemaVersion": 1,
+      "locale": "en",
+      "items": [],
+      "nextCursor": null
+    }
+  }
+}

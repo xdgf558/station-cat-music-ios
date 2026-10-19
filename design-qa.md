@@ -1,37 +1,53 @@
-# Catalog design 2 — native implementation QA
+# 歌曲内容页：第二张方案视觉验收
 
-Source: `docs/catalog-categories-20261017/selected-design.png` (853 × 1844). Implemented in native SwiftUI, not a mobile web prototype. Native SF typography/SF Symbols, the existing Orbit raster background/brand and the OS tab bar are retained.
+Source visual truth：`docs/platform-song-content-20261018/selected-design.png`，用户选择的第二张概念图，853 × 1844 px。
 
-First capture: `.build/catalog-categories-ui-attachments/9BD16DBB-9F9F-41D9-A1AD-42360E10666F.png` (1206 × 2622; iPhone 18 Pro simulator 402 × 874 points at 3×). Both images were opened together in one tool result. The concept has no status bar, so safe-area/OS chrome differences are excluded from content fidelity decisions. State: Simplified Chinese, Albums selected, top scroll position, ordinary text size.
+Implementation：原生 SwiftUI，iOS 26.4.1 iPhone 17 Pro 模拟器；402 × 874 pt，1206 × 2622 px，3×。普通状态证据为 `docs/platform-song-content-20261018/Content-Lyrics-zh-Hans.png`。这里没有网页、CSS viewport 或浏览器 console，不将原生截图写作网页渲染。
 
-## Iteration 1 findings
+## 对照条件
 
-- P2 — The 22-point outer stack rhythm leaves the first album row too low and obscures second-row labels behind the native tab bar. Reduced stack spacing to 12, top inset to 6, category hit-height to 44 and grid row spacing to 18; touch targets remain accessible.
-- P2 — Search's default placeholder color is too dark. Use the existing `Palette.muted` foreground explicitly.
-- P2 — At the largest English accessibility text size, the selected Albums tab is only partially visible. Add a native scroll-to-selection behavior to the category rail. Bound the decorative brand heading at xxxLarge; functional headings, categories and content continue to use the user's Dynamic Type size. Album columns already collapse to one.
+源图与实际截图已在同一个视觉比较输入中打开，并按相同内容宽度判断比例：源图宽度按 402/853，实际截图按 1/3 对应 402 pt。源图没有系统状态栏；实际顶部约 62 pt 是系统状态栏与 sheet 外沿，比较时排除。源图整体高度约为 869 pt，实际 sheet 内容约 812 pt，额外内容以原生滚动呈现；不将高度差当作像素级误差。保留系统导航栏、分享样式与真实收藏状态。
 
-First album-detail and AX English screenshots were also opened. Ordered song labels and the native back control were usable. Source illustrative cover/count values are intentionally replaced by representative real cover assets and synthetic test membership/counts; production uses backend metadata and controlled cached artwork.
+两者均为《屏幕朝下》，同一封面、歌手、专辑、歌词前两段和歌词选中态。源图为已收藏，测试为未收藏，这是数据状态区别。普通字号使用 18 pt 原生正文；字号菜单还提供 21／24 pt，并响应系统辅助字号。
 
-## Iteration 2
+已逐项近看两张原图的封面、标题、平台 CTA、分栏、Aa 和两段歌词。当前输出尺寸下这些内容清楚可读，不需要另裁图片才能辨认字形及图标；不以自动截图替代人工视觉比较。空态、重试、最大辅助字号另见下方证据。
 
-The second full-view comparison used the exact source plus `.build/catalog-categories-ui-v2-attachments/89E738FD-58BB-4441-9273-6AEB7CDCD793.png` together. The new spacing restores both rows' titles/counts above the tab bar and the search placeholder is now legible. These first two P2s are closed.
+## 比对与修复历史
 
-The scroll-to-selection variant passed Chinese/English but the largest Japanese text still made the horizontal category selection unreliable. The second UI run is retained as a failed accessibility iteration. Replaced the rail with a native category menu only at accessibility text sizes. Standard text retains the selected reference's three underlined tabs. No content typography is reduced to hide an overflow.
+第一轮普通状态：源图与 `lyrics-before.png` 在同一输入对照。
 
-## Final comparison and evidence
+- 父容器 `platformListeningOptions` 标识覆盖了子按钮标识，导致自动化找不到平台入口；去掉父容器标识，保留每个平台按钮及其可访问性名称。失败测试日志保留。
+- P3：下划线比源图过宽，字号按钮被系统图标本地化成“大小”。已收窄选中指示线，并改为源图的 Aa 标签；保留本地化的可访问性名称和原生菜单。
+- 普通状态的布局顺序、真实图片和歌词内容符合所选方向。既有系统样式的分享按钮与通用 music.note 图标是明确的实现差异：平台名称写明实际服务，没有绘制或冒充网易云品牌标志。
 
-Latest implementation: `docs/catalog-categories-20261017/Catalog-Albums-zh-Hans.png`. This and the source were reopened together in the same tool result, with `Catalog-Albums-ja-AXXXL.png` as additional evidence. All implementation screenshots are 1206 × 2622, representing a 402 × 874-point native viewport at 3×. The raster concept is compared in width-normalized coordinates (853 px mapped to 402 logical points; its resulting height is about 869 points). There is no CSS viewport or reconstructed device chrome. Native safe-area/status bar differences are intentional, so no false pixel-perfect claim is made.
+第二轮辅助字号：`Content-en-Large-Header-before.png`、`Content-ja-Large-Story-before.png` 显示一个 P2：装饰图标随默认字体放大，压窄英文平台名称，出现 Net-/Ease 断词；三列分栏把日文“ストーリー”挤成三行。测试虽然能点击，截图不能按通过交付。
 
-The whole-screen inputs were large enough to read the brand, title, search prompt, category underline, cover crops and both lines of album text directly. Those regions were inspected in the combined input; an additional magnified crop was unnecessary. `Catalog-Album-Detail.png`, `Catalog-Singles-zh-Hans.png`, `Catalog-Empty-Albums.png` and four `Catalog-Albums-*-AXXXL.png` captures preserve the other interaction states.
+修复：平台装饰图标固定为 20／17 pt；最大辅助字号的分栏改为可完整显示名称的纵向选择行，并用选中勾标识状态。普通字号保持横向分栏，不压缩用户选择的正文大小。
 
-- **Typography:** native SF/PingFang and semantic SwiftUI sizes retain the title/heading/secondary-text hierarchy. Long content wraps; functional Dynamic Type continues to grow. The decorative brand is capped at xxxLarge. No truncation blocks the selected category in the final AX menu.
-- **Spacing/layout:** 22-point side margins, 16-point column gap, square album covers, 14-point cover corners and 18-point grid row spacing follow the gallery composition. The revised header rhythm keeps both normal-size rows' labels above the OS tab bar. AX uses a scrollable single column and an explicit category menu. Native tab-bar shape/status-bar insets are retained rather than imitated.
-- **Colors:** the existing midnight navy background, light primary text, muted blue-grey text and lavender selection/accent match the selected Orbit direction. Search now uses the same readable muted foreground as secondary labels.
-- **Images:** supplied brand/background remain sharp. Representative source covers are rendered square without stretching, using the same cover component and clipping as the live catalog. Illustrated cat covers in the concept are not fabricated as real album releases; the product uses actual catalog artwork. This content substitution is intentional.
-- **Copy:** category labels/search match the concept in Simplified Chinese and are complete in Traditional Chinese, English and Japanese. Counts derive from the visible ordered membership. The Mock fixture's two-song counts and album names are test data, not production publication claims. The fixture notice is Mock-only.
+第三轮：源图、最终普通状态、`Content-en-Large-Header.png` 与 `Content-ja-Large-Story.png` 再次在同一输入对照。英文按钮现在保留 NetEase 整词；日文栏目名称完整显示，正文通过滚动阅读。普通状态 Aa、分栏和歌词保持原有构图。对应最终四语及平台大字号回归 4/4 通过。上述 P2 已关闭。
 
-The final three category UI tests passed, including four locales at the largest accessibility text size, category menu selection, ordered album navigation, song-detail handoff, no native audio controls, search/clear, singles and empty albums. Earlier version-note and existing discovery/detail UI tests also passed. Model/API tests 36/36 and paired public-content tests 64/64 passed. Production-configuration compilation passed; this is local Xcode 27.1 beta evidence, not stable CI or physical iPhone acceptance.
+## 五项视觉核对
 
-No actionable P0/P1/P2 remains in the captured design states. Larger real catalogs and physical-device layout remain release acceptance work. No publication or installation was performed.
+| 表面 | 结果 |
+| --- | --- |
+| 字体与层级 | 使用系统中文、英文及日文字形，标题加粗、艺名与专辑采用次级色，歌词保持自然段与行距。普通字号不截断前两段；大字号不通过缩小文字隐藏内容。Aa 菜单、展开收起均可操作。 |
+| 间距与布局 | 22 pt 页面边距、紧凑方形封面和平台主按钮，随后依次是分栏与正文。常规字号保留横排封面信息；辅助字号转为纵排，全部入口仍能滚动访问。44 pt 触控区域带来的标题间距区别是可接受的原生约束。 |
+| 颜色与状态 | 沿用 Quiet Orbit 深蓝背景、浅紫强调色、白色歌词与灰蓝次文字。空态和错误态不隐藏平台 CTA；选中态同时有指示线／勾和辅助功能 selected trait。 |
+| 图片与图标 | 复用用户真实封面及现有 OrbitBackground，没有重画或拉伸封面。SF Symbols 提供通用功能图标；没有虚构 MV 海报、短片缩略图、示例播放按钮或生产视频。 |
+| 文案与内容 | 简繁英日 UI 齐全；故事预览明确为夹具示例。真实接口没有内容时展示“暂未发布”，失败有独立重试，不冒充空列表。没有把推广链接点击或短片观看记作音乐播放。 |
+
+## 其他状态与操作证据
+
+- `Content-Clips-Empty.png`：用户确认没有短片，当前栏目为空，平台收听入口仍可见。
+- `Content-Lyrics-Retry.png`：首次歌词请求失败，其他栏目和收听入口正常，重试后显示歌词。
+- `Content-Lyrics-Large.png`：Aa 更大字号；全文展开、收起、返回详情均经过 UI 测试。
+- `Content-{zh-Hans,zh-Hant,en,ja}-Large-{Header,Story}.png`：四语最大辅助字号、纵向分栏与滚动正文。
+- `Version-Release-Notes.png`：0.1.2（12）、三条本次说明以及 0.1.1（11）记录。
+
+最终内容／平台／版本回归共 21 项通过（12 项内容测试、9 项 UI 测试）。随后仅因大字号视觉修复再次执行相关 4 项 UI，全部通过。两个成功 xcresult 的 runtimeWarnings 和 testFailures 均为空；Xcode 命令行仍输出当前宿主版本号识别提示，不据此声称工具链没有任何诊断。
+
+前一批“我的”页报告保留于 `docs/platform-personal-hub-20261018/design-qa.md`。本轮没有真机、真实公开视频或 VoiceOver 朗读验收，也没有固定版本远端 CI、安装或 TestFlight 上传证据。测试截图中的歌词读取自本机 Mock 夹具，不代表这些歌词已发布到正式接口。
+
+无剩余 P0/P1/P2 视觉问题。后续可在真实素材上线后核对 MV 宽高比和 VoiceOver 阅读体验；不影响当前无短片状态的交付。
 
 final result: passed

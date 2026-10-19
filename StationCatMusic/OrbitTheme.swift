@@ -38,6 +38,9 @@ struct OrbitArtwork: View {
     }
     private var sampleArtwork: String? {
         #if DEBUG && targetEnvironment(simulator)
+        if model.scope.environment == .mock,
+           ["song-content", "song-content-failure"].contains(ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] ?? ""),
+           track?.id == "883d3be1-2f28-4d81-b590-c3be6d80e8cd" { return "ContentSampleCover" }
         // Representative artwork is restricted to the explicit local category
         // fixture. A missing live cover always retains the regular fallback.
         if model.scope.environment == .mock,

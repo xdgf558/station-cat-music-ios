@@ -13,7 +13,7 @@ class PlatformReleaseChecks(unittest.TestCase):
             **{key: "NO" for key in NATIVE_FLAGS}, "StationNativeAuthOrigin": "",
             "StationMusicWebOrigin": "", "StationProductionActivationProfile": "",
             "StationPublicAppLinksEnabled": "NO", "StationPublicReleasesEnabled": "YES", "StationPublicReleaseOrigin": "https://wwwstationcat.org",
-            "CFBundleShortVersionString": "0.1.0", "CFBundleVersion": "10",
+            "CFBundleShortVersionString": "0.1.2", "CFBundleVersion": "12",
             "ITSAppUsesNonExemptEncryption": False,
         }
         self.privacy = plistlib.loads((ROOT / "Resources/PrivacyInfo.xcprivacy").read_bytes())

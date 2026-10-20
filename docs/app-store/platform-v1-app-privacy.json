@@ -1,0 +1,92 @@
+{
+  "status": "prepared-not-saved-or-published",
+  "candidate": "1.0 (13)",
+  "preparedAt": "2026-10-20",
+  "collectsData": true,
+  "tracking": false,
+  "reason": "Persisted service logs, abuse counters and voluntary support mail are separate from on-device favorites and viewing history.",
+  "source": "https://developer.apple.com/app-store/app-privacy-details/",
+  "items": [
+    {
+      "dataType": "Name",
+      "scope": "Sender name if supplied with a voluntary support request",
+      "purposes": ["App Functionality"],
+      "linkedToUser": true,
+      "usedForTracking": false
+    },
+    {
+      "dataType": "Email Address",
+      "scope": "Sender and reply address for voluntary support mail",
+      "purposes": ["App Functionality"],
+      "linkedToUser": true,
+      "usedForTracking": false
+    },
+    {
+      "dataType": "Customer Support",
+      "scope": "Information voluntarily sent to resolve a support or privacy request",
+      "purposes": ["App Functionality"],
+      "linkedToUser": true,
+      "usedForTracking": false
+    },
+    {
+      "dataType": "Coarse Location",
+      "scope": "IP-derived country, region and city in service logs; country also chooses region-available listening links",
+      "purposes": ["App Functionality"],
+      "linkedToUser": true,
+      "usedForTracking": false
+    },
+    {
+      "dataType": "Precise Location",
+      "scope": "Current invocation logging retains IP-derived latitude and longitude; the controlled sample contained four decimal places",
+      "purposes": ["App Functionality"],
+      "linkedToUser": true,
+      "usedForTracking": false,
+      "classificationBasis": "Conservative proposed disclosure against Apple's three-or-more-decimal-place resolution definition. This does not establish actual location accuracy or device GPS use.",
+      "gpsRequestedByApp": false
+    },
+    {
+      "dataType": "Product Interaction",
+      "scope": "Requested work/resource identifiers in URLs and request times can reveal content access; no local favorite/history list or actual third-party playback record is uploaded",
+      "purposes": ["App Functionality"],
+      "linkedToUser": true,
+      "usedForTracking": false
+    },
+    {
+      "dataType": "Performance Data",
+      "scope": "Request CPU time and elapsed time in invocation logs for service diagnostics",
+      "purposes": ["App Functionality"],
+      "linkedToUser": true,
+      "usedForTracking": false
+    },
+    {
+      "dataType": "Other Diagnostic Data",
+      "scope": "Network source/IP, User-Agent, request status/errors and minute-scoped abuse counters used for troubleshooting, security and service availability",
+      "purposes": ["App Functionality"],
+      "linkedToUser": true,
+      "usedForTracking": false
+    }
+  ],
+  "classificationNotes": [
+    "The data-type strings are reviewer-readable labels, not a submitted App Store Connect API payload.",
+    "No account requirement or HMAC does not establish de-identification while raw IP and request details remain available.",
+    "Support data is disclosed without relying on Apple's optional-disclosure exception.",
+    "IP handling is classified by its actual security/diagnostic and location uses; no IDFA or app-assigned device identifier is sent.",
+    "Four decimal places describe the sample's stored representation, not verified physical accuracy. Confirm the final location selections against this scope.",
+    "No advertising, marketing, analytics or cross-app tracking purpose has been added. Existing website analytics are outside this native platform edition's requests.",
+    "A single controlled request confirms one current logging path, not every request or all Cloudflare services."
+  ],
+  "onDeviceOnly": [
+    "favorite relationships",
+    "search terms used to filter the loaded catalog",
+    "recently viewed list",
+    "preferred listening platform",
+    "reading and interface settings",
+    "cover cache and retained legacy local data"
+  ],
+  "publication": {
+    "policyPublished": false,
+    "appStoreAnswersSaved": false,
+    "appStoreAnswersPublished": false,
+    "reviewSubmitted": false
+  }
+}

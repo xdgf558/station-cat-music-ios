@@ -633,8 +633,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "0.1.2";
-				"CURRENT_PROJECT_VERSION" = "12";
+				"MARKETING_VERSION" = "1.0";
+				"CURRENT_PROJECT_VERSION" = "13";
 			};
 		};
 		"FBFB519E017124AD6A05AD21" = {
@@ -664,8 +664,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "0.1.2";
-				"CURRENT_PROJECT_VERSION" = "12";
+				"MARKETING_VERSION" = "1.0";
+				"CURRENT_PROJECT_VERSION" = "13";
 			};
 		};
 		"0E4CA93122EFD27B46D9D173" = {
@@ -695,8 +695,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "0.1.2";
-				"CURRENT_PROJECT_VERSION" = "12";
+				"MARKETING_VERSION" = "1.0";
+				"CURRENT_PROJECT_VERSION" = "13";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 			};
@@ -728,8 +728,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "0.1.2";
-				"CURRENT_PROJECT_VERSION" = "12";
+				"MARKETING_VERSION" = "1.0";
+				"CURRENT_PROJECT_VERSION" = "13";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";

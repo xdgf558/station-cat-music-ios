@@ -1,7 +1,11 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''contentTab.lyrics|Lyrics|歌词|歌詞|歌詞
+rows='''releaseV1Catalog|Version 1.0 brings together published singles and albums, with search, album introductions and track lists.|1.0 首发版本汇集已发布单曲与专辑，支持搜索、专辑介绍和曲目浏览。|1.0 首發版本匯集已發佈單曲與專輯，支援搜尋、專輯介紹與曲目瀏覽。|1.0 は公開済みのシングルとアルバムをまとめ、検索、アルバム紹介、収録曲の閲覧に対応します。
+releaseV1Reading|Read available lyrics and creative stories, adjust the lyric text size and expand the full text.|阅读作品已发布的歌词与创作故事，支持歌词字号调整和全文展开。|閱讀作品已發佈的歌詞與創作故事，支援歌詞字級調整與全文展開。|公開された歌詞と作品のストーリーを読めます。歌詞の文字サイズ変更と全文表示に対応します。
+releaseV1Personal|Keep favorites, recent views and your preferred listening platform on this device. Viewing history can be turned off or cleared.|收藏、最近查看和常用音乐平台偏好保存在本机，浏览记录可关闭或清空。|收藏、最近查看與常用音樂平台偏好儲存在本機，瀏覽紀錄可關閉或清空。|お気に入り、最近見た作品、配信サービスの設定を端末に保存します。閲覧履歴は停止・消去できます。
+releaseV1Listening|Follow verified links to listen on external music services. No Station Cat login or subscription is required; this app does not provide full-song audio.|通过已核验的入口前往音乐平台收听，无需 Station Cat 登录或订阅；App 内不提供完整歌曲播放。|透過已核驗的入口前往音樂平台收聽，無須 Station Cat 登入或訂閱；App 內不提供完整歌曲播放。|確認済みのリンクから音楽配信サービスで聴けます。Station Cat のログインや購読は不要です。アプリ内ではフル楽曲を再生しません。
+contentTab.lyrics|Lyrics|歌词|歌詞|歌詞
 contentTab.clips|Clips|短片|短片|動画
 contentTab.story|Story|故事|故事|ストーリー
 contentLyricsTitle|Lyrics|全部歌词|全部歌詞|歌詞

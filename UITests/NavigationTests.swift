@@ -56,13 +56,13 @@ import XCTest
         app.navigationBars.buttons.firstMatch.tap()
         for _ in 0..<4 { if app.buttons["helpEntry"].isHittable { break }; app.swipeUp() }
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.2 (12)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0 (13)")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["privacyPolicyLink"].firstMatch.exists)
         XCTAssertTrue(app.descendants(matching: .any)["termsLink"].firstMatch.exists)
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.2 (12)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["歌曲详情新增歌词、短片、故事分栏，保留清晰的平台收听入口。"].exists)
-        XCTAssertTrue(app.staticTexts["已发布歌词支持原生阅读、字号调整和展开收起。"].exists)
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0 (13)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["1.0 首发版本汇集已发布单曲与专辑，支持搜索、专辑介绍和曲目浏览。"].exists)
+        XCTAssertTrue(app.staticTexts["阅读作品已发布的歌词与创作故事，支持歌词字号调整和全文展开。"].exists)
         let release = XCTAttachment(screenshot: app.screenshot()); release.name = "Version-Release-Notes"; release.lifetime = .keepAlways; add(release)
     }
     func testThreeTabsAndPlayerNeverAutoPlays() {

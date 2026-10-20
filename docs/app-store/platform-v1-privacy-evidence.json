@@ -1,0 +1,174 @@
+{
+  "checkedAt": "2026-10-20",
+  "candidate": "1.0 (13) preparation; no app version change in this documentation-only PR",
+  "readOnly": true,
+  "rawVisitorLogsRead": false,
+  "databaseRowsRead": false,
+  "productionChanged": false,
+  "workerVersion": "00215fae-e046-4bcc-8813-7e863c4b2f8b",
+  "deploymentCreatedAt": "2026-10-18T12:07:12.819731Z",
+  "workerLogSettings": {
+    "capturedAt": "2026-10-20T07:39:13.695Z",
+    "worker": "caption-ai-landing-site",
+    "readOnly": true,
+    "observability": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "redact_query_string": false,
+      "logs": {
+        "enabled": true,
+        "head_sampling_rate": 1,
+        "persist": true,
+        "invocation_logs": true
+      },
+      "traces": {
+        "enabled": false,
+        "persist": true,
+        "head_sampling_rate": 1
+      }
+    },
+    "logpush": false,
+    "tailConsumerCount": 0
+  },
+  "musicDatabaseMetadata": {
+    "name": "station-cat-music-production",
+    "runningInRegion": "WNAM",
+    "readReplication": "disabled",
+    "jurisdiction": null
+  },
+  "sourceAudit": {
+    "deployedBaseCommit": "026c33a",
+    "rateLimiterBlob": "56c191898bb9cfe6f896be8f64bbeea1664e0894",
+    "publicHttpBlobAtDeployedBase": "516bfd98f42ddcd9dab966b78890b19d39eba44c",
+    "workingCopyDifference": "Working copy predates bookmark route; compared diff and confirmed country/limiter handling unchanged. No runtime edits performed."
+  },
+  "retention": {
+    "rateCleanupThresholdMinutes": 10,
+    "cleanupMode": "bounded-pruning-on-request",
+    "strictMaximumEstablished": false,
+    "accountPlanRead": "API originally returned HTTP 403; later verified current Workers Free plan in authenticated dashboard, without changing permissions",
+    "workersLogsDocumentedDays": {
+      "free": 3,
+      "paid": 7
+    },
+    "d1TimeTravelDocumentedDays": {
+      "free": 7,
+      "paid": 30
+    },
+    "applicablePlanVerified": true,
+    "historicalManualExportsAudited": false,
+    "workersLogsApplicableDays": 3,
+    "d1TimeTravelApplicableDays": 7,
+    "planVerifiedAt": "2026-10-20",
+    "scope": "Workers Logs and this music D1 recovery history only; not all Cloudflare internal network, security or account data"
+  },
+  "pending": [
+    "publish the four localized app policy sections and verify policy links",
+    "review and save the prepared App Store privacy classifications, distinguishing the observed coordinate representation from actual location accuracy",
+    "applicable cross-border arrangements; not established by provider policy alone",
+    "actual deletion execution is an operational obligation, not verified by these settings"
+  ],
+  "appliesToCandidate": "1.0 (13): same runtime data paths; only version and release-note changes",
+  "operator": {
+    "legalName": "浩 叶",
+    "countryOrRegion": "China",
+    "supportEmail": "brodstem@protonmail.com",
+    "confirmedByUser": true
+  },
+  "supportMailRetention": {
+    "userChoice": "one month after issue resolution",
+    "confirmedAt": "2026-10-20",
+    "implementedOrAudited": false,
+    "accessAndBackupScopeConfirmed": true,
+    "access": "operator only, user-confirmed 2026-10-20",
+    "providerBackupDeletionVerified": false,
+    "providerPolicy": {
+      "provider": "Proton Mail",
+      "checkedAt": "2026-10-20",
+      "source": "https://proton.me/mail/privacy-policy",
+      "documentedStorageCountries": [
+        "Switzerland",
+        "Germany",
+        "Norway"
+      ],
+      "documentedEncryptedBackupMaximumDays": 30,
+      "liveMailboxDeletionAndBackupRetentionAreSeparate": true,
+      "mailboxAccessedForThisAudit": false
+    }
+  },
+  "manualLogExports": {
+    "userReportedExtraExportsOrBackups": false,
+    "confirmationDate": "2026-10-20",
+    "includesCloudflareBuiltInLogsAndRecovery": false,
+    "historicalAuditPerformed": false
+  },
+  "logFieldInspection": {
+    "checkedAt": "2026-10-20",
+    "method": "Authenticated Cloudflare Observability field picker; names only, no visitor log values expanded",
+    "fieldsObserved": [
+      "$workers.event.request.url",
+      "$workers.event.request.headers.cf-connecting-ip",
+      "$workers.event.request.headers.x-real-ip",
+      "$workers.event.request.headers.user-agent",
+      "$workers.event.request.headers.accept-language",
+      "$workers.event.request.cf.country",
+      "$workers.event.request.cf.city",
+      "$workers.event.request.cf.region",
+      "$workers.event.request.cf.latitude",
+      "$workers.event.request.cf.longitude"
+    ],
+    "valuesRead": false,
+    "everyRequestContainsEveryFieldVerified": false,
+    "coordinateResolutionVerified": false
+  },
+  "controlledRequestLogInspection": {
+    "checkedAt": "2026-10-20",
+    "method": "One deliberately generated unauthenticated public catalog GET, isolated in Observability by its unique test User-Agent",
+    "matchingLogCount": 1,
+    "responseStatus": 200,
+    "fieldsConfirmedPresent": [
+      "cf-connecting-ip",
+      "x-real-ip",
+      "user-agent",
+      "country",
+      "city",
+      "region",
+      "latitude",
+      "longitude",
+      "status",
+      "cpuTimeMs",
+      "wallTimeMs"
+    ],
+    "latitudeDecimalPlaces": 4,
+    "longitudeDecimalPlaces": 4,
+    "physicalLocationAccuracyVerified": false,
+    "deviceGPSRequested": false,
+    "otherVisitorRecordsExpanded": false,
+    "rawIPOrCoordinateValuesSavedInRepository": false,
+    "settingsChanged": false,
+    "scope": "Presence and stored representation in one controlled request, not every request or all Cloudflare services"
+  },
+  "dashboardVerification": {
+    "checkedAt": "2026-10-20",
+    "workerPlan": "Workers Free",
+    "planDisplayedAsCurrent": true,
+    "logInvocationEnabled": true,
+    "logSamplingPercent": 100,
+    "tracesEnabled": false,
+    "logExportDestinations": 0,
+    "activeAccountMemberCount": 1,
+    "memberEmailsRetained": false,
+    "allAPICredentialsOrProviderInternalAccessAudited": false,
+    "d1TimeTravelWindowDaysDisplayed": 7,
+    "settingsChanged": false,
+    "databaseRestoreExecuted": false
+  },
+  "sources": [
+    "https://developers.cloudflare.com/workers/observability/logs/workers-logs/",
+    "https://developers.cloudflare.com/d1/reference/time-travel/",
+    "https://www.cloudflare.com/privacypolicy/",
+    "https://proton.me/mail/privacy-policy",
+    "https://developer.apple.com/app-store/app-privacy-details/"
+  ],
+  "runtimeBaseline": "0.1.2 (12), merged commit 940ccb0c515fafd40bd0f1f0986bee71c94458ea"
+}

@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "build": "14",
   "baseCommit": "20c6b89803c2fc0dc5f02784f815025242269083",
-  "companionWebsiteCommit": "8170d4f9a024398edadad4b7e1c7c5d54e641d7f",
+  "companionWebsiteCommit": "d7eebffd00c7b5931956e67e6206f49c421634d1",
   "toolchain": {
     "xcode": "27.1 (27A9275)",
     "runtime": "iOS 26.4",
@@ -89,7 +89,7 @@
   },
   "privacyDelta": "prepared-not-published",
   "notPerformed": [
-    "hosted CI",
+    "complete hosted CI for final PR head",
     "real owner-provided Shorts playback",
     "real HTTPS cross-repository publication-to-device check",
     "physical device",

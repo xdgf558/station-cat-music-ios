@@ -79,10 +79,10 @@ import XCTest
         }
         app.buttons["settingsHelpEntry"].tap()
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "0.1.1 (11)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.1 (14)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 0.1.1 (11)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["“我的”改为收藏焦点布局，最近查看与设置分层进入，已有账号资料与旧文件按实际情况保留管理入口。"].exists)
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.1 (14)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["歌曲短片页支持通过官方播放器观看已发布的 YouTube 视频，内容以实际发布为准。"].exists)
         capture(app, name: "public-links-current-release-notes")
     }
 }

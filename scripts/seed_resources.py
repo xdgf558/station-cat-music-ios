@@ -1,14 +1,31 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''contentTab.lyrics|Lyrics|歌词|歌詞|歌詞
+rows='''releaseYouTubeClips|Watch published YouTube clips in the song page using the official player. Clips appear when they are published.|歌曲短片页支持通过官方播放器观看已发布的 YouTube 视频，内容以实际发布为准。|歌曲短片頁支援透過官方播放器觀看已發佈的 YouTube 影片，內容以實際發佈為準。|曲の動画ページで、公開された YouTube 動画を公式プレーヤーで視聴できます。表示内容は公開状況によります。
+releaseYouTubeControl|YouTube loads only after you tap. Leaving the page stops the video; unavailable embeds offer a YouTube link.|点击后才连接 YouTube，离开页面即停止；无法嵌入时可前往 YouTube 查看。|點擊後才連線至 YouTube，離開頁面即停止；無法嵌入時可前往 YouTube 查看。|タップ後に YouTube に接続し、ページを離れると停止します。埋め込みが利用できない場合は YouTube で開けます。
+selectedClips|Selected clips|精选短片|精選短片|ピックアップ動画
+youtubeLoad|Load YouTube player|加载 YouTube 播放器|載入 YouTube 播放器|YouTube プレーヤーを読み込む
+youtubeCoverHint|Song artwork · tap to connect to YouTube|歌曲封面 · 点击后连接 YouTube|歌曲封面 · 點擊後連線至 YouTube|楽曲のアートワーク · タップすると YouTube に接続
+youtubePrivacyNotice|Loading connects to YouTube, which may process device and usage data under its policies. Playback needs the internet; no video is downloaded.|加载后会连接 YouTube，可能按其政策处理设备与使用数据。播放需要联网，不提供视频下载。|載入後會連線至 YouTube，可能依其政策處理裝置與使用資料。播放需要網路，不提供影片下載。|読み込み後は YouTube に接続し、そのポリシーに従って端末や利用データが処理される場合があります。通信が必要で、動画のダウンロードはできません。
+youtubeOpen|Open in YouTube|在 YouTube 打开|在 YouTube 開啟|YouTube で開く
+youtubeLoadFailure|YouTube could not load. Retry or open it in YouTube.|YouTube 暂时无法载入，可重试或在 YouTube 打开。|YouTube 暫時無法載入，可重試或在 YouTube 開啟。|YouTube を読み込めません。再試行するか YouTube で開いてください。
+youtubeVerifyFailure|Could not verify this clip. Connect to the internet and retry.|暂时无法核验短片，请联网后重试。|暫時無法核驗短片，請連網後重試。|動画を確認できません。インターネットに接続して再試行してください。
+youtubeUnavailable|This video is unavailable or embedding is disabled. You can check it on YouTube.|视频不可用或禁止嵌入，可前往 YouTube 核对。|影片無法使用或禁止嵌入，可前往 YouTube 確認。|動画を利用できないか、埋め込みが無効です。YouTube でご確認ください。
+youtubePrivacyInfo|YouTube privacy and terms|YouTube 隐私与条款|YouTube 隱私與條款|YouTube のプライバシーと利用規約
+youtubeTerms|YouTube Terms|YouTube 条款|YouTube 條款|YouTube 利用規約
+youtubePrivacy|Google Privacy|Google 隐私政策|Google 隱私權政策|Google プライバシーポリシー
+releaseV1Catalog|Version 1.0 brings together published singles and albums, with search, album introductions and track lists.|1.0 首发版本汇集已发布单曲与专辑，支持搜索、专辑介绍和曲目浏览。|1.0 首發版本匯集已發佈單曲與專輯，支援搜尋、專輯介紹與曲目瀏覽。|1.0 は公開済みのシングルとアルバムをまとめ、検索、アルバム紹介、収録曲の閲覧に対応します。
+releaseV1Reading|Read available lyrics and creative stories, adjust the lyric text size and expand the full text.|阅读作品已发布的歌词与创作故事，支持歌词字号调整和全文展开。|閱讀作品已發佈的歌詞與創作故事，支援歌詞字級調整與全文展開。|公開された歌詞と作品のストーリーを読めます。歌詞の文字サイズ変更と全文表示に対応します。
+releaseV1Personal|Keep favorites, recent views and your preferred listening platform on this device. Viewing history can be turned off or cleared.|收藏、最近查看和常用音乐平台偏好保存在本机，浏览记录可关闭或清空。|收藏、最近查看與常用音樂平台偏好儲存在本機，瀏覽紀錄可關閉或清空。|お気に入り、最近見た作品、配信サービスの設定を端末に保存します。閲覧履歴は停止・消去できます。
+releaseV1Listening|Follow verified links to listen on external music services. No Station Cat login or subscription is required; this app does not provide full-song audio.|通过已核验的入口前往音乐平台收听，无需 Station Cat 登录或订阅；App 内不提供完整歌曲播放。|透過已核驗的入口前往音樂平台收聽，無須 Station Cat 登入或訂閱；App 內不提供完整歌曲播放。|確認済みのリンクから音楽配信サービスで聴けます。Station Cat のログインや購読は不要です。アプリ内ではフル楽曲を再生しません。
+contentTab.lyrics|Lyrics|歌词|歌詞|歌詞
 contentTab.clips|Clips|短片|短片|動画
 contentTab.story|Story|故事|故事|ストーリー
 contentLyricsTitle|Lyrics|全部歌词|全部歌詞|歌詞
 contentStoryTitle|The story behind the song|创作故事|創作故事|曲にまつわるストーリー
 listenOnPlatform|Listen on {platform}|在{platform}收听|在{platform}收聽|{platform}で聴く
 lyricsEmpty|Lyrics have not been published for this song yet.|这首歌暂未发布歌词。|這首歌暫未發佈歌詞。|この曲の歌詞はまだ公開されていません。
-clipsEmpty|No clips yet. You can still listen on a music platform above.|暂无短片，可通过上方音乐平台收听。|暫無短片，可透過上方音樂平台收聽。|動画はまだありません。上の配信サービスから曲を聴けます。
+clipsEmpty|No clips yet. You can still listen on a music platform.|暂无短片，可通过音乐平台收听。|暫無短片，可透過音樂平台收聽。|動画はまだありません。配信サービスから曲を聴けます。
 storyEmpty|The story behind this song has not been published yet.|这首歌的创作故事暂未发布。|這首歌的創作故事暫未發佈。|この曲のストーリーはまだ公開されていません。
 contentLoading|Loading content…|正在载入内容…|正在載入內容…|コンテンツを読み込み中…
 contentLoadFailure|Could not load this content. Please retry.|内容暂时未能载入，请重试。|內容暫時無法載入，請重試。|コンテンツを読み込めませんでした。再試行してください。
@@ -23,7 +40,7 @@ clipWatch|Watch clip|观看短片|觀看短片|動画を見る
 clipUnmute|Turn sound on|开启声音|開啟聲音|音声をオン
 clipMute|Mute|静音|靜音|消音
 clipStop|Close video|关闭视频|關閉影片|動画を閉じる
-clipMutedHint|Clips start only when tapped, with sound off. They stop when you leave this page.|短片需点击观看，初始静音；离开页面后停止。|短片需點擊觀看，初始靜音；離開頁面後停止。|動画はタップすると消音で始まり、この画面を離れると停止します。
+clipMutedHint|Uploaded clips start only when tapped, with sound off. They stop when you leave this page.|本站短片需点击观看，初始静音；离开页面后停止。|本站短片需點擊觀看，初始靜音；離開頁面後停止。|当サイトの動画はタップすると消音で始まり、この画面を離れると停止します。
 clipPlayFailure|This clip could not be played. Please retry.|短片暂时无法播放，请重试。|短片暫時無法播放，請重試。|動画を再生できませんでした。再試行してください。
 releaseSongContent|Song details now separate lyrics, clips and stories, while keeping your listening platform close.|歌曲详情新增歌词、短片、故事分栏，保留清晰的平台收听入口。|歌曲詳情新增歌詞、短片、故事分欄，保留清楚的平台收聽入口。|曲の詳細を歌詞・動画・ストーリーに分け、配信サービスへの入口もわかりやすく配置しました。
 releaseLyricsReader|Read published lyrics with adjustable text size and expand or collapse the full text.|已发布歌词支持原生阅读、字号调整和展开收起。|已發佈歌詞支援原生閱讀、字級調整及展開收起。|公開済みの歌詞をアプリ内で読めます。文字サイズの変更と全文の展開・折りたたみに対応しました。

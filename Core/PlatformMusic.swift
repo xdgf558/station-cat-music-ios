@@ -218,7 +218,7 @@ actor PlatformMusicAPI: PlatformMusicProviding {
         // At most three visible clips and five source pages; filtered unpublished
         // rows can legitimately produce an empty page with a continuation cursor.
         for _ in 0..<5 {
-            var query = [URLQueryItem(name: "locale", value: locale), .init(name: "limit", value: "3")]
+            var query = [URLQueryItem(name: "locale", value: locale), .init(name: "limit", value: "3"), .init(name: "include", value: "youtube")]
             if let cursor { query.append(.init(name: "cursor", value: cursor)) }
             let page = try await request("/tracks/" + release.slug + "/clips", query: query, as: PlatformClipPage.self)
             try current(version)
@@ -231,13 +231,22 @@ actor PlatformMusicAPI: PlatformMusicProviding {
                       value.revision > 0, value.revision <= 9_007_199_254_740_991,
                       ["short_video", "mv"].contains(value.type), Self.locales.contains(value.originalLocale),
                       Self.plain(value.title, max: 200, required: true), Self.plain(value.summary, max: 500),
-                      value.durationMs.isFinite, value.durationMs > 0, value.durationMs <= 86_400_000,
-                      value.durationMs.rounded() == value.durationMs,
                       let published = Self.date(value.publishedAt), published <= now(), published.timeIntervalSince1970 >= 0,
                       !items.contains(where: { $0.id.lowercased() == value.id.lowercased() }) else { throw APIError.invalidPayload }
-                items.append(PlatformClip(id: value.id, trackID: track.id, revision: value.revision,
-                    title: value.title, summary: value.summary, duration: value.durationMs / 1000,
-                    posterURL: try assetURL(value.posterUrl, display: false), mediaURL: try assetURL(value.mediaUrl, display: false)))
+                if value.provider == "youtube" {
+                    guard let id = value.youtubeVideoId, let youtube = YouTubeClip(videoID: id),
+                          value.watchUrl == youtube.watchURL.absoluteString,
+                          value.mediaUrl == nil, value.posterUrl == nil, value.durationMs == nil else { throw APIError.invalidPayload }
+                    items.append(PlatformClip(id: value.id, trackID: track.id, revision: value.revision,
+                        title: value.title, summary: value.summary, youtube: youtube))
+                } else {
+                    guard value.provider == nil || value.provider == "file", value.youtubeVideoId == nil, value.watchUrl == nil,
+                          let duration = value.durationMs, duration.isFinite, duration > 0, duration <= 86_400_000, duration.rounded() == duration,
+                          let poster = value.posterUrl, let media = value.mediaUrl else { throw APIError.invalidPayload }
+                    items.append(PlatformClip(id: value.id, trackID: track.id, revision: value.revision,
+                        title: value.title, summary: value.summary, duration: duration / 1000,
+                        posterURL: try assetURL(poster, display: false), mediaURL: try assetURL(media, display: false)))
+                }
             }
             if items.count >= 3 { return Array(items.prefix(3)) }
             guard let next = page.nextCursor else { return items }
@@ -387,8 +396,9 @@ nonisolated private struct PlatformTrackDTO: Decodable, Sendable {
 nonisolated private struct PlatformClipPage: Decodable, Sendable {
     let schemaVersion: Int; let locale: String; let items: [Item]; let nextCursor: String?
     struct Item: Decodable, Sendable {
-        let id, trackId, type, originalLocale, title, summary, publishedAt, posterUrl, mediaUrl: String
-        let revision: Int; let durationMs: Double; let track: Parent
+        let id, trackId, type, originalLocale, title, summary, publishedAt: String
+        let provider, youtubeVideoId, watchUrl, posterUrl, mediaUrl: String?
+        let revision: Int; let durationMs: Double?; let track: Parent
     }
     struct Parent: Decodable, Sendable { let id, title, href: String }
 }

@@ -1,6 +1,7 @@
 import SwiftUI
 import AVKit
 import UIKit
+import WebKit
 
 struct PlatformMusicDetailView: View {
     @Bindable var model: AppModel
@@ -9,12 +10,14 @@ struct PlatformMusicDetailView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var content = PlatformContentModel()
     @State private var video = PlatformClipPlayer()
+    @State private var youtube = YouTubeClipSession.forCurrentEnvironment()
     @State private var section: Section = .lyrics
     @State private var expanded = false
     @AppStorage("platformLyricsFontSize") private var lyricSize = 18
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     @State private var failedURL: URL?
     @State private var copied = false
+    @State private var showYouTubeInfo = false
     @State private var openOperation = 0
     private enum Section: String, CaseIterable { case lyrics, clips, story
         var key: String { "contentTab." + rawValue }
@@ -30,23 +33,46 @@ struct PlatformMusicDetailView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: section == .clips && !typeSize.isAccessibilitySize ? 12 : 28) {
                     if let track {
                         identity(track)
                         if let detail = currentDetail, let release = detail.track.release {
-                            platformLinks(release)
+                            if section != .clips || typeSize.isAccessibilitySize { platformLinks(release) }
                             if let failedURL { linkFailure(failedURL) }
                             tabs
                             sectionBody(detail)
+                            if section == .clips && !typeSize.isAccessibilitySize { platformLinks(release, placement: .remaining) }
                         } else { detailStatus }
                     } else { detailStatus }
-                }.padding(.horizontal, 22).padding(.top, 26).padding(.bottom, 36)
+                }.padding(.horizontal, 22).padding(.top, section == .clips && !typeSize.isAccessibilitySize ? 12 : 26).padding(.bottom, 36)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }.background { OrbitBackground() }.accessibilityIdentifier("platformDetailScreen")
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if section == .clips, !typeSize.isAccessibilitySize, let release = currentDetail?.track.release, !release.platforms.isEmpty {
+                        platformLinks(release, placement: .footer)
+                            .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 8)
+                            .background(Palette.background.opacity(0.96))
+                    }
+                }
+                .sheet(isPresented: $showYouTubeInfo) {
+                    NavigationStack {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 20) {
+                                Text(model.t("youtubePrivacyNotice")).fixedSize(horizontal: false, vertical: true)
+                                youtubePolicies
+                            }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                            .background(Palette.background).navigationTitle("YouTube")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar { ToolbarItem(placement: .confirmationAction) {
+                                Button(model.t("close")) { showYouTubeInfo = false }.accessibilityIdentifier("youtubePrivacyClose")
+                            } }
+                    }.presentationDetents([.medium, .large]).preferredColorScheme(.dark)
+                }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
-                        OrbitIconButton(symbol: "chevron.down", label: model.t("close")) { video.stop(); model.showPlayer = false }
+                        OrbitIconButton(symbol: "chevron.down", label: model.t("close")) { stopClips(); model.showPlayer = false }
                             .accessibilityIdentifier("platformDetailClose")
                     }
                     ToolbarItem(placement: .principal) {
@@ -60,20 +86,20 @@ struct PlatformMusicDetailView: View {
                     }
                 }
                 .task(id: contentKey) {
-                    video.stop(); invalidateOpen(); section = .lyrics; expanded = false
+                    stopClips(); invalidateOpen(); section = .lyrics; expanded = false
                     content.configure(model.showPlayer ? currentDetail : nil, locale: model.locale, provider: model.platformCatalog)
                 }
                 .onChange(of: currentDetail?.track.release) { _, _ in invalidateOpen() }
-                .onChange(of: section) { _, _ in video.stop() }
-                .onChange(of: scenePhase) { _, phase in if phase != .active { video.stop() } }
+                .onChange(of: section) { _, _ in stopClips() }
+                .onChange(of: scenePhase) { _, phase in if phase != .active { stopClips() } }
         }.preferredColorScheme(.dark).tint(Palette.accent)
-            .onDisappear { content.clear(); video.stop(); invalidateOpen() }
+            .onDisappear { content.clear(); stopClips(); invalidateOpen() }
     }
     private func identity(_ track: Track) -> some View {
         ViewThatFits(in: .horizontal) {
             if !typeSize.isAccessibilitySize {
                 HStack(alignment: .center, spacing: 18) {
-                    artwork(track, side: 140)
+                    artwork(track, side: section == .clips ? 104 : 140)
                     identityText(track).frame(minWidth: 160, maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -193,41 +219,123 @@ struct PlatformMusicDetailView: View {
         case .empty: empty("clipsEmpty", icon: "film")
         case .failed: retry(content.clipsFailureKey, id: "clipsRetry") { content.retryClips() }
         case .loaded:
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text(model.t("selectedClips")).font(.headline)
+                    Spacer()
+                    if content.clips.contains(where: { $0.youtube != nil }) {
+                        Button { stopClips(); showYouTubeInfo = true } label: {
+                            Label("YouTube", systemImage: "info.circle").font(.caption.weight(.semibold))
+                        }.frame(minHeight: 44).accessibilityLabel(model.t("youtubePrivacyInfo"))
+                            .accessibilityIdentifier("youtubePrivacyInfo")
+                    }
+                }
                 ForEach(content.clips) { clip in
                     VStack(alignment: .leading, spacing: 12) {
-                        if video.selectedID == clip.id, let player = video.player {
+                        if clip.youtube != nil {
+                            youtubeCard(clip, detail: detail)
+                        } else if video.selectedID == clip.id, let player = video.player {
                             ForegroundClipView(player: player).frame(height: 220).clipShape(RoundedRectangle(cornerRadius: 16))
                             HStack {
                                 Button { video.toggleMute() } label: {
                                     Label(model.t(video.muted ? "clipUnmute" : "clipMute"), systemImage: video.muted ? "speaker.slash" : "speaker.wave.2")
                                 }.frame(minHeight: 44).accessibilityIdentifier("clipMute")
                                 Spacer()
-                                Button(model.t("clipStop")) { video.stop() }.frame(minHeight: 44)
+                                Button(model.t("clipStop")) { stopClips() }.frame(minHeight: 44)
                             }
-                        } else {
+                        } else if let poster = clip.posterURL {
                             Button { start(clip, detail: detail) } label: {
-                                CachedArtwork(url: clip.posterURL, host: PlatformMusicAPI.productionOrigin.host!, loader: model.artwork, fill: true)
+                                CachedArtwork(url: poster, host: PlatformMusicAPI.productionOrigin.host!, loader: model.artwork, fill: true)
                                     .aspectRatio(16 / 9, contentMode: .fit).clipped()
                                     .overlay { Image(systemName: "play.circle.fill").font(.system(size: 44)).symbolRenderingMode(.palette).foregroundStyle(.white, Palette.background.opacity(0.6)) }
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
                             }.buttonStyle(.plain).accessibilityLabel(model.t("clipWatch") + " " + clip.title)
                                 .accessibilityIdentifier("clip." + clip.id)
                         }
-                        Text(clip.title).font(.headline)
-                        if !clip.summary.isEmpty { Text(clip.summary).font(.subheadline).foregroundStyle(Palette.muted) }
+                        if clip.youtube == nil { clipDescription(clip) }
                         if video.selectedID == clip.id, video.loading { loading }
                         if video.selectedID == clip.id, video.failed {
                             retry("clipPlayFailure", id: "clipRetry") { start(clip, detail: detail) }
                         }
                     }
                 }
-                Text(model.t("clipMutedHint")).font(.caption).foregroundStyle(Palette.muted)
+                if content.clips.contains(where: { $0.youtube == nil }) {
+                    Text(model.t("clipMutedHint")).font(.caption).foregroundStyle(Palette.muted)
+                }
             }
         }
     }
+    private func stopClips() { video.stop(); youtube.stop() }
+    private func startYouTube(_ clip: PlatformClip, detail: PlatformTrackDetail, externalOnly: Bool = false) {
+        guard scenePhase == .active, model.showPlayer, let provider = model.platformCatalog else { return }
+        video.stop()
+        youtube.start(clip, track: detail.track, locale: model.locale, provider: provider, externalOnly: externalOnly) { url in open(url) }
+    }
+    @ViewBuilder private func youtubeCard(_ clip: PlatformClip, detail: PlatformTrackDetail) -> some View {
+        let width: CGFloat = typeSize.isAccessibilitySize ? 220 : 200
+        VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 8) {
+            Group {
+                if youtube.selectedID == clip.id, let view = youtube.webView {
+                    YouTubeWebView(view: view)
+                } else {
+                    Button { startYouTube(clip, detail: detail) } label: {
+                        ZStack {
+                            OrbitArtwork(track: detail.track, model: model)
+                            LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.7)], startPoint: .top, endPoint: .bottom)
+                            VStack(spacing: 14) {
+                                Image(systemName: "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white)
+                                Text(model.t("youtubeLoad")).font(.headline).foregroundStyle(.white)
+                                Text(model.t("youtubeCoverHint")).font(.caption).foregroundStyle(.white.opacity(0.8))
+                            }.padding(20)
+                        }.frame(width: width, height: width * 1.5).clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 14)).contentShape(Rectangle())
+                    }.buttonStyle(.plain).accessibilityLabel(model.t("youtubeLoad") + " · " + clip.title)
+                        .accessibilityIdentifier("youtubeLoad." + clip.id)
+                }
+            }.frame(width: width, height: width * 1.5).frame(maxWidth: .infinity)
+            // The official iframe fits the complete video in this portrait viewport.
+            // Do not crop it or place app-owned overlays over its controls/ads.
+            if typeSize.isAccessibilitySize {
+                clipDescription(clip)
+            } else {
+                Text(clip.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+            }
+            if youtube.selectedID == clip.id, [.checking, .loading].contains(youtube.phase) {
+                ProgressView(model.t("contentLoading")).accessibilityIdentifier("youtubeLoading")
+            }
+            if youtube.selectedID == clip.id, youtube.phase == .failed {
+                retry(youtube.failureKey, id: "youtubeRetry") { startYouTube(clip, detail: detail) }
+            }
+            HStack {
+                if !typeSize.isAccessibilitySize, !clip.summary.isEmpty {
+                    Text(clip.summary).font(.caption).foregroundStyle(Palette.muted)
+                        .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Button { startYouTube(clip, detail: detail, externalOnly: true) } label: {
+                    Label(model.t("youtubeOpen"), systemImage: "arrow.up.right").fixedSize(horizontal: false, vertical: true)
+                }.frame(minHeight: 44).accessibilityIdentifier("youtubeOpen." + clip.id)
+                Spacer(minLength: 8)
+                if youtube.selectedID == clip.id, youtube.phase != .failed {
+                    Button(model.t("clipStop")) { youtube.stop() }.frame(minHeight: 44).accessibilityIdentifier("youtubeStop")
+                }
+            }.font(.subheadline)
+        }
+    }
+    private func clipDescription(_ clip: PlatformClip) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(clip.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+            if !clip.summary.isEmpty {
+                Text(clip.summary).font(.subheadline).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+    @ViewBuilder private var youtubePolicies: some View {
+        Button(model.t("youtubeTerms")) { open(URL(string: "https://www.youtube.com/t/terms")!) }.frame(minHeight: 44).accessibilityIdentifier("youtubeTerms")
+        Button(model.t("youtubePrivacy")) { open(URL(string: "https://policies.google.com/privacy")!) }.frame(minHeight: 44).accessibilityIdentifier("youtubePrivacy")
+    }
     private func start(_ clip: PlatformClip, detail: PlatformTrackDetail) {
         guard scenePhase == .active, model.showPlayer, let provider = model.platformCatalog else { return }
+        youtube.stop()
         video.play(clip, track: detail.track, locale: model.locale, provider: provider)
     }
     private var loading: some View {
@@ -255,7 +363,8 @@ struct PlatformMusicDetailView: View {
             }
         } else { ProgressView(model.t("platformDetailLoading")).frame(maxWidth: .infinity, minHeight: 120) }
     }
-    @ViewBuilder private func platformLinks(_ release: PlatformTrackRelease) -> some View {
+    private enum LinkPlacement { case all, footer, remaining }
+    @ViewBuilder private func platformLinks(_ release: PlatformTrackRelease, placement: LinkPlacement = .all) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             if release.platforms.isEmpty {
                 Text(model.t(release.availability == "removed" ? "platformUnavailable" :
@@ -263,7 +372,10 @@ struct PlatformMusicDetailView: View {
                     .font(.subheadline).foregroundStyle(Palette.muted).accessibilityIdentifier("platformLinksPending")
             } else {
                 let links = model.orderedPlatformLinks(release.platforms)
-                ForEach(Array(links.enumerated()), id: \.element.id) { index, link in
+                let visible = Array(links.enumerated()).filter { index, _ in
+                    placement == .all || (placement == .footer ? index == 0 : index > 0)
+                }
+                ForEach(visible, id: \.element.id) { index, link in
                     Button { open(link.url) } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "music.note").font(.system(size: 20)).frame(width: 24).accessibilityHidden(true)
@@ -277,11 +389,11 @@ struct PlatformMusicDetailView: View {
                             .background(index == 0 ? Palette.accent : .clear, in: RoundedRectangle(cornerRadius: 20))
                     }.buttonStyle(.plain).accessibilityIdentifier("platformLink." + link.provider.rawValue)
                 }
-                if let preferred = model.preferredPlatform, !release.platforms.contains(where: { $0.provider == preferred }) {
+                if placement != .footer, let preferred = model.preferredPlatform, !release.platforms.contains(where: { $0.provider == preferred }) {
                     Text(model.t("preferredPlatformMissing")).font(.caption).foregroundStyle(Palette.muted).accessibilityIdentifier("preferredPlatformMissing")
                 }
             }
-            if release.previewAvailable {
+            if placement != .footer, release.previewAvailable {
                 Button { open(release.webURL) } label: {
                     Label(model.t("platformPreviewWebsite"), systemImage: "safari").font(.subheadline).frame(minHeight: 44)
                 }.accessibilityIdentifier("platformPreviewWebsite")
@@ -291,7 +403,7 @@ struct PlatformMusicDetailView: View {
     private func open(_ url: URL) {
         guard url.scheme == "https", url.user == nil, url.password == nil,
               let id = track?.id, let release = currentDetail?.track.release else { return }
-        video.stop(); invalidateOpen()
+        stopClips(); invalidateOpen()
         let ticket = openOperation, detailGeneration = model.platformDetailGeneration
         openURL(url) { accepted in
             guard ticket == openOperation, model.showPlayer, model.playback.selectedTrack?.id == id,
@@ -324,4 +436,10 @@ private struct ForegroundClipView: UIViewControllerRepresentable {
     }
     func updateUIViewController(_ view: AVPlayerViewController, context: Context) { view.player = player }
     static func dismantleUIViewController(_ view: AVPlayerViewController, coordinator: ()) { view.player?.pause(); view.player = nil }
+}
+
+private struct YouTubeWebView: UIViewRepresentable {
+    let view: WKWebView
+    func makeUIView(context: Context) -> WKWebView { view }
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
 }

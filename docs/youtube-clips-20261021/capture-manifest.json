@@ -1,0 +1,68 @@
+{
+  "xcresult": "Test-StationCatMusic-2026.10.21_11-15-36-+0800.xcresult",
+  "captures": [
+    {
+      "file": "YouTube-Embedding-Unavailable.png",
+      "test": "YouTubeClipUITests/testEmbedFailureOffersRetryAndExternalFallbackWithoutBreakingSong()",
+      "timestamp": 1792552615.048
+    },
+    {
+      "file": "YouTube-Privacy-ja-Accessibility.png",
+      "test": "YouTubeClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+      "timestamp": 1792552725.845
+    },
+    {
+      "file": "YouTube-ja-Accessibility.png",
+      "test": "YouTubeClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+      "timestamp": 1792552710.745
+    },
+    {
+      "file": "YouTube-Privacy-en-Accessibility.png",
+      "test": "YouTubeClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+      "timestamp": 1792552695.865
+    },
+    {
+      "file": "YouTube-en-Accessibility.png",
+      "test": "YouTubeClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+      "timestamp": 1792552681.344
+    },
+    {
+      "file": "YouTube-Privacy-zh-Hant-Accessibility.png",
+      "test": "YouTubeClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+      "timestamp": 1792552666.467
+    },
+    {
+      "file": "YouTube-zh-Hant-Accessibility.png",
+      "test": "YouTubeClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+      "timestamp": 1792552658.055
+    },
+    {
+      "file": "YouTube-Privacy-zh-Hans-Accessibility.png",
+      "test": "YouTubeClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+      "timestamp": 1792552643.983
+    },
+    {
+      "file": "YouTube-zh-Hans-Accessibility.png",
+      "test": "YouTubeClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+      "timestamp": 1792552635.834
+    },
+    {
+      "file": "YouTube-Local-Player-Fixture.png",
+      "test": "YouTubeClipUITests/testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown()",
+      "timestamp": 1792553300.437,
+      "xcresult": "Test-StationCatMusic-2026.10.21_11-28-00-+0800.xcresult"
+    },
+    {
+      "file": "YouTube-Privacy-Notice.png",
+      "test": "YouTubeClipUITests/testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown()",
+      "timestamp": 1792553296.536,
+      "xcresult": "Test-StationCatMusic-2026.10.21_11-28-00-+0800.xcresult"
+    },
+    {
+      "file": "YouTube-Selected-Layout-zh-Hans.png",
+      "test": "YouTubeClipUITests/testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown()",
+      "timestamp": 1792553294.512,
+      "xcresult": "Test-StationCatMusic-2026.10.21_11-28-00-+0800.xcresult"
+    }
+  ]
+}

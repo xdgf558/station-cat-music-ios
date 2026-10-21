@@ -45,8 +45,22 @@ nonisolated struct PlatformClip: Identifiable, Equatable, Sendable {
     let id, trackID: String
     let revision: Int
     let title, summary: String
-    let duration: Double
-    let posterURL, mediaURL: URL
+    enum Source: Equatable, Sendable {
+        case file(poster: URL, media: URL, duration: Double)
+        case youtube(YouTubeClip)
+    }
+    let source: Source
+    var posterURL: URL? { if case let .file(poster, _, _) = source { return poster }; return nil }
+    var mediaURL: URL? { if case let .file(_, media, _) = source { return media }; return nil }
+    var youtube: YouTubeClip? { if case let .youtube(value) = source { return value }; return nil }
+    init(id: String, trackID: String, revision: Int, title: String, summary: String, duration: Double, posterURL: URL, mediaURL: URL) {
+        self.id = id; self.trackID = trackID; self.revision = revision; self.title = title; self.summary = summary
+        source = .file(poster: posterURL, media: mediaURL, duration: duration)
+    }
+    init(id: String, trackID: String, revision: Int, title: String, summary: String, youtube: YouTubeClip) {
+        self.id = id; self.trackID = trackID; self.revision = revision; self.title = title; self.summary = summary
+        source = .youtube(youtube)
+    }
 }
 
 /// Ephemeral view state, independent of the old audio player and personal data.

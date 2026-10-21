@@ -111,7 +111,7 @@ actor PlatformClipChannel {
     init(transport: any MediaHTTPTransport = NativeMediaTransport()) { self.transport = transport }
 
     func play(_ clip: PlatformClip, track: Track, locale: String, provider: any PlatformMusicProviding) {
-        stop(); selectedID = clip.id; loading = true
+        stop(); guard let mediaURL = clip.mediaURL else { return }; selectedID = clip.id; loading = true
         let ticket = generation
         task = Task { [weak self] in
             do {
@@ -121,7 +121,7 @@ actor PlatformClipChannel {
                 guard current.contains(clip), clip.trackID == track.id else { throw APIError.staleResponse }
                 try Task.checkCancellation()
                 guard let self, self.generation == ticket else { return }
-                let channel = try PlatformClipChannel(url: clip.mediaURL, transport: self.transport)
+                let channel = try PlatformClipChannel(url: mediaURL, transport: self.transport)
                 let loader = PlatformClipLoader(channel: channel) { [weak self] in self?.fail(ticket) }
                 let item = AVPlayerItem(asset: loader.asset())
                 self.loader = loader

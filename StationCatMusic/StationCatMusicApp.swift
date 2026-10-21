@@ -40,6 +40,7 @@ import SwiftUI
                 fixtureName = "platform-song-content"
                 contentFailure = ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] == "song-content-failure"
             }
+            if ["youtube-clips", "youtube-error"].contains(ProcessInfo.processInfo.environment["STATION_PLATFORM_FIXTURE"] ?? "") { fixtureName = "platform-youtube-clips" }
             #endif
             let platformData = Bundle.main.url(forResource: fixtureName, withExtension: "json").flatMap { try? Data(contentsOf: $0) } ?? Data()
             let fixture = PlatformFixtureTransport(data: platformData, delay: previewDelay, status: previewStatus, detailFailure: detailFailure, contentFailure: contentFailure)

@@ -63,7 +63,9 @@ import XCTest
             reveal(app.buttons["contentTab.clips"], app); app.buttons["contentTab.clips"].tap()
             XCTAssertTrue(app.descendants(matching: .any)["clipsEmpty"].firstMatch.waitForExistence(timeout: 5))
             reveal(app.buttons["contentTab.story"], app); app.buttons["contentTab.story"].tap()
-            XCTAssertTrue(app.staticTexts["contentStoryText"].waitForExistence(timeout: 5))
+            let storyVisible = app.staticTexts["contentStoryText"].waitForExistence(timeout: 5)
+            if !storyVisible { capture(app, "Content-Story-Switch-Failure"); print(app.debugDescription) }
+            XCTAssertTrue(storyVisible)
             reveal(app.staticTexts["contentStoryText"], app)
             capture(app, "Content-" + locale + "-Large-Story")
             app.buttons["platformDetailClose"].tap(); app.terminate()

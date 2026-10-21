@@ -1,0 +1,49 @@
+{
+  "sourcePixels": [
+    853,
+    1844
+  ],
+  "actualPixels": [
+    1206,
+    2622
+  ],
+  "nativeViewportPoints": [
+    402,
+    874
+  ],
+  "nativeScale": 3,
+  "panelWidth": 402,
+  "fullOutput": [
+    820,
+    874
+  ],
+  "gap": 16,
+  "sourcePosition": "left",
+  "actualPosition": "right",
+  "fullResize": "uniform width=402; no crop or stretching; source bottom padded by 5 pixels",
+  "headerSourceCrop": [
+    0,
+    170,
+    853,
+    427
+  ],
+  "headerActualCrop": [
+    0,
+    432,
+    1206,
+    580
+  ],
+  "playerSourceCrop": [
+    0,
+    630,
+    853,
+    1020
+  ],
+  "playerActualCrop": [
+    0,
+    1065,
+    1206,
+    1270
+  ],
+  "notes": "Native status bar and modal navigation remain visible; synthetic song cover/clip fixture, not a real published video."
+}

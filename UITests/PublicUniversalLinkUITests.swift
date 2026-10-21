@@ -79,10 +79,10 @@ import XCTest
         }
         app.buttons["settingsHelpEntry"].tap()
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0 (13)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.1 (14)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0 (13)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["1.0 首发版本汇集已发布单曲与专辑，支持搜索、专辑介绍和曲目浏览。"].exists)
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.1 (14)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["歌曲短片页支持通过官方播放器观看已发布的 YouTube 视频，内容以实际发布为准。"].exists)
         capture(app, name: "public-links-current-release-notes")
     }
 }

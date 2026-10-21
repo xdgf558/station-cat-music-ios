@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-21",
+  "status": "local-verified-not-distributed",
+  "version": "1.0.1",
+  "build": "14",
+  "baseCommit": "20c6b89803c2fc0dc5f02784f815025242269083",
+  "companionWebsiteCommit": "8170d4f9a024398edadad4b7e1c7c5d54e641d7f",
+  "toolchain": {
+    "xcode": "27.1 (27A9275)",
+    "runtime": "iOS 26.4",
+    "device": "iPhone 17 Pro simulator",
+    "matchesPinnedHostedToolchain": false
+  },
+  "finalCoreRun": {
+    "unitPassed": 18,
+    "uiMethodsPassed": 4,
+    "failed": 0,
+    "path": ".build/youtube-1.0.1/final-validation.log",
+    "sha256": "f8b1ced59831f7c387c8b7e237a7a028d6addaa29cf74878c883440e479c4467"
+  },
+  "finalLayoutFollowup": {
+    "uiMethodsPassed": 1,
+    "failed": 0,
+    "checks": "Entire fallback button above listening footer; privacy sheet; load/tab/background/dismiss lifecycle",
+    "path": ".build/youtube-1.0.1/final-fit.log",
+    "sha256": "75762df5b43529af1e5114ac19dbf8ef32186bcbffe2f3659aeadd245ef824d8"
+  },
+  "additionalEarlierUIRegression": {
+    "passedMethods": [
+      "NavigationTests/testOfflineAndVersionPages",
+      "PlatformContentUITests/testLyricsFailureCanRetryWithoutLosingListeningOrOtherTabs",
+      "PlatformContentUITests/testSelectedContentLayoutReadingSizeAndEmptyClips",
+      "PlatformPersonalUITests/testPersonalHubNavigationPrivacyPreferenceAndNotes"
+    ],
+    "path": ".build/youtube-1.0.1/regression-ui.log",
+    "note": "The original four-locale navigation failure in this run was fixed and rerun successfully in finalCoreRun. Preserve the original failed run; it is not an all-green run.",
+    "sha256": "6556cfbe369a0736409593273494aef2e8bf33eb966968673e24ae841c7de7cb"
+  },
+  "officialReadinessProbe": {
+    "passed": true,
+    "playbackRequested": false,
+    "sample": "Google API documentation M7lc1UVf-VE, not a Station Cat published clip",
+    "readySeconds": 7.192,
+    "path": ".build/youtube-1.0.1/manual-live-probe.log",
+    "sha256": "50f5eefc1e128a17a1275c0e70c083169e464b86829309c44b63ee85539e8a16",
+    "notCommittedToDeterministicSuite": true
+  },
+  "scriptChecks": {
+    "sourceGuards": "passed",
+    "platformAcceptance": 8,
+    "platformLinks": 3,
+    "configureProduction": 4,
+    "openAPIOperations": 26,
+    "positiveFixtures": 67,
+    "negativeFixtures": 21
+  },
+  "productionSimulatorPackage": {
+    "bundle": "org.stationcat.music",
+    "version": "1.0.1",
+    "build": "14",
+    "publicMetadataEnabled": false,
+    "nativeServicesEnabled": false,
+    "backgroundAudio": false,
+    "requiredReasonManifest": "present",
+    "usesNonExemptEncryption": false,
+    "releaseNoteLocales": [
+      "en",
+      "ja",
+      "zh-Hans",
+      "zh-Hant"
+    ],
+    "appStorePrivacyLabelConfirmed": false,
+    "signedDistributionValidated": false
+  },
+  "sourceSHA256": {
+    "Core/YouTubeClip.swift": "345fbd5a9553fcaf511a14efbd2d956c521ec7859df67a499903a21fc46dcf8b",
+    "Core/YouTubeClipSession.swift": "c0b72594888fb411b1047cbbd7ab9d087f9906bb5513a68c9576a2a6e1d189b3",
+    "Core/YouTubeClipFixture.swift": "2ace465655921a2bbbdb79d6a92480c7defeb5fceb0f134fb7e11ebe007a0c9a",
+    "Core/PlatformClipPlayer.swift": "b06e03484b6cebc5d317b715eb753c4e3d5b78be5b5c10f30b0cdf8896c31fba",
+    "Core/PlatformContent.swift": "4229dbac86516c75011c0e50cf07298ae03fac4586675018162c6767c27abf39",
+    "Core/PlatformMusic.swift": "2e0df5b91d112ffcd1ebd4b084075b66c627ef0d670cf4008716ef542fd6a9a2",
+    "StationCatMusic/PlatformMusicDetailView.swift": "af0ff627d3c158b939a68e5b5fe6cefd08cc3c5c036ed3307e3049ba0ae11fd0",
+    "StationCatMusic/RootView.swift": "1c305473ce1e9f6f162f460f4751db93b10d5dda2ec0d6569f11c67602acb7cd",
+    "Resources/Localizations.json": "75e21de4ece65a563749c52e3943211636bc0ae1112955e8a66b99d1e4577856",
+    "StationCatMusic.xcodeproj/project.pbxproj": "0f87bdc3d799c8b315b49b4eb363595fe811021a03b798a0dbccc8b22ad7689d",
+    "Tests/YouTubeClipTests.swift": "8a8ca055fd321a2615758c95fbd295ea1f2de5fec0aa16550105a70b841adc2d",
+    "UITests/YouTubeClipUITests.swift": "7afbc3bda16d6e0b473f9e7612437f9f262413113b985e039f1179425827d3b2",
+    "contracts/fixtures/platform-youtube-clips.json": "a621c8761973fc180a06921e0b2bdde5b7dac1498b0b6ec9614c3f886d9ee533"
+  },
+  "privacyDelta": "prepared-not-published",
+  "notPerformed": [
+    "hosted CI",
+    "real owner-provided Shorts playback",
+    "real HTTPS cross-repository publication-to-device check",
+    "physical device",
+    "VoiceOver speech",
+    "distribution signature",
+    "installation",
+    "TestFlight upload",
+    "App Store submission",
+    "website deployment",
+    "production clip publication"
+  ]
+}

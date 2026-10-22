@@ -174,6 +174,12 @@
 			"path" = "Core/PlatformMusicLink.swift";
 			"sourceTree" = "<group>";
 		};
+		"E9DD0B5F5DAE32141A62A9CF" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Core/PlatformNotebook.swift";
+			"sourceTree" = "<group>";
+		};
 		"7F25047FB238757E99909111" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -268,6 +274,12 @@
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
 			"path" = "StationCatMusic/PlatformMusicView.swift";
+			"sourceTree" = "<group>";
+		};
+		"080E62785C93D3A6B1F4885B" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "StationCatMusic/PlatformNotebookView.swift";
 			"sourceTree" = "<group>";
 		};
 		"A72639049DB3D571A6157C0E" = {
@@ -420,6 +432,18 @@
 			"path" = "Tests/PlatformMusicTests.swift";
 			"sourceTree" = "<group>";
 		};
+		"A983591DAD1EC3CA5B923755" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/PlatformNotebookIntegrationTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"AF37461B0AA02DAE1ABA5F4D" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Tests/PlatformNotebookTests.swift";
+			"sourceTree" = "<group>";
+		};
 		"3C9FC9F0AE99C4AEC8798815" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -516,6 +540,12 @@
 			"path" = "UITests/NavigationTests.swift";
 			"sourceTree" = "<group>";
 		};
+		"77CF6CA14D9F5198C86B6B39" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/NotebookClipHandoffUITests.swift";
+			"sourceTree" = "<group>";
+		};
 		"78EAB4CAC91BAD0547BD0CB2" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -532,6 +562,12 @@
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
 			"path" = "UITests/PlatformMusicUITests.swift";
+			"sourceTree" = "<group>";
+		};
+		"6963F1DF7EFA5DD1811696FB" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/PlatformNotebookUITests.swift";
 			"sourceTree" = "<group>";
 		};
 		"D83AD4548963A5AA5E91EF2E" = {
@@ -705,8 +741,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "1.0.2";
-				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "1.0.3";
+				"CURRENT_PROJECT_VERSION" = "16";
 			};
 		};
 		"FBFB519E017124AD6A05AD21" = {
@@ -736,8 +772,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "1.0.2";
-				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "1.0.3";
+				"CURRENT_PROJECT_VERSION" = "16";
 			};
 		};
 		"0E4CA93122EFD27B46D9D173" = {
@@ -767,8 +803,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "1.0.2";
-				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "1.0.3";
+				"CURRENT_PROJECT_VERSION" = "16";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 			};
@@ -800,8 +836,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "1.0.2";
-				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "1.0.3";
+				"CURRENT_PROJECT_VERSION" = "16";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
@@ -931,6 +967,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "CC0F8644FC9C2574900142F4";
 		};
+		"C8455074FAFCD749A6F3B010" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E9DD0B5F5DAE32141A62A9CF";
+		};
 		"7696B4870E7B455266C7749E" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "7F25047FB238757E99909111";
@@ -995,6 +1035,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "17ECACA98DEA09271017391A";
 		};
+		"95FF616B3EEAE0DB4D8A9860" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "080E62785C93D3A6B1F4885B";
+		};
 		"3A1654930F77A31331C915C8" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "A72639049DB3D571A6157C0E";
@@ -1043,6 +1087,7 @@
 				"861AA8AD46ADEFDEF04CF1E0",
 				"CBAEE14EBB535CB669E4025F",
 				"ED01BD12B1D7F8538C15CD41",
+				"C8455074FAFCD749A6F3B010",
 				"7696B4870E7B455266C7749E",
 				"5EA790184D6A4E75EFF30E00",
 				"2AB314E2A0F167A41F4A9D6D",
@@ -1059,6 +1104,7 @@
 				"4EAD3A1E21D73B68E2B911D2",
 				"4961956632B6597FDFBF7B22",
 				"8D54F15A40659D0152F97F43",
+				"95FF616B3EEAE0DB4D8A9860",
 				"3A1654930F77A31331C915C8",
 				"D4983E69A605C3BC8D5BAFE3",
 				"1121AD0177DE1905D4415454",
@@ -1357,6 +1403,14 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "1E5C6F0D540F194CE1DACCB1";
 		};
+		"702788C3F8EB70407C7C03E5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A983591DAD1EC3CA5B923755";
+		};
+		"BBADAA6A20E3A80EB9251D01" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "AF37461B0AA02DAE1ABA5F4D";
+		};
 		"8F45E70F1E3FE11B9B093A7F" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "3C9FC9F0AE99C4AEC8798815";
@@ -1438,6 +1492,8 @@
 				"FBA0B06D7724E7BA0FE1E6AF",
 				"C96BE549B15F85840602FF15",
 				"B6EA1DCC7A600A59E4F2E09B",
+				"702788C3F8EB70407C7C03E5",
+				"BBADAA6A20E3A80EB9251D01",
 				"8F45E70F1E3FE11B9B093A7F",
 				"C721C0CCAE55800E7BE66A0A",
 				"911D4AC307556008E290DB94",
@@ -1631,6 +1687,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "AC2AB77181D707D00C92E57A";
 		};
+		"680B1F75CBCEEFBD1FE4C816" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "77CF6CA14D9F5198C86B6B39";
+		};
 		"C98DB3EA3946EBFF585FB199" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "78EAB4CAC91BAD0547BD0CB2";
@@ -1642,6 +1702,10 @@
 		"4AE6932373B90A511546F04A" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "A8C10FD3801F7CD94B1A30B1";
+		};
+		"25258E8726767CD00FDE7E1D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "6963F1DF7EFA5DD1811696FB";
 		};
 		"37CC414B47A7039F3EBEC822" = {
 			"isa" = "PBXBuildFile";
@@ -1673,9 +1737,11 @@
 			"files" = (
 				"4066E8D21B72F9E2FA4BB73C",
 				"CFBFD44240B7907E82B791FD",
+				"680B1F75CBCEEFBD1FE4C816",
 				"C98DB3EA3946EBFF585FB199",
 				"2FF8F90576084674891D506D",
 				"4AE6932373B90A511546F04A",
+				"25258E8726767CD00FDE7E1D",
 				"37CC414B47A7039F3EBEC822",
 				"00F6D8CB630454B22F48FF0F",
 				"C398033C9ED2AC57D776D4C3",
@@ -1761,6 +1827,7 @@
 				"9F05399A209B7408F3375C26",
 				"813144E22B5B7D795F407577",
 				"CC0F8644FC9C2574900142F4",
+				"E9DD0B5F5DAE32141A62A9CF",
 				"7F25047FB238757E99909111",
 				"CDA264872300F57A9D9E3F41",
 				"233C7C56C3E2C128C315E1AA",
@@ -1777,6 +1844,7 @@
 				"3EA058AEE2B11349810BF9FE",
 				"1B9A19272E19D21A9E4494FB",
 				"17ECACA98DEA09271017391A",
+				"080E62785C93D3A6B1F4885B",
 				"A72639049DB3D571A6157C0E",
 				"51005BBCA731E333520173C2",
 				"050D4392E412B57D5B554FF4",
@@ -1802,6 +1870,8 @@
 				"A449B43F62DC2DA9B66C5A6F",
 				"D95F226C0D47D99B2F49B1AA",
 				"1E5C6F0D540F194CE1DACCB1",
+				"A983591DAD1EC3CA5B923755",
+				"AF37461B0AA02DAE1ABA5F4D",
 				"3C9FC9F0AE99C4AEC8798815",
 				"A2BE37D7C64525545A2A1EE2",
 				"B4C295B31539682A50117C95",
@@ -1818,9 +1888,11 @@
 				"88C3AD6BA91A898123D82801",
 				"E21729E945AC678DBDC32C0E",
 				"AC2AB77181D707D00C92E57A",
+				"77CF6CA14D9F5198C86B6B39",
 				"78EAB4CAC91BAD0547BD0CB2",
 				"D8F3C76C2FAD68A90C22DBB5",
 				"A8C10FD3801F7CD94B1A30B1",
+				"6963F1DF7EFA5DD1811696FB",
 				"D83AD4548963A5AA5E91EF2E",
 				"E2C7837828CEB003AF7B9B32",
 				"29F4B9F9E997A6078032077A",

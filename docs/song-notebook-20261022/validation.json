@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-22",
+  "candidate": "1.0.3 (16)",
+  "status": "local-development-validation-complete",
+  "baseCommit": "2e3aad4b03d178e3057983af7df5723b234a6113",
+  "toolchain": {
+    "xcode": "27.1 (27A9275)",
+    "simulator": "26.4.1",
+    "pinnedCI": "26.4.1",
+    "hostedCIRun": null
+  },
+  "runs": [
+    {
+      "bundle": ".build/notebook-1.0.3-final-tests.xcresult",
+      "passed": 50,
+      "failed": 0,
+      "scope": "43 core and 7 UI before final action-region layout"
+    },
+    {
+      "bundle": ".build/notebook-layout-final3.xcresult",
+      "passed": 4,
+      "failed": 0,
+      "scope": "final notebook actions and four-language maximum text size"
+    },
+    {
+      "bundle": ".build/notebook-final-display.xcresult",
+      "passed": 1,
+      "failed": 0,
+      "scope": "final opaque actions and Chinese linked-note/topic lifecycle"
+    },
+    {
+      "bundle": ".build/notebook-ipad-fullscreen.xcresult",
+      "passed": 2,
+      "failed": 0,
+      "scope": "final iPad compatibility notebook and personal hub/version notes"
+    },
+    {
+      "bundle": ".build/notebook-title-p3.xcresult",
+      "passed": 29,
+      "failed": 1,
+      "skipped": 0,
+      "exitCode": 65,
+      "scope": "Title correction: all 23 core/model cases and 6 UI passed; keyboard-label selector failure in Return case"
+    },
+    {
+      "bundle": ".build/notebook-title-return-p3.xcresult",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "scope": "Corrected Return-key UI case: automatic body focus and save/reopen; no product code changed between these two runs"
+    }
+  ],
+  "guards": {
+    "pythonPlatformTests": 11,
+    "sourceGuards": "passed",
+    "contractOperations": 26,
+    "contractPositiveExamples": 67,
+    "contractNegativeExamples": 21
+  },
+  "knownDiagnostic": "Non-failing UIKit _UIReparentingView warning during native Picker presentation; raw xcresult retained.",
+  "sourceSHA256": {
+    "Core/PlatformNotebook.swift": "171140911ef38df5fe39014a9b8d3bc72badc3c2d3b63bf2c7a0f7caf49caf61",
+    "Resources/Localizations.json": "6a621738ca971286af4c26500bc5967b6b7b69f1b7d6702922caf90f819acf26",
+    "StationCatMusic.xcodeproj/project.pbxproj": "7045c0a7b97f645cb5c0f4f27ca919a7f68fcbdd2286c55368b8bcdd06c3c96f",
+    "StationCatMusic/AppModel.swift": "325d97a1fa034e3e3d24293e22a0a2cfd2ec6fa3bb547467c277c3f4e90d489c",
+    "StationCatMusic/PlatformLibraryView.swift": "b5e42a6c9b1d6677a4647711e319c4a5c8eaf7bbda514d32ab668f6d5a3cc330",
+    "StationCatMusic/PlatformMusicDetailView.swift": "feaa5755df9da7f275ae2eef3d5226713bf56610a9524b2857d86925edf9701f",
+    "StationCatMusic/PlatformNotebookView.swift": "977211b99816ad7dadb65f23c6a874994ef3442682878fef8d8aecad04b2dfcb",
+    "StationCatMusic/RootView.swift": "1fe1dc5b88da571644c69e4f29ebf7158b740e18caff8166e66bfd90ba77aad7",
+    "StationCatMusic/StationCatMusicApp.swift": "237a966dba7d4c240bf1bffa7878be93b82f2ed6bae9db101a8793c03f9e1ac1",
+    "Tests/PlatformNotebookIntegrationTests.swift": "2417388b7ea620ccd460ef984ac320719b82a1c37f1634cb6cb395a490367fae",
+    "Tests/PlatformNotebookTests.swift": "df816e40fc4a7bd798524e99d0281a854d1e8d3c9227052a4e17f9f91b7cfbb4",
+    "UITests/NavigationTests.swift": "924f37ce5c56873857e222d0881f6d582d02fcfa8343f03e0ae60afe145089da",
+    "UITests/NotebookClipHandoffUITests.swift": "137ae95ad4f3ed9b53bf36ba27d66f71a3dd021814773cfbf00554e7c337a02a",
+    "UITests/PlatformNotebookUITests.swift": "5dc5d1031682e43a30e480a3cb7c2875b8a606914b093bbc81b9c922d3c30ba7",
+    "UITests/PlatformPersonalUITests.swift": "f26ceaa2c23d0307fa4fac21db85c6a8e2a37b01cbe1b56ac16810cdb5e0144a",
+    "UITests/PublicUniversalLinkUITests.swift": "93f37cddb2783268351a4e19533755b281668caf46bd4d1658fc41a6dfb282ec",
+    "scripts/check_platform_release.py": "750837b2f038c758e5ab5289eefa6913e3da5922a321f6cf43bed9f634a6cb82",
+    "scripts/generate_project.py": "62ba38619025434ee706e29fadf928c886caba44b25d72048c6c235b2821f0dc",
+    "scripts/seed_resources.py": "39c02cf33c9e916c14221b9a6b4c5e5865c1812d1cc19985450142eee0a84863",
+    "scripts/test_platform_acceptance.py": "f4222b11e4d04d44cb2a1ecc61321c109af7f3f292874a2cbed473424020737b"
+  },
+  "screenshots": [
+    {
+      "path": ".build/notebook-final-previews/ipad-editor.png",
+      "sha256": "ae33eb1a4c046d87824839dce8ee45b316c1f9487ca5a39cba22195f19e04f9c",
+      "content": "XCTest fixture; not production user writing"
+    },
+    {
+      "path": ".build/notebook-final-previews/ipad-release-notes.png",
+      "sha256": "087943effe11cf3916cdb8b8628efbcb87919585e2165b51372cf6abe19e8e2d",
+      "content": "XCTest fixture; not production user writing"
+    },
+    {
+      "path": ".build/notebook-final-previews/ipad-topic-index.png",
+      "sha256": "c3d42924428111e3240d21a1f34baab25ce6d0e48a80a624d8ba36f11f981d3d",
+      "content": "XCTest fixture; not production user writing"
+    },
+    {
+      "path": ".build/notebook-final-previews/iphone-editor.png",
+      "sha256": "c08aec68f9b0f665d83870e10acf87542ffd804dbedaf0de8bfa391d428b19ad",
+      "content": "XCTest fixture; not production user writing"
+    },
+    {
+      "path": ".build/notebook-final-previews/iphone-topic-index.png",
+      "sha256": "16cf621899ff756371e2e724742051dae5cbd6b236875a4ff9db2750d488c53e",
+      "content": "XCTest fixture; not production user writing"
+    },
+    {
+      "path": ".build/notebook-final-previews/iphone-title-rules.png",
+      "sha256": "17223c8d50a1e89297f531f3c8be854d935345c84843a11f376df3411db429cd",
+      "content": "Title correction XCTest fixture after rejected-save correction/reopen; not production user writing"
+    }
+  ],
+  "limitations": [
+    "Full pinned-Xcode hosted CI for the title-input correction remains pending at PR update",
+    "No distribution signature, phone installation, TestFlight upload or Apple resubmission",
+    "No real YouTube/Douyin clip or production HTTPS playback acceptance",
+    "No VoiceOver speech acceptance",
+    "Cover-art provenance evidence still incomplete"
+  ],
+  "deployed": false,
+  "uploaded": false,
+  "submittedForReview": false,
+  "titleInputCorrection": {
+    "reviewedHead": "60bec3dc9547c91b7a6bf76ca8fd379fa7f9636f",
+    "candidate": "1.0.3 (16)",
+    "uniqueCheckedCases": 30,
+    "scope": "18 store, 5 AppModel, 7 UI; one UI case passed after correcting a keyboard-label selector",
+    "initialFailure": "Test searched for Next; captured keyboard identifier was Next: and label was next. No Return/focus assertion had run.",
+    "resolution": "Send actual Return, then type without tapping body; verify both fields and saved/reopened content.",
+    "hostedCI": "Pending for the correction head; old-head results do not replace it."
+  },
+  "sourceSHA256Scope": "Latest title-input correction; earlier baseline runs/screenshots predate it as described in README."
+}

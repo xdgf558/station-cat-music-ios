@@ -35,6 +35,11 @@ import Observation
     let library: ScopedLibrary
     let bookmarks: PlatformBookmarkStore
     let personal: PlatformPersonalStore
+    let notebook: PlatformNotebookStore
+    private(set) var notebookState: NotebookState?
+    private(set) var notebookBusy = false
+    private(set) var notebookErrorKey: String?
+    private var notebookGeneration = 0
     private(set) var personalState: PlatformPersonalState?
     private(set) var personalBusy = false
     private(set) var personalError = false
@@ -101,7 +106,7 @@ import Observation
     private var platformRoutingReady = false
     private var operation = 0
     @ObservationIgnored private var catalogTask: Task<Void, Never>?
-    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader(), offlineStorage: OfflineMusicCache? = nil, platformMode: Bool = false, bookmarks: PlatformBookmarkStore = PlatformBookmarkStore(), personal: PlatformPersonalStore = PlatformPersonalStore()) { self.personal = personal; self.bookmarks = bookmarks; self.artwork = artwork; self.libraryRemote = platformMode ? nil : libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.platformMode = platformMode; self.musicWebOrigin = platformMode ? (client as? any PlatformMusicProviding)?.webOrigin : MusicLink.webOrigin(musicWebOrigin)
+    init(client: any CatalogProviding, playback: PlaybackService = PlaybackService(), library: ScopedLibrary = ScopedLibrary(), account: NativeAccountModel = NativeAccountModel(), musicWebOrigin: URL? = nil, libraryRemote: (any LibraryRemote)? = nil, environment: AppEnvironment = .mock, artwork: ArtworkLoader = ArtworkLoader(), offlineStorage: OfflineMusicCache? = nil, platformMode: Bool = false, bookmarks: PlatformBookmarkStore = PlatformBookmarkStore(), personal: PlatformPersonalStore = PlatformPersonalStore(), notebook: PlatformNotebookStore = PlatformNotebookStore()) { self.notebook = notebook; self.personal = personal; self.bookmarks = bookmarks; self.artwork = artwork; self.libraryRemote = platformMode ? nil : libraryRemote; self.scope = AccountScope(environment: environment, accountID: nil); self.client = client; self.playback = playback; self.library = library; self.account = account; self.platformMode = platformMode; self.musicWebOrigin = platformMode ? (client as? any PlatformMusicProviding)?.webOrigin : MusicLink.webOrigin(musicWebOrigin)
         if !platformMode, let native = client as? NativeMusicAPI {
             let cache = offlineStorage ?? OfflineMusicCache(origin: native.configuration.origin)
             offlineCache = cache; playback.offlineCache = cache; playback.configure(authorizer: native)
@@ -115,6 +120,7 @@ import Observation
             self.bookmarkTask?.cancel(); self.detailTask?.cancel()
             self.favorites = []; self.favoriteBookmarks = [:]; self.unavailableFavorites = []
             self.personalGeneration += 1; self.personalState = nil; self.personalBusy = false; self.visitIntent = nil
+            self.notebookGeneration += 1; self.notebookState = nil; self.notebookBusy = false; self.notebookErrorKey = nil
             self.platformDetail = nil; self.platformDetailGeneration += 1
             self.platformPendingSlug = nil; self.platformExpectedID = nil; self.platformAttribution = [:]
             self.showPlayer = false; self.recent = []; self.playback.clear()
@@ -124,6 +130,7 @@ import Observation
             try await self.library.removeDeletedAccountData(scope: deletedScope)
             try await self.bookmarks.removeDeletedAccount(scope: deletedScope)
             try await self.personal.removeDeletedAccount(scope: deletedScope)
+            try await self.notebook.removeDeletedAccount(scope: deletedScope)
         }
         playback.onListen = { [weak self] track, variant, audible, position, eventID in
             guard let self else { return }; let scope = self.scope, generation = self.libraryGeneration
@@ -142,6 +149,7 @@ import Observation
         let work = Task { @MainActor [weak self] in
             guard let self else { return }
             await self.refreshPersonal()
+            await self.refreshNotebook()
             await self.refreshLibrary()
             await self.refreshOffline()
             // Restore can finish as guest/unavailable. In either case the public
@@ -325,7 +333,9 @@ import Observation
     }
     var preferredPlatform: PlatformProvider? { personalState?.preferred }
     var hasLegacyOfflineFiles: Bool { offlineBytes > 0 || !offlineSongs.isEmpty }
-    var platformPresentationIDs: Set<String> { favorites.union(personalState?.visits.map(\.id) ?? []) }
+    var platformPresentationIDs: Set<String> {
+        favorites.union(personalState?.visits.map(\.id) ?? []).union(notebookState?.notes.compactMap { $0.work?.id } ?? [])
+    }
     func orderedPlatformLinks(_ links: [PlatformLink]) -> [PlatformLink] { personalState?.orderedLinks(links) ?? links }
     func refreshPersonal() async {
         guard platformMode, !personalBusy else { return }
@@ -385,6 +395,84 @@ import Observation
         playback.clear(); platformAttribution = [:]; showPlayer = true
         resolvePlatformSelection(slug: row.visit.slug, expectedID: row.id)
     }
+    func refreshNotebook() async {
+        guard platformMode, !scopeTransition, !notebookBusy else { return }
+        let captured = scope, generation = notebookGeneration
+        notebookBusy = true
+        defer { if scope == captured, generation == notebookGeneration { notebookBusy = false } }
+        do {
+            let state = try await notebook.snapshot(scope: captured)
+            guard scope == captured, generation == notebookGeneration else { return }
+            acceptNotebook(state)
+        } catch {
+            if scope == captured, generation == notebookGeneration { notebookErrorKey = notebookMessage(error) }
+        }
+    }
+    private func acceptNotebook(_ state: NotebookState) {
+        guard notebookState == nil || state.revision >= notebookState!.revision else { return }
+        notebookState = state; notebookErrorKey = nil
+    }
+    private func notebookMessage(_ error: Error) -> String {
+        switch error as? NotebookError {
+        case .invalidInput: "notebookInvalid"
+        case .limitReached: "notebookLimit"
+        case .staleEdit: "notebookStale"
+        default: "notebookError"
+        }
+    }
+    private func updateNotebook(scope captured: AccountScope, _ update: () async throws -> NotebookState) async -> Bool {
+        guard platformMode, !scopeTransition, scope == captured, !notebookBusy else {
+            notebookErrorKey = "notebookStale"; return false
+        }
+        notebookGeneration += 1; let generation = notebookGeneration
+        notebookBusy = true; notebookErrorKey = nil
+        defer { if scope == captured, generation == notebookGeneration { notebookBusy = false } }
+        do {
+            let state = try await update()
+            guard scope == captured, generation == notebookGeneration else { return false }
+            acceptNotebook(state)
+            favoriteBookmarks = favoriteBookmarks.filter { platformPresentationIDs.contains($0.key) }
+            refreshFavoriteBookmarks()
+            return true
+        } catch {
+            if scope == captured, generation == notebookGeneration { notebookErrorKey = notebookMessage(error) }
+            return false
+        }
+    }
+    func saveNotebook(_ draft: NotebookDraft, expectedEpoch: UUID, expectedVersion: Int?, scope captured: AccountScope) async -> Bool {
+        await updateNotebook(scope: captured) { try await self.notebook.save(draft, expectedEpoch: expectedEpoch, expectedVersion: expectedVersion, scope: captured) }
+    }
+    func removeNotebook(id: UUID, expectedEpoch: UUID, scope captured: AccountScope? = nil) async -> Bool {
+        let captured = captured ?? scope
+        return await updateNotebook(scope: captured) { try await self.notebook.remove(id: id, expectedEpoch: expectedEpoch, scope: captured) }
+    }
+    func saveNotebookTopic(id: UUID?, name: String, expectedEpoch: UUID, scope captured: AccountScope? = nil) async -> Bool {
+        let captured = captured ?? scope
+        return await updateNotebook(scope: captured) { try await self.notebook.saveTopic(id: id, name: name, expectedEpoch: expectedEpoch, scope: captured) }
+    }
+    func removeNotebookTopic(id: UUID, expectedEpoch: UUID, scope captured: AccountScope? = nil) async -> Bool {
+        let captured = captured ?? scope
+        return await updateNotebook(scope: captured) { try await self.notebook.removeTopic(id: id, expectedEpoch: expectedEpoch, scope: captured) }
+    }
+    func clearNotebook(expectedEpoch: UUID, scope captured: AccountScope? = nil) async -> Bool {
+        let captured = captured ?? scope
+        return await updateNotebook(scope: captured) { try await self.notebook.clear(expectedEpoch: expectedEpoch, scope: captured) }
+    }
+    func notebookTrack(for work: NotebookWork?) -> Track? {
+        guard let work else { return nil }
+        return (tracks + featuredTracks + (platformDetail.map { [$0.track] } ?? []))
+            .first { $0.id == work.id && $0.release?.slug == work.slug }
+    }
+    func notebookBookmark(for work: NotebookWork?) -> PlatformBookmark? {
+        guard let work, let value = favoriteBookmarks[work.id], value.slug == work.slug, value.usable(at: Date()) else { return nil }
+        return value
+    }
+    func openNotebookWork(_ work: NotebookWork) {
+        guard platformMode else { return }
+        beginPlatformVisit()
+        playback.clear(); platformAttribution = [:]; showPlayer = true
+        resolvePlatformSelection(slug: work.slug, expectedID: work.id)
+    }
     var favoriteCount: Int { platformMode ? favorites.count : favoriteTracks.count }
     var favoriteTracks: [Track] { tracks.filter { favorites.contains($0.id) } }
     var platformAlbums: [PlatformAlbum] { (try? PlatformAlbum.catalog(tracks)) ?? [] }
@@ -435,13 +523,14 @@ import Observation
         libraryGeneration += 1; syncTask?.cancel(); libraryBusy = false
         let transition = libraryGeneration
         personalGeneration += 1; personalState = nil; personalBusy = false; personalError = false; visitIntent = nil
+        notebookGeneration += 1; notebookState = nil; notebookBusy = false; notebookErrorKey = nil
         bookmarkTask?.cancel(); favoriteBookmarks = [:]; unavailableFavorites = []; platformPendingSlug = nil; platformExpectedID = nil; platformAttribution = [:]
         operation += 1; catalogTask?.cancel(); detailTask?.cancel(); detail = nil; platformDetailGeneration += 1; platformDetail = nil; platformDetailFailure = false; collections = []; featuredTracks = []; featuredPhase = .loading; activeCollection = nil; playback.clear(); tracks = []; favorites = []; recent = []
         await library.selectScope(scope)
         guard transition == libraryGeneration else { return }
         self.scope = scope; scopeTransition = false
         await library.releaseInactiveScopes(keeping: scope)
-        await refreshPersonal(); await refreshLibrary(); syncLibrary()
+        await refreshPersonal(); await refreshNotebook(); await refreshLibrary(); syncLibrary()
     }
     func toggleFavorite(_ track: Track) async {
         await toggleFavoriteID(track.id)
@@ -461,6 +550,10 @@ import Observation
         let captured = scope, generation = libraryGeneration, locale = locale
         var rows = platformFavorites
         rows += platformVisits.filter { !favorites.contains($0.id) }.map { PlatformFavoriteRow(id: $0.id, track: $0.track, bookmark: $0.bookmark) }
+        var listed = Set(rows.map(\.id))
+        for work in notebookState?.notes.compactMap(\.work) ?? [] where listed.insert(work.id).inserted {
+            rows.append(PlatformFavoriteRow(id: work.id, track: notebookTrack(for: work), bookmark: notebookBookmark(for: work)))
+        }
         let retained = platformPresentationIDs
         bookmarkTask = Task { [weak self] in
             guard let self else { return }

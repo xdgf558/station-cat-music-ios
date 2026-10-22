@@ -596,6 +596,12 @@ struct RootView: View {
                 Text("2026-10-22").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("releaseNotebook"), systemImage: "square.and.pencil")
+                Label(model.t("releaseNotebookOrganization"), systemImage: "tag")
+                Label(model.t("releaseNotebookLocal"), systemImage: "lock")
+                Label(model.t("releaseBundledClips"), systemImage: "play.rectangle")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 1.0.2 (15) · 2026-10-22") {
                 Label(model.t("releaseDouyinClips"), systemImage: "play.rectangle")
                 Label(model.t("releaseDouyinControl"), systemImage: "hand.tap")
             }.listRowBackground(Palette.panel)

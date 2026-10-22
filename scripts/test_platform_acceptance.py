@@ -13,7 +13,7 @@ class PlatformReleaseChecks(unittest.TestCase):
             **{key: "NO" for key in NATIVE_FLAGS}, "StationNativeAuthOrigin": "",
             "StationMusicWebOrigin": "", "StationProductionActivationProfile": "",
             "StationPublicAppLinksEnabled": "NO", "StationPublicReleasesEnabled": "YES", "StationPublicReleaseOrigin": "https://wwwstationcat.org",
-            "CFBundleShortVersionString": "1.0.2", "CFBundleVersion": "15",
+            "CFBundleShortVersionString": "1.0.3", "CFBundleVersion": "16",
             "ITSAppUsesNonExemptEncryption": False,
         }
         self.privacy = plistlib.loads((ROOT / "Resources/PrivacyInfo.xcprivacy").read_bytes())
@@ -54,7 +54,7 @@ class PlatformReleaseChecks(unittest.TestCase):
         privacy = copy.deepcopy(self.privacy); privacy["NSPrivacyAccessedAPITypes"].pop()
         with self.assertRaises(ValueError):
             validate(self.info, privacy, self.notes, True)
-        notes = copy.deepcopy(self.notes); notes["ja"].pop("releaseV1Catalog")
+        notes = copy.deepcopy(self.notes); notes["ja"].pop("releaseNotebook")
         with self.assertRaises(ValueError):
             validate(self.info, self.privacy, notes, True)
 

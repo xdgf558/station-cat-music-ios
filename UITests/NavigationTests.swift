@@ -56,13 +56,13 @@ import XCTest
         app.navigationBars.buttons.firstMatch.tap()
         for _ in 0..<4 { if app.buttons["helpEntry"].isHittable { break }; app.swipeUp() }
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.2 (15)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.3 (16)")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["privacyPolicyLink"].firstMatch.exists)
         XCTAssertTrue(app.descendants(matching: .any)["termsLink"].firstMatch.exists)
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.2 (15)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["歌曲短片页支持通过官方播放器观看已发布的 YouTube 视频，内容以实际发布为准。"].exists)
-        XCTAssertTrue(app.staticTexts["阅读作品已发布的歌词与创作故事，支持歌词字号调整和全文展开。"].exists)
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.3 (16)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["可从歌曲页或“我的手记”记录自己的想法，并按需关联作品。"].exists)
+        XCTAssertTrue(app.staticTexts["按自建主题整理手记，通过标题或正文搜索，找回写下的内容。"].exists)
         let release = XCTAttachment(screenshot: app.screenshot()); release.name = "Version-Release-Notes"; release.lifetime = .keepAlways; add(release)
     }
     func testThreeTabsAndPlayerNeverAutoPlays() {

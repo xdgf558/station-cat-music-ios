@@ -70,7 +70,7 @@ private actor YouTubeTransport: HTTPTransport {
         let clips = try await api.clips(track, locale: "en")
         XCTAssertEqual(clips.count, 1)
         let requests = await transport.requests
-        XCTAssertEqual(URLComponents(url: requests[0].url!, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "include" })?.value, "youtube")
+        XCTAssertEqual(URLComponents(url: requests[0].url!, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "include" })?.value, "youtube,douyin")
         for patch in [["youtubeVideoId":"bad"], ["watchUrl":"https://evil.test/watch?v=abcdefghijk"], ["mediaUrl":"/api/station/content/assets/cccccccc-cccc-4ccc-8ccc-cccccccccccc"], ["provider":"unknown"]] {
             page["items"] = [item.merging(patch) { _, new in new }]
             let other = try PlatformMusicAPI(explicitlyEnabled: true, transport: YouTubeTransport(try JSONSerialization.data(withJSONObject: page)))

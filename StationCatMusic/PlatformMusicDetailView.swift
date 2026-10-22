@@ -11,6 +11,7 @@ struct PlatformMusicDetailView: View {
     @State private var content = PlatformContentModel()
     @State private var video = PlatformClipPlayer()
     @State private var youtube = YouTubeClipSession.forCurrentEnvironment()
+    @State private var douyin = DouyinClipSession.forCurrentEnvironment()
     @State private var section: Section = .lyrics
     @State private var expanded = false
     @AppStorage("platformLyricsFontSize") private var lyricSize = 18
@@ -18,6 +19,7 @@ struct PlatformMusicDetailView: View {
     @State private var failedURL: URL?
     @State private var copied = false
     @State private var showYouTubeInfo = false
+    @State private var showDouyinInfo = false
     @State private var openOperation = 0
     private enum Section: String, CaseIterable { case lyrics, clips, story
         var key: String { "contentTab." + rawValue }
@@ -66,6 +68,21 @@ struct PlatformMusicDetailView: View {
                             .navigationBarTitleDisplayMode(.inline)
                             .toolbar { ToolbarItem(placement: .confirmationAction) {
                                 Button(model.t("close")) { showYouTubeInfo = false }.accessibilityIdentifier("youtubePrivacyClose")
+                            } }
+                    }.presentationDetents([.medium, .large]).preferredColorScheme(.dark)
+                }
+                .sheet(isPresented: $showDouyinInfo) {
+                    NavigationStack {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 20) {
+                                Text(model.t("douyinPrivacyNotice")).fixedSize(horizontal: false, vertical: true)
+                                Button(model.t("douyinPrivacy")) { open(URL(string: "https://www.douyin.com/privacy/")!) }
+                                    .frame(minHeight: 44).accessibilityIdentifier("douyinPrivacy")
+                            }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+                        }.background(Palette.background).navigationTitle(model.t("douyinName"))
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar { ToolbarItem(placement: .confirmationAction) {
+                                Button(model.t("close")) { showDouyinInfo = false }.accessibilityIdentifier("douyinPrivacyClose")
                             } }
                     }.presentationDetents([.medium, .large]).preferredColorScheme(.dark)
                 }
@@ -220,9 +237,15 @@ struct PlatformMusicDetailView: View {
         case .failed: retry(content.clipsFailureKey, id: "clipsRetry") { content.retryClips() }
         case .loaded:
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
+                (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())) {
                     Text(model.t("selectedClips")).font(.headline)
-                    Spacer()
+                    if !typeSize.isAccessibilitySize { Spacer() }
+                    if content.clips.contains(where: { $0.douyin != nil }) {
+                        Button { stopClips(); showDouyinInfo = true } label: {
+                            Label(model.t("douyinName"), systemImage: "info.circle").font(.caption.weight(.semibold))
+                        }.frame(minHeight: 44).accessibilityLabel(model.t("douyinPrivacyInfo"))
+                            .accessibilityIdentifier("douyinPrivacyInfo")
+                    }
                     if content.clips.contains(where: { $0.youtube != nil }) {
                         Button { stopClips(); showYouTubeInfo = true } label: {
                             Label("YouTube", systemImage: "info.circle").font(.caption.weight(.semibold))
@@ -232,7 +255,9 @@ struct PlatformMusicDetailView: View {
                 }
                 ForEach(content.clips) { clip in
                     VStack(alignment: .leading, spacing: 12) {
-                        if clip.youtube != nil {
+                        if clip.douyin != nil {
+                            douyinCard(clip, detail: detail)
+                        } else if clip.youtube != nil {
                             youtubeCard(clip, detail: detail)
                         } else if video.selectedID == clip.id, let player = video.player {
                             ForegroundClipView(player: player).frame(height: 220).clipShape(RoundedRectangle(cornerRadius: 16))
@@ -252,23 +277,23 @@ struct PlatformMusicDetailView: View {
                             }.buttonStyle(.plain).accessibilityLabel(model.t("clipWatch") + " " + clip.title)
                                 .accessibilityIdentifier("clip." + clip.id)
                         }
-                        if clip.youtube == nil { clipDescription(clip) }
+                        if clip.youtube == nil && clip.douyin == nil { clipDescription(clip) }
                         if video.selectedID == clip.id, video.loading { loading }
                         if video.selectedID == clip.id, video.failed {
                             retry("clipPlayFailure", id: "clipRetry") { start(clip, detail: detail) }
                         }
                     }
                 }
-                if content.clips.contains(where: { $0.youtube == nil }) {
+                if content.clips.contains(where: { $0.mediaURL != nil }) {
                     Text(model.t("clipMutedHint")).font(.caption).foregroundStyle(Palette.muted)
                 }
             }
         }
     }
-    private func stopClips() { video.stop(); youtube.stop() }
+    private func stopClips() { video.stop(); youtube.stop(); douyin.stop() }
     private func startYouTube(_ clip: PlatformClip, detail: PlatformTrackDetail, externalOnly: Bool = false) {
         guard scenePhase == .active, model.showPlayer, let provider = model.platformCatalog else { return }
-        video.stop()
+        video.stop(); douyin.stop()
         youtube.start(clip, track: detail.track, locale: model.locale, provider: provider, externalOnly: externalOnly) { url in open(url) }
     }
     @ViewBuilder private func youtubeCard(_ clip: PlatformClip, detail: PlatformTrackDetail) -> some View {
@@ -276,7 +301,7 @@ struct PlatformMusicDetailView: View {
         VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 8) {
             Group {
                 if youtube.selectedID == clip.id, let view = youtube.webView {
-                    YouTubeWebView(view: view)
+                    OfficialClipWebView(view: view)
                 } else {
                     Button { startYouTube(clip, detail: detail) } label: {
                         ZStack {
@@ -321,6 +346,76 @@ struct PlatformMusicDetailView: View {
             }.font(.subheadline)
         }
     }
+    private func startDouyin(_ clip: PlatformClip, detail: PlatformTrackDetail, externalOnly: Bool = false) {
+        guard scenePhase == .active, model.showPlayer, let provider = model.platformCatalog else { return }
+        video.stop(); youtube.stop()
+        douyin.start(clip, track: detail.track, locale: model.locale, provider: provider, externalOnly: externalOnly) { url in open(url) }
+    }
+    @ViewBuilder private func douyinCard(_ clip: PlatformClip, detail: PlatformTrackDetail) -> some View {
+        let width: CGFloat = typeSize.isAccessibilitySize ? 220 : 200
+        VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 8) {
+            Group {
+                if douyin.selectedID == clip.id, let view = douyin.webView {
+                    OfficialClipWebView(view: view).frame(width: width, height: width * 1.5)
+                } else {
+                    Button { startDouyin(clip, detail: detail) } label: {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ZStack {
+                                OrbitArtwork(track: detail.track, model: model)
+                                LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.7)], startPoint: .top, endPoint: .bottom)
+                                VStack(spacing: 14) {
+                                    Image(systemName: "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white)
+                                    if !typeSize.isAccessibilitySize {
+                                        Text(model.t("douyinLoad")).font(.headline).foregroundStyle(.white)
+                                        Text(model.t("douyinCoverHint")).font(.caption).foregroundStyle(.white.opacity(0.8))
+                                    }
+                                }.padding(20)
+                            }.frame(width: width, height: width * 1.5).clipped()
+                                .clipShape(RoundedRectangle(cornerRadius: 14)).contentShape(Rectangle())
+                                .frame(maxWidth: .infinity)
+                            if typeSize.isAccessibilitySize {
+                                Text(model.t("douyinLoad")).font(.headline)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text(model.t("douyinCoverHint")).font(.caption).foregroundStyle(Palette.muted)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }.buttonStyle(.plain).accessibilityLabel(model.t("douyinLoad") + " · " + clip.title)
+                        .accessibilityIdentifier("douyinLoad." + clip.id)
+                }
+            }.frame(maxWidth: .infinity)
+            // The official iframe fits the complete video in this portrait viewport.
+            // Do not crop it or place app-owned overlays over its controls/ads.
+            if typeSize.isAccessibilitySize {
+                clipDescription(clip)
+            } else {
+                Text(clip.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+            }
+            if douyin.selectedID == clip.id, [.checking, .loading].contains(douyin.phase) {
+                ProgressView(model.t("contentLoading")).accessibilityIdentifier("douyinLoading")
+            }
+            if douyin.selectedID == clip.id, douyin.phase == .failed {
+                retry(douyin.failureKey, id: "douyinRetry") { startDouyin(clip, detail: detail) }
+            }
+            if douyin.selectedID == clip.id, douyin.phase == .loaded {
+                Text(model.t("douyinPlayerHint")).font(.caption).foregroundStyle(Palette.muted)
+                    .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("douyinPlayerHint")
+            }
+            HStack {
+                if !typeSize.isAccessibilitySize, !clip.summary.isEmpty {
+                    Text(clip.summary).font(.caption).foregroundStyle(Palette.muted)
+                        .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Button { startDouyin(clip, detail: detail, externalOnly: true) } label: {
+                    Label(model.t("douyinOpen"), systemImage: "arrow.up.right").fixedSize(horizontal: false, vertical: true)
+                }.frame(minHeight: 44).accessibilityIdentifier("douyinOpen." + clip.id)
+                Spacer(minLength: 8)
+                if douyin.selectedID == clip.id, douyin.phase != .failed {
+                    Button(model.t("clipStop")) { douyin.stop() }.frame(minHeight: 44).accessibilityIdentifier("douyinStop")
+                }
+            }.font(.subheadline)
+        }
+    }
     private func clipDescription(_ clip: PlatformClip) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(clip.title).font(.headline).fixedSize(horizontal: false, vertical: true)
@@ -335,7 +430,7 @@ struct PlatformMusicDetailView: View {
     }
     private func start(_ clip: PlatformClip, detail: PlatformTrackDetail) {
         guard scenePhase == .active, model.showPlayer, let provider = model.platformCatalog else { return }
-        youtube.stop()
+        youtube.stop(); douyin.stop()
         video.play(clip, track: detail.track, locale: model.locale, provider: provider)
     }
     private var loading: some View {
@@ -438,7 +533,7 @@ private struct ForegroundClipView: UIViewControllerRepresentable {
     static func dismantleUIViewController(_ view: AVPlayerViewController, coordinator: ()) { view.player?.pause(); view.player = nil }
 }
 
-private struct YouTubeWebView: UIViewRepresentable {
+private struct OfficialClipWebView: UIViewRepresentable {
     let view: WKWebView
     func makeUIView(context: Context) -> WKWebView { view }
     func updateUIView(_ uiView: WKWebView, context: Context) {}

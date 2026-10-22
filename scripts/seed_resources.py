@@ -1,7 +1,20 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''releaseYouTubeClips|Watch published YouTube clips in the song page using the official player. Clips appear when they are published.|歌曲短片页支持通过官方播放器观看已发布的 YouTube 视频，内容以实际发布为准。|歌曲短片頁支援透過官方播放器觀看已發佈的 YouTube 影片，內容以實際發佈為準。|曲の動画ページで、公開された YouTube 動画を公式プレーヤーで視聴できます。表示内容は公開状況によります。
+rows='''releaseDouyinClips|Song pages can open published Douyin clips in the official player after you tap. Available clips depend on publication.|歌曲短片页增加抖音来源，点击后可加载官方播放器，内容以实际发布为准。|歌曲短片頁增加抖音來源，點擊後可載入官方播放器，內容以實際發佈為準。|曲の動画ページが Douyin に対応しました。タップして公式プレーヤーを読み込めます。表示内容は公開状況によります。
+releaseDouyinControl|Douyin clips are checked again before opening. Leaving the page stops the player; an external link is available if it cannot play.|打开前再次核验短片，离开页面即停止；无法播放时可前往抖音查看。|開啟前再次核驗短片，離開頁面即停止；無法播放時可前往抖音查看。|開く前に動画を再確認します。ページを離れると停止し、再生できない場合は Douyin で開けます。
+douyinName|Douyin|抖音|抖音|Douyin
+douyinLoad|Load Douyin player|加载抖音播放器|載入抖音播放器|Douyin プレーヤーを読み込む
+douyinCoverHint|Song artwork · tap to connect to Douyin|歌曲封面 · 点击后连接抖音|歌曲封面 · 點擊後連線至抖音|楽曲のアートワーク · タップすると Douyin に接続
+douyinOpen|Open in Douyin|在抖音打开|在抖音開啟|Douyin で開く
+douyinLoadFailure|Douyin could not load. Retry or open it in Douyin.|抖音暂时无法载入，可重试或在抖音打开。|抖音暫時無法載入，可重試或在抖音開啟。|Douyin を読み込めません。再試行するか Douyin で開いてください。
+douyinVerifyFailure|Could not verify this clip. Connect to the internet and retry.|暂时无法核验短片，请联网后重试。|暫時無法核驗短片，請連網後重試。|動画を確認できません。インターネットに接続して再試行してください。
+douyinUnavailable|This clip is no longer available for embedding. You can check it on Douyin.|短片暂不可嵌入或已不公开，可前往抖音核对。|短片暫不可嵌入或已不公開，可前往抖音確認。|埋め込みを利用できないか、動画が非公開です。Douyin でご確認ください。
+douyinPlayerHint|Use the player's controls to start. If playback is unavailable, open in Douyin.|请在播放器内点按播放；若无法观看，可在抖音打开。|請在播放器內點按播放；若無法觀看，可在抖音開啟。|プレーヤー内の操作で再生してください。視聴できない場合は Douyin で開けます。
+douyinPrivacyInfo|Douyin privacy information|抖音隐私说明|抖音隱私說明|Douyin のプライバシー情報
+douyinPrivacy|Douyin Privacy Policy|抖音隐私政策|抖音隱私權政策|Douyin プライバシーポリシー
+douyinPrivacyNotice|Loading connects to Douyin's official video service, which may process your IP address, device/browser and usage information under its policies and show ads. No Station Cat account data is sent. Playback requires the internet. Temporary web storage does not mean Douyin collects no data. Videos are not downloaded; leaving the page stops the player.|加载后会连接抖音官方视频服务，可能按其政策处理 IP 地址、设备／浏览器及使用信息，并展示广告。不发送 Station Cat 账号资料。播放需要联网；临时网页存储不代表抖音不收集数据。不提供视频下载，离开页面即停止播放器。|載入後會連線至抖音官方影片服務，可能依其政策處理 IP 位址、裝置／瀏覽器及使用資訊，並顯示廣告。不傳送 Station Cat 帳號資料。播放需要網路；暫時網頁儲存不代表抖音不蒐集資料。不提供影片下載，離開頁面即停止播放器。|読み込み後は Douyin の公式動画サービスに接続します。同サービスはそのポリシーに従い IP アドレス、端末・ブラウザ、利用情報を処理し、広告を表示する場合があります。Station Cat のアカウント情報は送信しません。通信が必要で、一時的な Web ストレージは Douyin がデータを収集しないことを意味しません。動画のダウンロードはできず、ページを離れると停止します。
+releaseYouTubeClips|Watch published YouTube clips in the song page using the official player. Clips appear when they are published.|歌曲短片页支持通过官方播放器观看已发布的 YouTube 视频，内容以实际发布为准。|歌曲短片頁支援透過官方播放器觀看已發佈的 YouTube 影片，內容以實際發佈為準。|曲の動画ページで、公開された YouTube 動画を公式プレーヤーで視聴できます。表示内容は公開状況によります。
 releaseYouTubeControl|YouTube loads only after you tap. Leaving the page stops the video; unavailable embeds offer a YouTube link.|点击后才连接 YouTube，离开页面即停止；无法嵌入时可前往 YouTube 查看。|點擊後才連線至 YouTube，離開頁面即停止；無法嵌入時可前往 YouTube 查看。|タップ後に YouTube に接続し、ページを離れると停止します。埋め込みが利用できない場合は YouTube で開けます。
 selectedClips|Selected clips|精选短片|精選短片|ピックアップ動画
 youtubeLoad|Load YouTube player|加载 YouTube 播放器|載入 YouTube 播放器|YouTube プレーヤーを読み込む

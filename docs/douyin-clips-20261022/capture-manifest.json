@@ -1,0 +1,50 @@
+[
+  {
+    "file": "Douyin-Embedding-Unavailable.png",
+    "test": "DouyinClipUITests/testEmbedFailureOffersRetryAndExternalFallbackWithoutBreakingSong()",
+    "sha256": "a74c990df0a37dcbd013b4c4a20173c1a9803601aa584c2f71c73515295007d2",
+    "actualVideo": false,
+    "source": "local-simulator-fixture"
+  },
+  {
+    "file": "Douyin-ja-Accessibility.png",
+    "test": "DouyinClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+    "sha256": "322d9cd975a4869ae7cc83eefe4111a83d2320f7af67327bbc91e9b2c0d864a4",
+    "actualVideo": false,
+    "source": "local-simulator-fixture"
+  },
+  {
+    "file": "Douyin-en-Accessibility.png",
+    "test": "DouyinClipUITests/testFourLocalesLargeTextCanReachSourceFallbackAndListening()",
+    "sha256": "fa2eadbebf0c0b2d99d35633a7fa5d18b0efe9e5962257d8442c21f6f8ef1cf2",
+    "actualVideo": false,
+    "source": "local-simulator-fixture"
+  },
+  {
+    "file": "Douyin-Local-Player-Fixture.png",
+    "test": "DouyinClipUITests/testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown()",
+    "sha256": "c0dea568b4d2eb45f2f2b6a9cdaf53060728032c2f24377e292e88f1364270e9",
+    "actualVideo": false,
+    "source": "local-simulator-fixture"
+  },
+  {
+    "file": "Douyin-Privacy-Notice.png",
+    "test": "DouyinClipUITests/testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown()",
+    "sha256": "2e48d300e3f4f51a57f6f9bb28b5a52e8a8ba5ce9095f1a24b5124458b4aac04",
+    "actualVideo": false,
+    "source": "local-simulator-fixture"
+  },
+  {
+    "file": "Douyin-Selected-Layout-zh-Hans.png",
+    "test": "DouyinClipUITests/testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown()",
+    "sha256": "ca0f29e92cbf496b9665bc2c785e1659168851be4819f1b2abc0d3514c400b21",
+    "actualVideo": false,
+    "source": "local-simulator-fixture"
+  },
+  {
+    "file": "Version-1.0.2-Notes.png",
+    "test": "PlatformPersonalUITests/testPersonalHubNavigationPrivacyPreferenceAndNotes",
+    "sha256": "72fadc8cf2716629d9e824b1d14b2f973e29bd34569b04a39f0ffc33e7cc07e4",
+    "source": "local-simulator-fixture"
+  }
+]

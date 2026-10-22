@@ -593,9 +593,13 @@ struct RootView: View {
         libraryPage("releaseNotes", id: "releaseNotesPage") {
             Section {
                 Text("Station Cat Music · " + appVersion).font(.headline)
-                Text("2026-10-21").font(.caption).foregroundStyle(Palette.muted)
+                Text("2026-10-22").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("releaseDouyinClips"), systemImage: "play.rectangle")
+                Label(model.t("releaseDouyinControl"), systemImage: "hand.tap")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 1.0.1 (14) · 2026-10-21") {
                 Label(model.t("releaseYouTubeClips"), systemImage: "play.rectangle")
                 Label(model.t("releaseYouTubeControl"), systemImage: "hand.tap")
             }.listRowBackground(Palette.panel)

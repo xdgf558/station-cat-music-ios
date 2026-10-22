@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-22",
+  "version": "1.0.2",
+  "build": "15",
+  "scope": "local-development-only",
+  "websiteCommit": "e21e2b8901ef4c8892fbd6e6ddf31d83d5a8ba42",
+  "toolchain": {
+    "xcode": "27.1",
+    "build": "27A9275",
+    "simulator": "iPhone 17 Pro",
+    "simulatorOS": "26.4",
+    "repositoryPinnedXcode": "26.4.1",
+    "hostedCIRun": false
+  },
+  "unitTests": {
+    "passed": 55,
+    "failed": 0,
+    "skipped": 0,
+    "suites": [
+      "DouyinClipTests",
+      "DouyinAPITests",
+      "YouTubeClipTests",
+      "PlatformContentTests",
+      "PlatformMusicTests"
+    ]
+  },
+  "sourceGuards": "passed",
+  "contractValidation": {
+    "operations": 26,
+    "positiveExamples": 67,
+    "negativeExamples": 21,
+    "result": "passed"
+  },
+  "pythonPlatformChecks": {
+    "passed": 11,
+    "failed": 0
+  },
+  "productionPackage": {
+    "bundle": "org.stationcat.music",
+    "version": "1.0.2",
+    "build": "15",
+    "publicMetadataEnabled": false,
+    "nativeServicesEnabled": false,
+    "backgroundAudio": false,
+    "requiredReasonManifest": "present",
+    "usesNonExemptEncryption": false,
+    "releaseNoteLocales": [
+      "en",
+      "ja",
+      "zh-Hans",
+      "zh-Hant"
+    ],
+    "appStorePrivacyLabelConfirmed": false,
+    "signedDistributionValidated": false
+  },
+  "localizationSHA256": "8784a81713ebf0836fe71db159590f1d3e6f32ab5c8f772734f709f045cf346c",
+  "initialFailure": {
+    "cause": "WebKit normalized the local base URL to a trailing slash, which an exact URL comparison rejected.",
+    "fixed": "Accept only the equivalent root forms; retain strict path/origin/query/fragment/credential/port rejection.",
+    "originalLogsRetainedInIgnoredBuildDirectory": true
+  },
+  "realDouyinVideoLinksProvided": false,
+  "realVideoPlaybackVerified": false,
+  "realHTTPSCrossRepositoryTest": false,
+  "physicalDeviceTest": false,
+  "voiceOverSpeechTest": false,
+  "productionDeployment": false,
+  "contentPublished": false,
+  "signedDistribution": false,
+  "deviceInstalled": false,
+  "testFlightUpload": false,
+  "appleSubmissionChanged": false,
+  "applePrivacyAnswersChanged": false,
+  "initialUIRegression": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "cases": [
+      "DouyinClipUITests (3, including four locales at largest accessibility size)",
+      "YouTubeClipUITests/testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown",
+      "PlatformPersonalUITests/testPersonalHubNavigationPrivacyPreferenceAndNotes"
+    ],
+    "note": "Before the subsequent accessibility-only visual correction; affected Douyin UI cases rerun separately."
+  },
+  "finalAffectedUIRegression": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0,
+    "suite": "DouyinClipUITests",
+    "includesFourLocalesAtMaximumAccessibilityText": true
+  }
+}

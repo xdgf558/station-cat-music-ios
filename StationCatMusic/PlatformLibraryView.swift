@@ -23,6 +23,11 @@ struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
                 NavigationLink(destination: favorites) { favoriteCard }
                     .buttonStyle(.plain).accessibilityIdentifier("favoritesEntry")
                     .accessibilityLabel(model.t("favorites") + ", " + model.albumTrackCount(model.favoriteCount))
+                NavigationLink { PlatformNotebookPage(model: model) } label: {
+                    destinationRow("notebookTitle", subtitle: "notebookIntro", symbol: "text.book.closed")
+                }.buttonStyle(.plain).accessibilityIdentifier("notebookEntry")
+                    .background(Palette.panel.opacity(0.9), in: RoundedRectangle(cornerRadius: 22))
+                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(Palette.accent.opacity(0.25), lineWidth: 1))
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(model.t("recentlyViewed")).font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)

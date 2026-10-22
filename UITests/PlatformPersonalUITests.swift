@@ -16,7 +16,8 @@ import XCTest
         XCTAssertTrue(element.isHittable)
     }
     private func capture(_ app: XCUIApplication, _ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+        // Preserve the whole compatibility window when inspecting the app on iPad.
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
     private func seed(_ app: XCUIApplication) {
         app.tabBars.buttons.element(boundBy: 1).tap()
@@ -62,8 +63,8 @@ import XCTest
         reveal(app.buttons["settingsHelpEntry"], app: app); app.buttons["settingsHelpEntry"].tap()
         XCTAssertFalse(app.buttons["offlineEntry"].exists); XCTAssertFalse(app.buttons["accountEntry"].exists)
         app.buttons["helpEntry"].tap(); app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.2 (15)"].waitForExistence(timeout: 5))
-        capture(app, "My-1.0.2-Build15-Notes")
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.3 (16)"].waitForExistence(timeout: 5))
+        capture(app, "My-1.0.3-Build16-Notes")
         app.terminate(); app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10)); app.tabBars.buttons.element(boundBy: 2).tap()
         XCTAssertTrue(app.staticTexts["Spotify"].exists)

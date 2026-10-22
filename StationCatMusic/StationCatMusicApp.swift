@@ -70,7 +70,7 @@ import SwiftUI
         let existingOffline = platformMode ? publicConfiguration.legacyOfflineOrigin.map {
             OfflineMusicCache(origin: $0, transport: LegacyOfflineManagementTransport())
         } : nil
-        let model = AppModel(client: client, library: ScopedLibrary(directory: directory), account: account, musicWebOrigin: webOrigin, libraryRemote: libraryRemote, environment: environment, artwork: artwork, offlineStorage: existingOffline, platformMode: platformMode, bookmarks: PlatformBookmarkStore(directory: bookmarkRoot.appending(path: "PublicMusicBookmarks-v1")), personal: PlatformPersonalStore(directory: personalRoot.appending(path: "PlatformPersonal-v1")))
+        let model = AppModel(client: client, library: ScopedLibrary(directory: directory), account: account, musicWebOrigin: webOrigin, libraryRemote: libraryRemote, environment: environment, artwork: artwork, offlineStorage: existingOffline, platformMode: platformMode, bookmarks: PlatformBookmarkStore(directory: bookmarkRoot.appending(path: "PublicMusicBookmarks-v1")), personal: PlatformPersonalStore(directory: personalRoot.appending(path: "PlatformPersonal-v1")), notebook: PlatformNotebookStore(directory: personalRoot.appending(path: "PlatformNotebook-v1")))
         if !platformMode, let native = client as? NativeMusicAPI, let host = native.configuration.origin.host {
             model.playback.attachSystem(SystemPlayback(playback: model.playback, artworkHost: host, artworkLoader: artwork))
         }

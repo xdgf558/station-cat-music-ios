@@ -20,6 +20,10 @@ struct PlatformMusicDetailView: View {
     @State private var copied = false
     @State private var showYouTubeInfo = false
     @State private var showDouyinInfo = false
+    @State private var notebookEditor: PlatformNotebookEditorContext?
+    @State private var notebookPendingWork: NotebookWork?
+    @State private var preparingNotebook = false
+    @State private var notebookEntryFailed = false
     @State private var openOperation = 0
     private enum Section: String, CaseIterable { case lyrics, clips, story
         var key: String { "contentTab." + rawValue }
@@ -43,6 +47,7 @@ struct PlatformMusicDetailView: View {
                             if let failedURL { linkFailure(failedURL) }
                             tabs
                             sectionBody(detail)
+                            notebookEntry(detail.track)
                             if section == .clips && !typeSize.isAccessibilitySize { platformLinks(release, placement: .remaining) }
                         } else { detailStatus }
                     } else { detailStatus }
@@ -86,6 +91,12 @@ struct PlatformMusicDetailView: View {
                             } }
                     }.presentationDetents([.medium, .large]).preferredColorScheme(.dark)
                 }
+                .sheet(item: $notebookEditor, onDismiss: {
+                    guard let work = notebookPendingWork else { return }
+                    notebookPendingWork = nil; model.openNotebookWork(work)
+                }) { context in
+                    PlatformNotebookEditor(model: model, context: context) { notebookPendingWork = $0 }
+                }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -111,6 +122,38 @@ struct PlatformMusicDetailView: View {
                 .onChange(of: scenePhase) { _, phase in if phase != .active { stopClips() } }
         }.preferredColorScheme(.dark).tint(Palette.accent)
             .onDisappear { content.clear(); stopClips(); invalidateOpen() }
+    }
+    private func notebookEntry(_ track: Track) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                stopClips(); preparingNotebook = true; notebookEntryFailed = false
+                let scope = model.scope
+                let generation = model.platformDetailGeneration
+                Task {
+                    await model.refreshNotebook()
+                    preparingNotebook = false
+                    guard model.scope == scope, model.platformDetailGeneration == generation,
+                          model.showPlayer, currentDetail?.track.id == track.id else { return }
+                    guard let state = model.notebookState, let slug = track.release?.slug else {
+                        notebookEntryFailed = true; return
+                    }
+                    notebookEditor = .init(work: .init(id: track.id, slug: slug), state: state, scope: scope)
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    if preparingNotebook { ProgressView() }
+                    else { Image(systemName: "square.and.pencil").accessibilityHidden(true) }
+                    Text(model.t("notebookWriteForSong")).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.right").font(.caption).accessibilityHidden(true)
+                }.padding(16).frame(minHeight: 56)
+                    .background(Palette.panel, in: RoundedRectangle(cornerRadius: 17))
+                    .overlay(RoundedRectangle(cornerRadius: 17).stroke(Palette.accent.opacity(0.25), lineWidth: 1))
+            }.buttonStyle(.plain).disabled(preparingNotebook || model.notebookBusy).accessibilityIdentifier("notebookWriteForSong")
+            if notebookEntryFailed {
+                Label(model.t(model.notebookErrorKey ?? "notebookError"), systemImage: "exclamationmark.circle")
+                    .font(.footnote).foregroundStyle(Palette.muted).accessibilityIdentifier("notebookEntryError")
+            }
+        }
     }
     private func identity(_ track: Track) -> some View {
         ViewThatFits(in: .horizontal) {

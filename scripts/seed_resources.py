@@ -1,7 +1,66 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''releaseDouyinClips|Song pages can open published Douyin clips in the official player after you tap. Available clips depend on publication.|歌曲短片页增加抖音来源，点击后可加载官方播放器，内容以实际发布为准。|歌曲短片頁增加抖音來源，點擊後可載入官方播放器，內容以實際發佈為準。|曲の動画ページが Douyin に対応しました。タップして公式プレーヤーを読み込めます。表示内容は公開状況によります。
+rows='''notebookTextLimits|Titles can contain up to 120 characters and note text up to 8,000.|标题最多 120 字，正文最多 8,000 字。|標題最多 120 字，內文最多 8,000 字。|タイトルは120文字、本文は8,000文字まで入力できます。
+notebookTopicLimits|Topic names can contain up to 40 characters and must be unique.|主题名称最多 40 字，且不能与已有主题重名。|主題名稱最多 40 字，且不能與既有主題重名。|テーマ名は40文字以内で、既存のテーマと異なる名前にしてください。
+releaseNotebook|Write your own notes from a song page or the notebook, with an optional link to a work.|可从歌曲页或“我的手记”记录自己的想法，并按需关联作品。|可從歌曲頁或「我的手記」記錄自己的想法，並依需要關聯作品。|曲のページやマイノートから自分の言葉を記録し、必要に応じて作品に関連付けられます。
+releaseNotebookOrganization|Organize notes into your own topics and search titles or text to find them again.|按自建主题整理手记，通过标题或正文搜索，找回写下的内容。|依自建主題整理手記，透過標題或內文搜尋，找回寫下的內容。|自分で作ったテーマでノートを整理し、タイトルや本文から検索できます。
+releaseNotebookLocal|Read, edit and delete saved notes offline. Notes stay on this device and are not uploaded or synced across devices.|已保存的手记可离线查看、编辑和删除，仅保存在本机，不上传或跨设备同步。|已儲存的手記可離線查看、編輯及刪除，僅儲存在本機，不上傳或跨裝置同步。|保存したノートはオフラインでも閲覧・編集・削除できます。この端末のみに保存され、アップロードや端末間同期は行いません。
+releaseBundledClips|This update also includes YouTube and Douyin players. Tap to connect when a clip is published; no videos are downloaded. Listening still opens your music platform.|本次同时包含 YouTube 与抖音短片播放器，有已发布内容时点击后才连接，不提供视频下载；歌曲仍前往音乐平台收听。|本次同時包含 YouTube 與抖音短片播放器，有已發佈內容時點擊後才連線，不提供影片下載；歌曲仍前往音樂平台收聽。|YouTube と Douyin のプレーヤーも含みます。公開動画がある場合にタップして接続し、動画はダウンロードしません。楽曲は引き続き外部の音楽サービスで聴けます。
+notebookTitle|My notebook|我的手记|我的手記|マイノート
+notebookIntro|Keep your thoughts about music for yourself.|把听歌时的想法，留给自己。|把聽歌時的想法，留給自己。|音楽から生まれた思いを、自分のために。
+notebookSearch|Search notes|搜索手记|搜尋手記|ノートを検索
+notebookAll|All|全部|全部|すべて
+notebookUncategorized|Uncategorized|未分类|未分類|未分類
+notebookNew|New note|新建手记|新增手記|ノートを作成
+notebookManageTopics|Manage topics|管理主题|管理主題|テーマを管理
+notebookEmpty|No notes yet|还没有手记|還沒有手記|ノートはまだありません
+notebookEmptyDetail|Start with a song and write down your own thoughts.|从一首歌开始，记下属于你的想法。|從一首歌開始，記下屬於你的想法。|一曲をきっかけに、自分の思いを書き留めましょう。
+notebookNoResults|No matching notes|没有匹配的手记|沒有符合的手記|一致するノートがありません
+notebookNoResultsDetail|Try another keyword or topic.|试试其他关键词或主题。|試試其他關鍵字或主題。|別のキーワードやテーマをお試しください。
+notebookLoading|Loading notes…|正在读取手记…|正在讀取手記…|ノートを読み込み中…
+notebookEdit|Edit note|编辑手记|編輯手記|ノートを編集
+notebookNoteTitle|Note title|手记标题|手記標題|ノートのタイトル
+notebookBodyPlaceholder|Write your thoughts…|写下你的想法…|寫下你的想法…|思いを書き留めましょう…
+notebookBody|Your thoughts|你的想法|你的想法|あなたの思い
+notebookWork|Linked work|关联作品|關聯作品|関連する作品
+notebookChooseWork|Choose a song|选择歌曲|選擇歌曲|曲を選択
+notebookNoWork|No linked song|不关联歌曲|不關聯歌曲|曲を関連付けない
+notebookWorkUnavailable|Connect to update the linked work|关联作品待联网更新|關聯作品待連網更新|接続後に関連作品を更新
+notebookOpenWork|View song|查看歌曲|查看歌曲|曲を表示
+notebookTopic|Topic|主题|主題|テーマ
+notebookSave|Save note|保存手记|儲存手記|ノートを保存
+notebookLocalOnly|Notes stay on this device. They are not uploaded or synced across devices.|手记仅保存在此设备，不上传或跨设备同步。|手記僅儲存在此裝置，不上傳或跨裝置同步。|ノートはこの端末のみに保存されます。アップロードや端末間同期は行いません。
+notebookDelete|Delete note|删除手记|刪除手記|ノートを削除
+notebookDeleteConfirm|Delete this note?|删除这篇手记？|刪除這篇手記？|このノートを削除しますか？
+notebookDeleteDetail|This cannot be undone.|删除后无法恢复。|刪除後無法復原。|削除後は元に戻せません。
+notebookDiscardConfirm|Discard unsaved changes?|放弃未保存的修改？|放棄未儲存的修改？|未保存の変更を破棄しますか？
+notebookDiscard|Discard changes|放弃修改|放棄修改|変更を破棄
+notebookKeepEditing|Keep editing|继续编辑|繼續編輯|編集を続ける
+notebookNewTopic|New topic|新建主题|新增主題|テーマを作成
+notebookRenameTopic|Rename topic|重命名主题|重新命名主題|テーマ名を変更
+notebookTopicName|Topic name|主题名称|主題名稱|テーマ名
+notebookDeleteTopic|Delete topic|删除主题|刪除主題|テーマを削除
+notebookDeleteTopicConfirm|Delete this topic?|删除这个主题？|刪除這個主題？|このテーマを削除しますか？
+notebookDeleteTopicDetail|Its notes move to Uncategorized. The notes will not be deleted.|主题中的手记会移到“未分类”，不会删除手记。|主題中的手記會移至「未分類」，不會刪除手記。|このテーマのノートは「未分類」に移動し、削除されません。
+notebookNoTopics|No topics yet|还没有主题|還沒有主題|テーマはまだありません
+notebookClear|Clear all notes|清空全部手记|清空所有手記|すべてのノートを消去
+notebookClearConfirm|Clear all notes and topics?|清空全部手记和主题？|清空所有手記與主題？|すべてのノートとテーマを消去しますか？
+notebookClearDetail|All notes and topics on this device will be deleted. This cannot be undone.|此设备上的所有手记和主题将被删除，无法恢复。|此裝置上的所有手記與主題將被刪除，無法復原。|この端末のすべてのノートとテーマを削除します。元に戻せません。
+notebookUntitled|Untitled note|未命名手记|未命名手記|無題のノート
+notebookWriteForSong|Write a song note|写歌曲手记|寫歌曲手記|曲のノートを書く
+notebookSongSearch|Search songs|搜索歌曲|搜尋歌曲|曲を検索
+notebookNoSongs|No songs to link right now|当前没有可关联的歌曲|目前沒有可關聯的歌曲|関連付けられる曲がありません
+notebookNoSongsDetail|You can still write a note and link a work when connected.|你仍可先写手记，联网后再关联作品。|你仍可先寫手記，連網後再關聯作品。|先にノートを書き、接続後に作品と関連付けることもできます。
+notebookPrivacy|Stored on this device|本机保存|本機儲存|この端末に保存
+notebookStaleDetail|The data has changed or was cleared. Close and reopen this page. Your unsaved text is still here.|资料已更改或清空。请关闭后重新打开，未保存的文字仍留在本页。|資料已變更或清空。請關閉後重新開啟，未儲存的文字仍留在本頁。|データが変更または消去されました。この画面を閉じて開き直してください。未保存の文章はまだこの画面に残っています。
+notebookRename|Rename|重命名|重新命名|名前を変更
+notebookSaveTopic|Save topic|保存主题|儲存主題|テーマを保存
+notebookError|Could not read or save your notes. Please retry.|手记读取或保存失败，请重试。|手記讀取或儲存失敗，請重試。|ノートの読み込みまたは保存に失敗しました。再試行してください。
+notebookInvalid|Check the text length and linked work, then retry.|请检查文字长度及关联作品后重试。|請檢查文字長度及關聯作品後重試。|文章の長さと関連作品を確認して再試行してください。
+notebookLimit|Notebook storage is full. Delete some content and retry.|本机手记容量已满，请删除部分内容后重试。|本機手記容量已滿，請刪除部分內容後重試。|ノートの保存容量がいっぱいです。一部を削除して再試行してください。
+notebookStale|The data changed. Reopen this page before editing.|资料已更改，请重新打开后再编辑。|資料已變更，請重新開啟後再編輯。|データが変更されました。画面を開き直してから編集してください。
+releaseDouyinClips|Song pages can open published Douyin clips in the official player after you tap. Available clips depend on publication.|歌曲短片页增加抖音来源，点击后可加载官方播放器，内容以实际发布为准。|歌曲短片頁增加抖音來源，點擊後可載入官方播放器，內容以實際發佈為準。|曲の動画ページが Douyin に対応しました。タップして公式プレーヤーを読み込めます。表示内容は公開状況によります。
 releaseDouyinControl|Douyin clips are checked again before opening. Leaving the page stops the player; an external link is available if it cannot play.|打开前再次核验短片，离开页面即停止；无法播放时可前往抖音查看。|開啟前再次核驗短片，離開頁面即停止；無法播放時可前往抖音查看。|開く前に動画を再確認します。ページを離れると停止し、再生できない場合は Douyin で開けます。
 douyinName|Douyin|抖音|抖音|Douyin
 douyinLoad|Load Douyin player|加载抖音播放器|載入抖音播放器|Douyin プレーヤーを読み込む

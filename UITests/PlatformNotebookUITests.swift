@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 @MainActor final class PlatformNotebookUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
@@ -37,6 +38,85 @@ import XCTest
     }
     private func rows(_ app: XCUIApplication) -> XCUIElementQuery {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "notebook.note."))
+    }
+    private func paste(_ value: String, into element: XCUIElement, app: XCUIApplication) {
+        // The simulator test runner and tested app share this pasteboard. Use
+        // the real system Paste action, not typeText (which sends Return keys).
+        UIPasteboard.general.string = value
+        element.tap(); element.press(forDuration: 1.2)
+        let menuItem = app.menuItems["Paste"]
+        if menuItem.waitForExistence(timeout: 2) { menuItem.tap() }
+        else {
+            let button = app.buttons["Paste"].firstMatch
+            XCTAssertTrue(button.waitForExistence(timeout: 3)); button.tap()
+        }
+    }
+    func testTitleNextMovesTypingToBodyAndSavesSingleLineTitle() {
+        let app = launch(); enter(app); app.buttons["notebookNew"].tap()
+        let heading = app.textFields["notebookTitleField"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 5)); heading.tap(); heading.typeText("A title")
+        // Send the actual Return key. The keyboard exposes a localized/lowercase
+        // label (for example "next"), which is not a stable app identifier.
+        heading.typeText("\n")
+        // Do not tap the body: subsequent typing must follow the focus change.
+        app.typeText("My own words belong in the body.")
+        XCTAssertEqual(heading.value as? String, "A title")
+        XCTAssertEqual(app.textViews["notebookBodyField"].value as? String, "My own words belong in the body.")
+        XCTAssertTrue(app.staticTexts["notebookTextLimits"].exists)
+        app.buttons["notebookSave"].tap()
+        XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5)); XCTAssertEqual(rows(app).count, 1)
+        rows(app).firstMatch.tap()
+        XCTAssertTrue(app.textFields["notebookTitleField"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.textFields["notebookTitleField"].value as? String, "A title")
+        XCTAssertEqual(app.textViews["notebookBodyField"].value as? String, "My own words belong in the body.")
+    }
+    func testPastedMultilineTitlePreservesWordsAsSingleLine() {
+        let app = launch(); enter(app)
+        let examples = [("First line\nSecond line", "First line Second line"),
+                        ("First thought\r\nSecond thought", "First thought Second thought")]
+        for (index, example) in examples.enumerated() {
+            app.buttons["notebookNew"].tap()
+            let heading = app.textFields["notebookTitleField"]
+            XCTAssertTrue(heading.waitForExistence(timeout: 5)); paste(example.0, into: heading, app: app)
+            XCTAssertEqual(heading.value as? String, example.1)
+            // UIKit may already replace line breaks before the Binding setter.
+            // The permanent rule is visible either way; the persisted text is
+            // the contract, rather than requiring a transient conversion hint.
+            XCTAssertTrue(app.staticTexts["notebookTextLimits"].exists)
+            app.buttons["notebookSave"].tap()
+            XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5)); XCTAssertEqual(rows(app).count, index + 1)
+            let saved = rows(app).matching(NSPredicate(format: "label CONTAINS %@", example.1)).firstMatch
+            XCTAssertTrue(saved.waitForExistence(timeout: 5)); saved.tap()
+            XCTAssertTrue(app.textFields["notebookTitleField"].waitForExistence(timeout: 5))
+            XCTAssertEqual(app.textFields["notebookTitleField"].value as? String, example.1)
+            app.buttons["notebookEditorClose"].tap()
+            XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
+        }
+        UIPasteboard.general.items = []
+    }
+    func testRejectedTitleKeepsCompleteDraftForCorrectionAndRetry() {
+        let app = launch(); enter(app); app.buttons["notebookNew"].tap()
+        let overlong = String(repeating: "a", count: 121)
+        let body = "First thought.\nSecond thought stays here."
+        let heading = app.textFields["notebookTitleField"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 5)); heading.tap(); heading.typeText(overlong)
+        let text = app.textViews["notebookBodyField"]; text.tap(); text.typeText(body)
+        app.buttons["notebookSave"].tap()
+        let error = field(app, "notebookError")
+        XCTAssertTrue(error.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["notebookEditorClose"].exists)
+        XCTAssertEqual(heading.value as? String, overlong, "An invalid title must not be silently truncated")
+        XCTAssertEqual(text.value as? String, body, "A rejected save must retain the complete body")
+        heading.tap(); heading.typeText(XCUIKeyboardKey.delete.rawValue)
+        XCTAssertEqual(heading.value as? String, String(repeating: "a", count: 120))
+        XCTAssertEqual(text.value as? String, body)
+        app.buttons["notebookSave"].tap()
+        XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5)); XCTAssertEqual(rows(app).count, 1)
+        rows(app).firstMatch.tap()
+        XCTAssertTrue(app.textFields["notebookTitleField"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.textFields["notebookTitleField"].value as? String, String(repeating: "a", count: 120))
+        XCTAssertEqual(app.textViews["notebookBodyField"].value as? String, body)
+        capture(app, "Notebook-Corrected-Title-Draft-Retained")
     }
     func testWritingSearchOfflineReopenAndClear() {
         let app = launch(); enter(app)

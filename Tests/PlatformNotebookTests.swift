@@ -53,6 +53,75 @@ private final class NotebookWriter: @unchecked Sendable {
         XCTAssertTrue(final.notes.isEmpty); XCTAssertEqual(final, removed)
     }
 
+    func testTitleLineBreakInputKeepsTextAndDoesNotTruncate() {
+        let examples = [
+            ("Night thoughts", "Night thoughts"),
+            ("Night\nthoughts", "Night thoughts"),
+            ("Night\r\nthoughts", "Night thoughts"),
+            ("夜里的想法\n第二行", "夜里的想法 第二行"),
+            ("夜里的想法\r\n第二行", "夜里的想法 第二行"),
+            ("First\rsecond\u{2028}third\u{2029}fourth", "First second third fourth"),
+            ("  First\n\nlast  ", "  First  last  ")
+        ]
+        for (input, expected) in examples {
+            XCTAssertEqual(NotebookTitleInput.singleLine(input), expected)
+        }
+        let longTitle = String(repeating: "字", count: 121)
+        XCTAssertEqual(NotebookTitleInput.singleLine(longTitle), longTitle)
+        // Other invalid controls must reach validation, not silently disappear.
+        XCTAssertEqual(NotebookTitleInput.singleLine("Night\u{0}thoughts"), "Night\u{0}thoughts")
+    }
+
+    func testLFAndCRLFTitlesRejectRawInputAndRoundTripNormalizedInput() async throws {
+        for separator in ["\n", "\r\n"] {
+            let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+            let store = PlatformNotebookStore(directory: root), initial = try await store.snapshot(scope: .guest)
+            var draft = NotebookDraft(title: "夜里的想法", body: "已有文字")
+            let saved = try await store.save(draft, expectedEpoch: initial.epoch, expectedVersion: nil, scope: .guest)
+            let url = try file(in: root), bytes = try Data(contentsOf: url)
+            draft.title = "夜里的想法" + separator + "第二行"
+            draft.body = "正文第一行" + separator + "正文第二行"
+            let invalidDraft = draft
+            await expect(.invalidInput) {
+                _ = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest)
+            }
+            XCTAssertEqual(draft, invalidDraft)
+            XCTAssertEqual(try Data(contentsOf: url), bytes)
+            let unchanged = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
+            XCTAssertEqual(unchanged, saved)
+            draft.title = NotebookTitleInput.singleLine(draft.title)
+            let corrected = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest)
+            let reopened = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
+            XCTAssertEqual(reopened, corrected)
+            XCTAssertEqual(reopened.notes[0].title, "夜里的想法 第二行")
+            XCTAssertEqual(reopened.notes[0].body, invalidDraft.body)
+            XCTAssertEqual(reopened.notes[0].version, 2)
+        }
+    }
+
+    func testNormalizedTitleSaveFailureKeepsDraftAndSavedFileForRetry() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let writer = NotebookWriter(), store = PlatformNotebookStore(directory: root, writeAtomically: { try writer.write($0, to: $1) })
+        let initial = try await store.snapshot(scope: .guest)
+        var draft = NotebookDraft(title: "Original", body: "Saved body")
+        let saved = try await store.save(draft, expectedEpoch: initial.epoch, expectedVersion: nil, scope: .guest)
+        let url = try file(in: root), bytes = try Data(contentsOf: url)
+        draft.title = NotebookTitleInput.singleLine("Night\r\nthoughts")
+        draft.body = "Unsaved body\nsecond line"
+        let unsavedDraft = draft
+        writer.setFailing(true)
+        await expect(.storageUnavailable) {
+            _ = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest)
+        }
+        XCTAssertEqual(draft, unsavedDraft)
+        XCTAssertEqual(try Data(contentsOf: url), bytes)
+        writer.setFailing(false)
+        let retried = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest)
+        XCTAssertEqual(retried.notes[0].title, "Night thoughts")
+        XCTAssertEqual(retried.notes[0].body, unsavedDraft.body)
+        XCTAssertEqual(retried.notes[0].version, 2)
+    }
+
     func testScopeAndEnvironmentIsolationIncludingGuestLikeAccountName() async throws {
         let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
         let store = PlatformNotebookStore(directory: root)

@@ -44,6 +44,15 @@ nonisolated struct NotebookDraft: Equatable, Sendable {
     }
 }
 
+/// Editing policy only. The store still rejects invalid input rather than silently
+/// changing a caller's draft. Treat CRLF as one break and retain every text segment.
+nonisolated enum NotebookTitleInput {
+    static func singleLine(_ value: String) -> String {
+        value.replacingOccurrences(of: "\r\n", with: "\n")
+            .components(separatedBy: .newlines).joined(separator: " ")
+    }
+}
+
 nonisolated enum NotebookError: Error, Equatable, Sendable {
     case invalidInput, limitReached, staleEdit, storageUnavailable
 }

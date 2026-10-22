@@ -1,7 +1,8 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''notebookTextLimits|Titles can contain up to 120 characters and note text up to 8,000.|标题最多 120 字，正文最多 8,000 字。|標題最多 120 字，內文最多 8,000 字。|タイトルは120文字、本文は8,000文字まで入力できます。
+rows='''notebookTextLimits|Titles use a single line, up to 120 characters. Pasted line breaks become spaces. Note text can contain up to 8,000 characters.|标题为单行，最多 120 字；粘贴的换行会转为空格。正文最多 8,000 字。|標題為單行，最多 120 字；貼上的換行會轉為空格。內文最多 8,000 字。|タイトルは1行・120文字まで。貼り付けた改行はスペースになります。本文は8,000文字まで入力できます。
+notebookTitleLineBreaksReplaced|Title line breaks were replaced with spaces. All text is kept.|标题中的换行已转为空格，文字已全部保留。|標題中的換行已轉為空格，文字已全部保留。|タイトルの改行をスペースに置き換えました。文章はすべて保持されています。
 notebookTopicLimits|Topic names can contain up to 40 characters and must be unique.|主题名称最多 40 字，且不能与已有主题重名。|主題名稱最多 40 字，且不能與既有主題重名。|テーマ名は40文字以内で、既存のテーマと異なる名前にしてください。
 releaseNotebook|Write your own notes from a song page or the notebook, with an optional link to a work.|可从歌曲页或“我的手记”记录自己的想法，并按需关联作品。|可從歌曲頁或「我的手記」記錄自己的想法，並依需要關聯作品。|曲のページやマイノートから自分の言葉を記録し、必要に応じて作品に関連付けられます。
 releaseNotebookOrganization|Organize notes into your own topics and search titles or text to find them again.|按自建主题整理手记，通过标题或正文搜索，找回写下的内容。|依自建主題整理手記，透過標題或內文搜尋，找回寫下的內容。|自分で作ったテーマでノートを整理し、タイトルや本文から検索できます。
@@ -57,7 +58,7 @@ notebookStaleDetail|The data has changed or was cleared. Close and reopen this p
 notebookRename|Rename|重命名|重新命名|名前を変更
 notebookSaveTopic|Save topic|保存主题|儲存主題|テーマを保存
 notebookError|Could not read or save your notes. Please retry.|手记读取或保存失败，请重试。|手記讀取或儲存失敗，請重試。|ノートの読み込みまたは保存に失敗しました。再試行してください。
-notebookInvalid|Check the text length and linked work, then retry.|请检查文字长度及关联作品后重试。|請檢查文字長度及關聯作品後重試。|文章の長さと関連作品を確認して再試行してください。
+notebookInvalid|Titles cannot contain line breaks. Check the text length and linked work, then retry.|标题不能包含换行；请检查文字长度及关联作品后重试。|標題不能包含換行；請檢查文字長度及關聯作品後重試。|タイトルには改行を含められません。文章の長さと関連作品を確認して再試行してください。
 notebookLimit|Notebook storage is full. Delete some content and retry.|本机手记容量已满，请删除部分内容后重试。|本機手記容量已滿，請刪除部分內容後重試。|ノートの保存容量がいっぱいです。一部を削除して再試行してください。
 notebookStale|The data changed. Reopen this page before editing.|资料已更改，请重新打开后再编辑。|資料已變更，請重新開啟後再編輯。|データが変更されました。画面を開き直してから編集してください。
 releaseDouyinClips|Song pages can open published Douyin clips in the official player after you tap. Available clips depend on publication.|歌曲短片页增加抖音来源，点击后可加载官方播放器，内容以实际发布为准。|歌曲短片頁增加抖音來源，點擊後可載入官方播放器，內容以實際發佈為準。|曲の動画ページが Douyin に対応しました。タップして公式プレーヤーを読み込めます。表示内容は公開状況によります。

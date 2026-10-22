@@ -205,6 +205,9 @@ struct PlatformNotebookEditor: View {
     @State private var working = false
     @State private var failed = false
     @State private var draftID: UUID
+    @State private var titleLineBreaksReplaced = false
+    @FocusState private var focusedField: EditorField?
+    private enum EditorField: Hashable { case title, body }
 
     init(model: AppModel, context: PlatformNotebookEditorContext, openWork: @escaping (NotebookWork) -> Void) {
         self.model = model; self.context = context; self.openWork = openWork
@@ -217,19 +220,33 @@ struct PlatformNotebookEditor: View {
     private var busy: Bool { working || model.notebookBusy }
     private var hasText: Bool { !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     private var workTitle: String { model.notebookTrack(for: work)?.title ?? model.notebookBookmark(for: work)?.title ?? model.t(work == nil ? "notebookNoWork" : "notebookWorkUnavailable") }
+    private var singleLineTitle: Binding<String> {
+        Binding(get: { title }, set: { value in
+            let normalized = NotebookTitleInput.singleLine(value)
+            if normalized != value { titleLineBreaksReplaced = true }
+            title = normalized
+        })
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    TextField(model.t("notebookNoteTitle"), text: $title, axis: .vertical)
+                    TextField(model.t("notebookNoteTitle"), text: singleLineTitle)
                         .font(.title3.weight(.semibold)).disabled(busy).accessibilityIdentifier("notebookTitleField")
+                        .focused($focusedField, equals: .title).submitLabel(.next)
+                        .onSubmit { focusedField = .body }
+                    if titleLineBreaksReplaced {
+                        Text(model.t("notebookTitleLineBreaksReplaced")).font(.footnote).foregroundStyle(Palette.muted)
+                            .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("notebookTitleLineBreaksReplaced")
+                    }
                     ZStack(alignment: .topLeading) {
                         if bodyText.isEmpty { Text(model.t("notebookBodyPlaceholder")).foregroundStyle(Palette.muted).padding(.top, 8).padding(.leading, 5).allowsHitTesting(false).accessibilityHidden(true) }
                         TextEditor(text: $bodyText).frame(minHeight: 210).scrollContentBackground(.hidden)
                             .disabled(busy).accessibilityLabel(model.t("notebookBody")).accessibilityIdentifier("notebookBodyField")
+                            .focused($focusedField, equals: .body)
                     }
-                } footer: { Text(model.t("notebookTextLimits")) }.listRowBackground(Palette.panel)
+                } footer: { Text(model.t("notebookTextLimits")).accessibilityIdentifier("notebookTextLimits") }.listRowBackground(Palette.panel)
                 Section(model.t("notebookWork")) {
                     Button { showSongs = true } label: {
                         HStack(spacing: 12) {

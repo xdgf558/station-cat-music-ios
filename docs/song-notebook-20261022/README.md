@@ -10,7 +10,7 @@ Deleting a topic moves its notes to Uncategorized. Deleting a note or clearing t
 
 The persisted note contains the user's title and text, its identifier, dates, optional topic identifier and optional work ID/slug. It does not automatically copy server lyrics, creative stories, artwork, platform URLs or campaign parameters. Work association is a reference rather than an offline copy of a work. Reopening the linked work still goes through current online publication/identity checks; it does not revive a stale listening URL. Notes without a linked work remain useful when a catalog cannot be loaded. This feature does not turn notes or browsing into a playback history.
 
-The initial store bounds each scope to 500 notes and 30 topics; note titles are limited to 120 characters, note text to 8,000 and topic names to 40. Atomic JSON files are separated by environment/account scope, have a 4 MiB per-file budget and a 16 MiB aggregate budget, and use iOS file protection. Storage is excluded from system backup. User writing has no automatic expiry or LRU eviction. Existing favorites, browsing history, settings and legacy files are separate stores; migration must not discard them.
+The initial store bounds each scope to 500 notes and 30 topics; note titles are single-line and limited to 120 characters, note text to 8,000 and topic names to 40. The title field's Next action moves to the body. Pasted title line breaks become spaces (CRLF is one break), without dropping words or truncating long input; the editor explains this rule in all four languages. The store continues to reject raw invalid titles, and a save failure retains the draft and previous file. Atomic JSON files are separated by environment/account scope, have a 4 MiB per-file budget and a 16 MiB aggregate budget, and use iOS file protection. Storage is excluded from system backup. User writing has no automatic expiry or LRU eviction. Existing favorites, browsing history, settings and legacy files are separate stores; migration must not discard them.
 
 ## Included clip features and website dependency
 
@@ -23,6 +23,12 @@ No real Shorts or Douyin links were supplied for this batch, so production clips
 All four committed configurations continue to keep public entry points and native services disabled, with public origins unset. A separately signed release configuration must be inspected before delivery. Merging this change does not deploy the website, enable services, install on a phone, upload TestFlight, alter Apple questionnaire answers or submit App Store review.
 
 ## Validation and delivery record
+
+The title-input correction after review of `60bec3dc9547c91b7a6bf76ca8fd379fa7f9636f` was checked in `.build/notebook-title-p3.xcresult`: **23 core/model cases and 6 UI cases passed**. Its one failure was a UI-test selector looking for `Next` while the captured keyboard hierarchy exposed identifier `Next:` and label `next`; the test had not yet sent Return or checked focus. The test now sends an actual Return key, then types without tapping the body and verifies both fields and saved/reopened content. That focused rerun in `.build/notebook-title-return-p3.xcresult` passed **1/1** with exit code 0. The first bundle remains recorded as 29 passed / 1 failed, not a fully green run; the combined checked coverage is 18 store, 5 AppModel and 7 UI cases.
+
+New cases cover real system Paste actions with internal LF and CRLF, preserving every word as a single-line title, raw internal LF/CRLF rejection without changing the saved file, normalized titles round-tripping with unchanged multiline bodies, an injected disk-write failure followed by successful retry, and a rejected 121-character UI draft retained in full before correction and retry. Four-language maximum-text-size and existing notebook flows were rerun. No persisted schema or existing store validation was relaxed; the pre-existing leading/trailing whitespace trim remains. The actual Mock bundle is still **1.0.3 (16)** and its four-language resources match the repaired source. These local runs do not replace full hosted CI on the new PR head.
+
+Earlier baseline evidence is retained below; it predates the title-input correction:
 
 The local result bundle `.build/notebook-1.0.3-final-tests.xcresult` completed **50 passing tests** before the subsequent bottom `safeAreaInset` layout adjustment:
 

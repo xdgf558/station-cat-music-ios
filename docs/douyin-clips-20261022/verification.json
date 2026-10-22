@@ -3,17 +3,17 @@
   "version": "1.0.2",
   "build": "15",
   "scope": "local-development-only",
-  "websiteCommit": "e21e2b8901ef4c8892fbd6e6ddf31d83d5a8ba42",
+  "websiteCommit": "a043e40a176509ec74baa32b9a39f6256718054b",
   "toolchain": {
     "xcode": "27.1",
     "build": "27A9275",
     "simulator": "iPhone 17 Pro",
-    "simulatorOS": "26.4",
+    "simulatorOS": "26.4.1",
     "repositoryPinnedXcode": "26.4.1",
     "hostedCIRun": false
   },
   "unitTests": {
-    "passed": 55,
+    "passed": 59,
     "failed": 0,
     "skipped": 0,
     "suites": [
@@ -88,5 +88,48 @@
     "skipped": 0,
     "suite": "DouyinClipUITests",
     "includesFourLocalesAtMaximumAccessibilityText": true
+  },
+  "reviewFollowUp": {
+    "reviewedHead": "848bb2695109ca6ef562415abed1d54e7ab5f3a0",
+    "websiteCommit": "a043e40a176509ec74baa32b9a39f6256718054b",
+    "navigationHosts": [
+      "open.douyin.com"
+    ],
+    "blankFramePlaceholder": "about:blank",
+    "actionAndFinalResponseChecks": true,
+    "realNestedWebKitNavigationTest": "passed",
+    "realHTTPSRedirectTest": false,
+    "regression": {
+      "unitPassed": 59,
+      "uiPassed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "xcresult": ".build/douyin-review/ReviewRegression.xcresult"
+    },
+    "priorHostedFailure": {
+      "run": 39714505953,
+      "event": "push",
+      "step": "Run bash scripts/test_ios.sh",
+      "test": "DouyinClipUITests/testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown",
+      "evidence": "Five whole-app downward swipes followed by a Discover accessibility snapshot, without the detail sheet or contentTab.story.",
+      "fix": "Locate the target, stop scrolling when visible and assert the detail sheet is still present before tapping.",
+      "rawLogSHA256": "5d3c09f6a5e3fb14c008cc950fcf00ff80948ec3b7f9595922a871514d7e70d1",
+      "rawLogCommitted": false
+    },
+    "initialLocalRegression": {
+      "passed": 58,
+      "failed": 1,
+      "cause": "Hand-constructed WKNavigationResponse subclass crashed during dealloc in CFRetain.",
+      "fix": "Test response facts through the session decision path rather than constructing a WebKit-owned object.",
+      "xcresultRetained": ".build/douyin-review/NavigationTests.xcresult"
+    },
+    "hostedCIForFollowUp": "pending",
+    "lifecycleRepeat": {
+      "test": "DouyinClipUITests/testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown",
+      "iterationsPassed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "distinctTests": 1
+    }
   }
 }

@@ -30,7 +30,15 @@ import XCTest
         }
         XCTAssertTrue(element.isHittable)
     }
-    private func top(_ app: XCUIApplication) { for _ in 0..<5 { app.swipeDown() } }
+    private func selectTab(_ name: String, _ app: XCUIApplication) {
+        let tab = app.buttons["contentTab." + name]
+        XCTAssertTrue(tab.waitForExistence(timeout: 5))
+        // Stop as soon as the target is visible. Repeated whole-app swipes at
+        // the sheet's top dismiss it instead of scrolling the content.
+        reveal(tab, app)
+        XCTAssertTrue(app.buttons["platformDetailClose"].exists)
+        tab.tap()
+    }
     private func capture(_ app: XCUIApplication, _ name: String) {
         let item = XCTAttachment(screenshot: app.screenshot()); item.name = name; item.lifetime = .keepAlways; add(item)
     }
@@ -51,7 +59,7 @@ import XCTest
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 10))
         XCTAssertTrue(app.webViews.staticTexts["未连接 Douyin · 无真实视频"].waitForExistence(timeout: 10))
         capture(app, "Douyin-Local-Player-Fixture")
-        top(app); app.buttons["contentTab.story"].tap()
+        selectTab("story", app)
         XCTAssertTrue(app.webViews.firstMatch.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["contentStoryText"].waitForExistence(timeout: 5))
         app.buttons["contentTab.clips"].tap(); reveal(load, app); load.tap()
@@ -71,7 +79,7 @@ import XCTest
         reveal(app.buttons["douyinRetry"], app); capture(app, "Douyin-Embedding-Unavailable")
         let external = app.buttons["douyinOpen." + clip]; reveal(external, app); external.tap()
         XCTAssertTrue(app.buttons["platformCopyLink"].waitForExistence(timeout: 5))
-        top(app); app.buttons["contentTab.lyrics"].tap()
+        selectTab("lyrics", app)
         XCTAssertTrue(app.staticTexts["lyricStanza.0"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["platformLink.netease"].exists)
     }

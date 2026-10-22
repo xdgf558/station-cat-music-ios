@@ -97,10 +97,15 @@ import WebKit
     }
 
     private func handoff(_ url: URL) {
-        guard url.scheme == "https", url.user == nil, url.password == nil, url.port == nil,
-              url.host != nil, url.absoluteString.utf8.count <= 4096,
-              let external else { return }
+        guard DouyinNavigationPolicy.isExternalHTTPS(url), let external else { return }
         stop(); external(url)
+    }
+    func decideDocumentResponse(url: URL?, mainFrame: Bool, displayable: Bool, decisionHandler: (WKNavigationResponsePolicy) -> Void) {
+        guard webView != nil else { decisionHandler(.cancel); return }
+        guard displayable, let url, DouyinNavigationPolicy.response(url, mainFrame: mainFrame) else {
+            decisionHandler(.cancel); fail("douyinLoadFailure"); return
+        }
+        decisionHandler(.allow)
     }
     private final class Bridge: NSObject, WKScriptMessageHandler {
         weak var owner: DouyinClipSession?
@@ -112,15 +117,22 @@ import WebKit
 extension DouyinClipSession: WKNavigationDelegate, WKUIDelegate {
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
         guard webView === self.webView, let url = navigationAction.request.url else { decisionHandler(.cancel); return }
-        if navigationAction.targetFrame == nil || navigationAction.targetFrame?.isMainFrame == true {
-            if DouyinEmbedDocument.isWrapperNavigation(url) { decisionHandler(.allow); return }
+        guard !navigationAction.shouldPerformDownload else { decisionHandler(.cancel); fail("douyinLoadFailure"); return }
+        let target: DouyinNavigationPolicy.Target = navigationAction.targetFrame.map { $0.isMainFrame ? .wrapper : .frame } ?? .newWindow
+        switch DouyinNavigationPolicy.action(url, target: target, linkActivated: navigationAction.navigationType == .linkActivated) {
+        case .allow: decisionHandler(.allow)
+        case .external: decisionHandler(.cancel); handoff(url)
+        case .cancel:
             decisionHandler(.cancel)
-            if navigationAction.navigationType == .linkActivated { handoff(url) }
-        } else {
-            // The official iframe owns its controls, ads and nested HTTPS frames.
-            // Do not filter media/ad subresources or substitute playback URLs.
-            decisionHandler(url.scheme == "https" ? .allow : .cancel)
+            if target != .newWindow { fail("douyinLoadFailure") }
         }
+    }
+    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void) {
+        guard webView === self.webView else { decisionHandler(.cancel); return }
+        // Recheck the final document URL before rendering: a server redirect
+        // must not turn an allowed player frame into an arbitrary HTTPS page.
+        decideDocumentResponse(url: navigationResponse.response.url, mainFrame: navigationResponse.isForMainFrame,
+                               displayable: navigationResponse.canShowMIMEType, decisionHandler: decisionHandler)
     }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         if webView === self.webView { fail("douyinLoadFailure") }

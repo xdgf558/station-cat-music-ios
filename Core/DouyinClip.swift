@@ -12,6 +12,36 @@ nonisolated struct DouyinClip: Equatable, Sendable {
 
 nonisolated enum DouyinEmbedError: Error, Equatable { case unavailable, invalidResponse }
 
+/// Applies to document navigations at every frame depth, not media subresources.
+/// Keep the exact official iframe host; no suffix or wildcard trust is inferred.
+nonisolated enum DouyinNavigationPolicy {
+    enum Target: Equatable { case wrapper, frame, newWindow }
+    enum Decision: Equatable { case allow, cancel, external }
+    static func isExternalHTTPS(_ url: URL) -> Bool {
+        guard url.absoluteString.utf8.count <= 4096,
+              let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              parts.scheme == "https", let host = parts.host, !host.isEmpty,
+              parts.user == nil, parts.password == nil, parts.port == nil else { return false }
+        return true
+    }
+    static func isOfficialFrame(_ url: URL) -> Bool {
+        // Empty child frames have no network destination. Every subsequent
+        // navigation, including a nested frame, must pass this policy again.
+        if url.absoluteString == "about:blank" { return true }
+        guard isExternalHTTPS(url), let parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return false }
+        return parts.host?.lowercased() == "open.douyin.com" && parts.percentEncodedHost?.contains("%") == false
+    }
+    static func action(_ url: URL, target: Target, linkActivated: Bool) -> Decision {
+        if target == .wrapper && DouyinEmbedDocument.isWrapperNavigation(url) { return .allow }
+        if linkActivated && isExternalHTTPS(url) { return .external }
+        if target == .frame && isOfficialFrame(url) { return .allow }
+        return .cancel
+    }
+    static func response(_ url: URL, mainFrame: Bool) -> Bool {
+        mainFrame ? DouyinEmbedDocument.isWrapperNavigation(url) : isOfficialFrame(url)
+    }
+}
+
 private nonisolated struct DouyinEmbedResponse: Decodable {
     let err_no: Int
     let data: Payload?

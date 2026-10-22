@@ -75,6 +75,70 @@ private actor DouyinVerificationGate {
             XCTAssertFalse(DouyinEmbedDocument.isWrapperNavigation(try XCTUnwrap(URL(string:value))),value)
         }
     }
+    func testEveryFrameUsesAnExactHostAllowlistIncludingRedirectResponses() throws {
+        for value in ["https://open.douyin.com/player/video?vid=7000000000000000001&autoplay=0", "https://open.douyin.com/other-official-frame", "about:blank"] {
+            let url = try XCTUnwrap(URL(string: value))
+            XCTAssertEqual(DouyinNavigationPolicy.action(url, target: .frame, linkActivated: false), .allow, value)
+            XCTAssertTrue(DouyinNavigationPolicy.response(url, mainFrame: false), value)
+        }
+        for value in ["https://untrusted.invalid/ad", "https://open.douyin.com.evil.invalid/", "https://child.open.douyin.com/", "https://www.douyin.com/login", "https://open.douyin.com@evil.invalid/", "https://user@open.douyin.com/", "https://open.douyin.com:443/", "https://open.douyin.com./", "https://%6fpen.douyin.com/", "http://open.douyin.com/", "file:///private/file", "data:text/html,unexpected", "javascript:alert(1)", "blob:https://open.douyin.com/other", "about:blank#unexpected"] {
+            let url = try XCTUnwrap(URL(string: value))
+            XCTAssertEqual(DouyinNavigationPolicy.action(url, target: .frame, linkActivated: false), .cancel, value)
+            XCTAssertFalse(DouyinNavigationPolicy.response(url, mainFrame: false), value)
+        }
+        let official = try XCTUnwrap(URL(string: "https://open.douyin.com/player/video"))
+        XCTAssertEqual(DouyinNavigationPolicy.action(official, target: .wrapper, linkActivated: false), .cancel)
+        XCTAssertFalse(DouyinNavigationPolicy.response(official, mainFrame: true))
+    }
+    func testOnlyActivatedHTTPSLinksMayLeaveThePlayerAndAutomaticWindowsStayClosed() throws {
+        let external = try XCTUnwrap(URL(string: "https://outside.invalid/ad"))
+        for target: DouyinNavigationPolicy.Target in [.frame, .wrapper, .newWindow] {
+            XCTAssertEqual(DouyinNavigationPolicy.action(external, target: target, linkActivated: false), .cancel)
+            XCTAssertEqual(DouyinNavigationPolicy.action(external, target: target, linkActivated: true), .external)
+            for value in ["http://outside.invalid/", "https://user:password@outside.invalid/", "https://outside.invalid:443/", "douyin://video/1", "javascript:alert(1)"] {
+                XCTAssertEqual(DouyinNavigationPolicy.action(try XCTUnwrap(URL(string: value)), target: target, linkActivated: true), .cancel)
+            }
+        }
+        let official = try XCTUnwrap(URL(string: "https://open.douyin.com/player/video"))
+        XCTAssertEqual(DouyinNavigationPolicy.action(official, target: .newWindow, linkActivated: false), .cancel)
+    }
+    func testRedirectedChildResponseCannotCommitAnUnapprovedPageOrOpenExternally() async throws {
+        let (track, clip) = try await fixture(), provider = DouyinProvider([clip])
+        let session = DouyinClipSession(document: document, verifyEmbed: { _ in })
+        var opens = 0
+        session.start(clip, track: track, locale: "en", provider: provider) { _ in opens += 1 }
+        try await wait { session.webView != nil }
+        defer { session.stop() }
+        var policy: WKNavigationResponsePolicy?
+        session.decideDocumentResponse(url: clip.douyin!.playerURL, mainFrame: false, displayable: true) { policy = $0 }
+        XCTAssertEqual(policy, .allow)
+        session.decideDocumentResponse(url: try XCTUnwrap(URL(string: "https://untrusted.invalid/redirected")), mainFrame: false, displayable: true) { policy = $0 }
+        XCTAssertEqual(policy, .cancel); XCTAssertEqual(opens, 0)
+        XCTAssertNil(session.webView); XCTAssertEqual(session.phase, .failed)
+        XCTAssertEqual(session.failureKey, "douyinLoadFailure")
+        // A late response on the destroyed view cannot reopen the session.
+        session.decideDocumentResponse(url: clip.douyin!.playerURL, mainFrame: false, displayable: true) { policy = $0 }
+        XCTAssertEqual(policy, .cancel); XCTAssertNil(session.webView)
+    }
+    func testWebKitNestedFrameNavigationIsCancelledWithoutExternalHandoff() async throws {
+        let (track, clip) = try await fixture(), provider = DouyinProvider([clip])
+        let session = DouyinClipSession(document: document, verifyEmbed: { _ in })
+        var opens = 0
+        session.start(clip, track: track, locale: "en", provider: provider) { _ in opens += 1 }
+        try await wait { session.webView != nil }
+        let view = try XCTUnwrap(session.webView)
+        let window = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows).first(where: \.isKeyWindow))
+        view.frame = CGRect(x: 0, y: 0, width: 200, height: 300); window.addSubview(view)
+        defer { session.stop(); view.removeFromSuperview() }
+        try await wait { session.phase == .loaded }
+        // First prove the empty child frame remains allowed, then navigate a
+        // real nested document. WebKit dispatches the actual policy callbacks.
+        _ = try await view.evaluateJavaScript("window.testFrame=document.createElement('iframe');document.body.appendChild(window.testFrame);void 0;")
+        XCTAssertEqual(session.phase, .loaded)
+        view.evaluateJavaScript("const nested=testFrame.contentDocument.createElement('iframe');nested.src='https://untrusted.invalid/nested';testFrame.contentDocument.body.appendChild(nested);", completionHandler: nil)
+        try await wait { session.phase == .failed }
+        XCTAssertNil(session.webView); XCTAssertEqual(opens, 0)
+    }
     func testProjectionOptsInAndRejectsMixedSourcesMismatchOrUnknownProvider() async throws {
         let (track, clip) = try await fixture()
         XCTAssertEqual(clip.douyin?.videoID, "7000000000000000001"); XCTAssertNil(clip.mediaURL); XCTAssertNil(clip.posterURL)

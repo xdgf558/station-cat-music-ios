@@ -20,6 +20,7 @@ struct PlatformMusicDetailView: View {
     @State private var copied = false
     @State private var showYouTubeInfo = false
     @State private var showDouyinInfo = false
+    @State private var listeningRequest: NetEaseListeningRequest?
     @State private var notebookEditor: PlatformNotebookEditorContext?
     @State private var notebookPendingWork: NotebookWork?
     @State private var preparingNotebook = false
@@ -96,6 +97,13 @@ struct PlatformMusicDetailView: View {
                     notebookPendingWork = nil; model.openNotebookWork(work)
                 }) { context in
                     PlatformNotebookEditor(model: model, context: context) { notebookPendingWork = $0 }
+                }
+                .sheet(item: $listeningRequest) { request in
+                    if let detail = currentDetail, let provider = model.platformCatalog {
+                        NetEaseListeningView(request: request, track: detail.track, locale: model.locale,
+                                             provider: provider, text: model.t)
+                            .presentationDetents([.large])
+                    }
                 }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -514,13 +522,13 @@ struct PlatformMusicDetailView: View {
                     placement == .all || (placement == .footer ? index == 0 : index > 0)
                 }
                 ForEach(visible, id: \.element.id) { index, link in
-                    Button { open(link.url) } label: {
+                    Button { listen(link) } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "music.note").font(.system(size: 20)).frame(width: 24).accessibilityHidden(true)
                             Text(model.t("listenOnPlatform").replacingOccurrences(of: "{platform}", with: model.t("platform." + link.provider.rawValue)))
                                 .font(.body.weight(index == 0 ? .semibold : .regular)).fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 0)
-                            Image(systemName: "arrow.up.right").font(.system(size: 17)).frame(width: 24).accessibilityHidden(true)
+                            Image(systemName: inlineListening(link) ? "globe" : "arrow.up.right").font(.system(size: 17)).frame(width: 24).accessibilityHidden(true)
                         }.padding(.horizontal, 18).padding(.vertical, index == 0 ? 16 : 8)
                             .frame(maxWidth: .infinity, minHeight: index == 0 ? 54 : 44)
                             .foregroundStyle(index == 0 ? Palette.background : Palette.accent)
@@ -538,6 +546,16 @@ struct PlatformMusicDetailView: View {
             }
         }
     }
+    private func inlineListening(_ link: PlatformLink) -> Bool {
+        guard ExperimentalListeningConfiguration.enabledForCurrentEnvironment(), let track = currentDetail?.track else { return false }
+        return NetEaseListeningRequest(link: link, track: track) != nil
+    }
+    private func listen(_ link: PlatformLink) {
+        if inlineListening(link), let track = currentDetail?.track,
+           let request = NetEaseListeningRequest(link: link, track: track) {
+            stopClips(); invalidateOpen(); listeningRequest = request
+        } else { open(link.url) }
+    }
     private func open(_ url: URL) {
         guard url.scheme == "https", url.user == nil, url.password == nil,
               let id = track?.id, let release = currentDetail?.track.release else { return }
@@ -549,7 +567,7 @@ struct PlatformMusicDetailView: View {
             if !accepted { failedURL = url }
         }
     }
-    private func invalidateOpen() { openOperation += 1; failedURL = nil; copied = false }
+    private func invalidateOpen() { openOperation += 1; failedURL = nil; copied = false; listeningRequest = nil }
     private func copyButton(_ url: URL, id: String) -> some View {
         Button { UIPasteboard.general.url = url; copied = true } label: {
             Label(model.t(copied ? "platformCopied" : "platformCopyLink"), systemImage: copied ? "checkmark" : "link").frame(minHeight: 44)

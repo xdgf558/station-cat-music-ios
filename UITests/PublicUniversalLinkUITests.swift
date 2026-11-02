@@ -79,10 +79,10 @@ import XCTest
         }
         app.buttons["settingsHelpEntry"].tap()
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.3 (16)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.6 (19)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.3 (16)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["可从歌曲页或“我的手记”记录自己的想法，并按需关联作品。"].exists)
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.6 (19)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["改善网易云官方页面跳转兼容；额外跳转被拦截时保留已显示的网页，并显示脱敏诊断便于排查。"].exists)
         capture(app, name: "public-links-current-release-notes")
     }
 }

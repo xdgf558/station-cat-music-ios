@@ -26,7 +26,7 @@ profile=json.loads((root/'Config/ProductionActivation.example.json').read_text()
 assert profile['enabled'] is False and not any(profile['capabilities'].values())
 for name in ['Mock','Development','Staging','Production']:
  config=(root/'Config'/(name+'.xcconfig')).read_text()
- for key in ['STATION_NATIVE_AUTH_ENABLED','STATION_NATIVE_MUSIC_ENABLED','STATION_PERSONAL_SYNC_ENABLED','STATION_PRODUCTION_ACTIVATION_ENABLED','STATION_PUBLIC_RELEASES_ENABLED']:
+ for key in ['STATION_NATIVE_AUTH_ENABLED','STATION_NATIVE_MUSIC_ENABLED','STATION_PERSONAL_SYNC_ENABLED','STATION_PRODUCTION_ACTIVATION_ENABLED','STATION_PUBLIC_RELEASES_ENABLED','STATION_NETEASE_BROWSER_EXPERIMENT_ENABLED']:
   assert re.search(r'^'+key+r' = NO$',config,re.M), (name,key)
  for key in ['STATION_NATIVE_AUTH_ORIGIN','STATION_MUSIC_WEB_ORIGIN','STATION_PRODUCTION_ACTIVATION_PROFILE','STATION_PUBLIC_RELEASE_ORIGIN']:
   assert re.search(r'^'+key+r' =\s*$',config,re.M), (name,key)

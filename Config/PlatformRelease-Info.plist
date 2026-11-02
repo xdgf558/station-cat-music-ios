@@ -22,6 +22,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>StationNetEaseBrowserExperimentEnabled</key>
+	<string>$(STATION_NETEASE_BROWSER_EXPERIMENT_ENABLED)</string>
 	<key>StationEnvironment</key>
 	<string>$(STATION_ENVIRONMENT)</string>
 	<key>StationLegalOrigin</key>

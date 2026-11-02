@@ -1,7 +1,23 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''notebookTextLimits|Titles use a single line, up to 120 characters. Pasted line breaks become spaces. Note text can contain up to 8,000 characters.|标题为单行，最多 120 字；粘贴的换行会转为空格。正文最多 8,000 字。|標題為單行，最多 120 字；貼上的換行會轉為空格。內文最多 8,000 字。|タイトルは1行・120文字まで。貼り付けた改行はスペースになります。本文は8,000文字まで入力できます。
+rows='''releaseNetEaseBrowserRelease|Open official NetEase song webpages inside the app, with retry and external-opening options. Playback, sign-in and availability remain subject to NetEase.|可在 App 内打开网易云官方歌曲网页，并保留重试和外部打开入口；播放、登录及可用范围仍由网易云决定。|可在 App 內開啟網易雲官方歌曲網頁，並保留重試與外部開啟入口；播放、登入與可用範圍仍由網易雲決定。|NetEase の公式楽曲ページをアプリ内で開き、再試行や外部で開く操作も利用できます。再生、ログイン、利用可否は NetEase が管理します。
+releaseNetEaseNavigationFix|Improves navigation compatibility with official NetEase pages. Keeps the displayed page when an additional navigation is blocked, with redacted diagnostics to help investigate loading problems.|改善网易云官方页面跳转兼容；额外跳转被拦截时保留已显示的网页，并显示脱敏诊断便于排查。|改善網易雲官方頁面跳轉相容性；額外跳轉遭攔截時保留已顯示的網頁，並顯示去識別化診斷資訊以便排查。|NetEase 公式ページの画面遷移への対応を改善しました。追加の遷移がブロックされた場合は表示済みのページを保持し、機密情報を除いた診断情報で読み込みの問題を確認できます。
+neteaseBrowserDiagnostic|Load diagnostics|加载诊断|載入診斷|読み込み診断
+releaseNetEaseBrowserExperiment|This TestFlight candidate opens NetEase song webpages inside the app. Full playback depends on NetEase and still needs real-song verification.|TestFlight 测试版支持在 App 内打开网易云歌曲网页；能否完整播放仍取决于网易云，尚待实际验证。|TestFlight 測試版支援在 App 內開啟網易雲歌曲網頁；能否完整播放仍取決於網易雲，尚待實際驗證。|この TestFlight 版では NetEase の曲ページをアプリ内に表示できます。フル再生の可否は NetEase によるため、実際の楽曲での確認が必要です。
+releaseNetEaseBrowserControl|Rechecks song links before opening. Closing or leaving the foreground stops the web session; retry and external opening remain available.|打开前重新核验歌曲链接，关闭或切后台即停止网页会话，保留重试和外部打开入口。|開啟前重新核驗歌曲連結，關閉或切至背景即停止網頁工作階段，保留重試與外部開啟入口。|開く前に曲のリンクを再確認します。閉じる・バックグラウンドへ移ると Web セッションが停止し、再試行や外部で開く操作も利用できます。
+neteaseBrowserTitle|NetEase webpage|网易云网页|網易雲網頁|NetEase Web
+neteaseBrowserNotice|An official NetEase webpage. Playback, sign-in and availability are controlled by NetEase.|这是网易云官方网页，播放、登录及可用范围由网易云决定。|這是網易雲官方網頁，播放、登入與可用範圍由網易雲決定。|NetEase の公式 Web ページです。再生、ログイン、利用可否は NetEase が管理します。
+neteaseBrowserPrivacy|Loading connects to NetEase and its page resources, which may process IP, browser and usage data under their policies. Web storage is temporary. Closing or switching to the background stops the page; no offline songs are saved.|载入会连接网易云及其网页资源，可能按其政策处理 IP、浏览器及使用信息。网页存储为临时会话；关闭或切后台即停止，不保存离线歌曲。|載入會連線至網易雲及其網頁資源，可能依其政策處理 IP、瀏覽器與使用資訊。網頁儲存為暫時工作階段；關閉或切至背景即停止，不儲存離線歌曲。|読み込み時に NetEase とページ内のリソースに接続し、そのポリシーに従い IP、ブラウザ、利用情報が処理される場合があります。Web ストレージは一時的です。閉じるかバックグラウンドへ移ると停止し、オフライン楽曲は保存しません。
+neteaseBrowserLoading|Checking and loading the webpage…|正在核验并载入网页…|正在核驗並載入網頁…|Web ページを確認・読み込み中…
+neteaseBrowserPlayHint|Use the webpage's play control. If it requires the NetEase app, use Open externally below.|请点击网页内的播放按钮；若网页要求使用网易云 App，可选择下方“外部打开”。|請點擊網頁內的播放按鈕；若網頁要求使用網易雲 App，可選擇下方「外部開啟」。|ページ内の再生ボタンを押してください。NetEase アプリが必要な場合は、下の「外部で開く」を選んでください。
+neteaseBrowserExternal|Open externally in NetEase|在网易云外部打开|在網易雲外部開啟|NetEase を外部で開く
+neteaseBrowserPaused|The webpage stopped when the app left the foreground. Tap Retry to load it again.|App 离开前台后已停止网页，请点重试重新载入。|App 離開前景後已停止網頁，請點重試重新載入。|アプリがフォアグラウンドを離れたためページを停止しました。再試行で読み込み直せます。
+neteaseBrowserUnavailable|This song's listening link is no longer available. Close this page and refresh the work.|这首歌的收听链接已不可用，请关闭本页并刷新作品。|這首歌的收聽連結已無法使用，請關閉本頁並重新整理作品。|この曲の配信リンクは利用できなくなりました。画面を閉じて作品を更新してください。
+neteaseBrowserVerifyFailure|Could not verify the current listening link. Connect to the internet and retry.|暂时无法核验当前收听链接，请联网后重试。|暫時無法核驗目前收聽連結，請連網後重試。|現在の配信リンクを確認できません。インターネットに接続して再試行してください。
+neteaseBrowserLoadFailure|The webpage could not load. Retry or open the original link externally.|网页暂时无法载入，可重试或外部打开原链接。|網頁暫時無法載入，可重試或外部開啟原連結。|Web ページを読み込めませんでした。再試行するか元のリンクを外部で開いてください。
+neteaseBrowserNavigationBlocked|This webpage tried to open a destination not supported by this browser. You can open the original song link externally.|网页尝试打开此浏览器不支持的地址，可外部打开原歌曲链接。|網頁嘗試開啟此瀏覽器不支援的位址，可外部開啟原歌曲連結。|このブラウザで許可していない移動がありました。元の曲のリンクを外部で開けます。
+notebookTextLimits|Titles use a single line, up to 120 characters. Pasted line breaks become spaces. Note text can contain up to 8,000 characters.|标题为单行，最多 120 字；粘贴的换行会转为空格。正文最多 8,000 字。|標題為單行，最多 120 字；貼上的換行會轉為空格。內文最多 8,000 字。|タイトルは1行・120文字まで。貼り付けた改行はスペースになります。本文は8,000文字まで入力できます。
 notebookTitleLineBreaksReplaced|Title line breaks were replaced with spaces. All text is kept.|标题中的换行已转为空格，文字已全部保留。|標題中的換行已轉為空格，文字已全部保留。|タイトルの改行をスペースに置き換えました。文章はすべて保持されています。
 notebookTopicLimits|Topic names can contain up to 40 characters and must be unique.|主题名称最多 40 字，且不能与已有主题重名。|主題名稱最多 40 字，且不能與既有主題重名。|テーマ名は40文字以内で、既存のテーマと異なる名前にしてください。
 releaseNotebook|Write your own notes from a song page or the notebook, with an optional link to a work.|可从歌曲页或“我的手记”记录自己的想法，并按需关联作品。|可從歌曲頁或「我的手記」記錄自己的想法，並依需要關聯作品。|曲のページやマイノートから自分の言葉を記録し、必要に応じて作品に関連付けられます。

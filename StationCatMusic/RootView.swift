@@ -593,9 +593,21 @@ struct RootView: View {
         libraryPage("releaseNotes", id: "releaseNotesPage") {
             Section {
                 Text("Station Cat Music · " + appVersion).font(.headline)
-                Text("2026-10-22").font(.caption).foregroundStyle(Palette.muted)
+                Text("2026-10-28").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("releaseNetEaseBrowserRelease"), systemImage: "globe")
+                Label(model.t("releaseNetEaseNavigationFix"), systemImage: "arrow.triangle.branch")
+                Label(model.t("releaseNetEaseBrowserControl"), systemImage: "hand.tap")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 1.0.5 (18) · 2026-10-28") {
+                Label(model.t("releaseNetEaseNavigationFix"), systemImage: "arrow.triangle.branch")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 1.0.4 (17) · 2026-10-28") {
+                Label(model.t("releaseNetEaseBrowserExperiment"), systemImage: "globe")
+                Label(model.t("releaseNetEaseBrowserControl"), systemImage: "hand.tap")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 1.0.3 (16) · 2026-10-22") {
                 Label(model.t("releaseNotebook"), systemImage: "square.and.pencil")
                 Label(model.t("releaseNotebookOrganization"), systemImage: "tag")
                 Label(model.t("releaseNotebookLocal"), systemImage: "lock")

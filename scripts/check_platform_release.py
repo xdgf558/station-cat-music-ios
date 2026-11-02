@@ -10,16 +10,25 @@ NATIVE_FLAGS = ["StationNativeAuthEnabled", "StationNativeMusicEnabled",
                 "StationPersonalSyncEnabled", "StationProductionActivationEnabled"]
 REASONS = {"NSPrivacyAccessedAPICategoryFileTimestamp": ["C617.1"],
            "NSPrivacyAccessedAPICategoryUserDefaults": ["CA92.1"]}
-NOTES = ["releaseNotebook", "releaseNotebookOrganization", "releaseNotebookLocal", "releaseBundledClips", "releaseDouyinClips", "releaseDouyinControl", "releaseYouTubeClips", "releaseYouTubeControl", "releaseV1Catalog", "releaseV1Reading", "releaseV1Personal", "releaseV1Listening", "releaseSongContent", "releaseLyricsReader", "releaseContentStates", "releasePersonalHub", "releaseRecentlyViewed", "releasePlatformPreference", "releaseCatalogCategories", "releaseUniversalLinks", "releaseSongLinks", "releaseFavoriteReliability", "releaseDetailErrors", "releasePrivacyLinks", "releaseCoverCache", "releaseImageLoading", "releaseImageRetries"]
+NOTES = ["releaseNetEaseBrowserRelease", "releaseNetEaseNavigationFix", "releaseNetEaseBrowserExperiment", "releaseNetEaseBrowserControl", "releaseNotebook", "releaseNotebookOrganization", "releaseNotebookLocal", "releaseBundledClips", "releaseDouyinClips", "releaseDouyinControl", "releaseYouTubeClips", "releaseYouTubeControl", "releaseV1Catalog", "releaseV1Reading", "releaseV1Personal", "releaseV1Listening", "releaseSongContent", "releaseLyricsReader", "releaseContentStates", "releasePersonalHub", "releaseRecentlyViewed", "releasePlatformPreference", "releaseCatalogCategories", "releaseUniversalLinks", "releaseSongLinks", "releaseFavoriteReliability", "releaseDetailErrors", "releasePrivacyLinks", "releaseCoverCache", "releaseImageLoading", "releaseImageRetries"]
 
 
-def validate(info, privacy, localizations, public_enabled, links_enabled=False):
+def validate(info, privacy, localizations, public_enabled, links_enabled=False,
+             testflight_listening=False, app_store_listening=False):
     errors = []
+    if testflight_listening and app_store_listening:
+        errors.append("Listening candidate modes are mutually exclusive")
     if links_enabled and not public_enabled:
         errors.append("Public links need public metadata")
+    if testflight_listening and not public_enabled:
+        errors.append("TestFlight listening candidate needs public metadata")
+    if app_store_listening and not public_enabled:
+        errors.append("App Store listening candidate needs public metadata")
+    listening_marker = "APPSTORE" if app_store_listening else "TESTFLIGHT" if testflight_listening else "NO"
     for key, expected in {
         "CFBundleIdentifier": "org.stationcat.music", "StationEnvironment": "production",
         **{key: "NO" for key in NATIVE_FLAGS},
+        "StationNetEaseBrowserExperimentEnabled": listening_marker,
         "StationNativeAuthOrigin": "", "StationMusicWebOrigin": "",
         "StationProductionActivationProfile": "",
         "StationPublicAppLinksEnabled": "YES" if links_enabled else "NO",
@@ -51,6 +60,8 @@ def validate(info, privacy, localizations, public_enabled, links_enabled=False):
         "bundle": info["CFBundleIdentifier"],
         "version": info.get("CFBundleShortVersionString"), "build": info.get("CFBundleVersion"),
         "publicMetadataEnabled": public_enabled, "nativeServicesEnabled": False,
+        "testflightListeningEnabled": testflight_listening,
+        "appStoreListeningEnabled": app_store_listening,
         "backgroundAudio": False, "requiredReasonManifest": "present",
         "usesNonExemptEncryption": False,
         "releaseNoteLocales": sorted(localizations),
@@ -65,6 +76,11 @@ def main():
                         help="Expect an explicitly enabled public-only candidate; does not change configuration")
     parser.add_argument("--public-links-entitlements", type=Path,
                         help="Exported signed entitlements for a separately approved public-links candidate")
+    listening_mode = parser.add_mutually_exclusive_group()
+    listening_mode.add_argument("--testflight-listening", action="store_true",
+                        help="Expect an explicitly approved TESTFLIGHT listening candidate marker; does not prove or change Apple's distribution route")
+    listening_mode.add_argument("--app-store-listening", action="store_true",
+                        help="Expect an explicitly approved APPSTORE listening candidate marker; does not prove or change Apple's distribution route")
     args = parser.parse_args()
     app = args.app.resolve()
     info = plistlib.loads((app / "Info.plist").read_bytes())
@@ -80,7 +96,9 @@ def main():
     if args.public_links_entitlements:
         from check_platform_links import validate as validate_links
         validate_links(info, plistlib.loads(args.public_links_entitlements.read_bytes()), enabled=True, signed=True)
-    print(json.dumps(validate(info, privacy, notes, args.public_enabled, args.public_links_entitlements is not None), ensure_ascii=False, indent=2))
+    print(json.dumps(validate(info, privacy, notes, args.public_enabled,
+                              args.public_links_entitlements is not None, args.testflight_listening,
+                              args.app_store_listening), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

@@ -125,7 +125,7 @@ struct PlatformCatalogScreen: View {
                 ForEach(model.platformCatalogAlbums) { album in
                     NavigationLink { PlatformAlbumDetailView(model: model, albumID: album.id) } label: {
                         VStack(alignment: .leading, spacing: 9) {
-                            OrbitArtwork(track: album.tracks.first, model: model)
+                            PlatformAlbumArtwork(album: album, model: model)
                                 .aspectRatio(1, contentMode: .fit)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
                                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.line, lineWidth: 1))
@@ -158,7 +158,7 @@ struct PlatformAlbumDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 if let album {
-                    OrbitArtwork(track: album.tracks.first, model: model).aspectRatio(1, contentMode: .fit)
+                    PlatformAlbumArtwork(album: album, model: model).aspectRatio(1, contentMode: .fit)
                         .frame(maxWidth: 280).clipShape(RoundedRectangle(cornerRadius: 20))
                         .frame(maxWidth: .infinity)
                     VStack(alignment: .leading, spacing: 8) {
@@ -193,6 +193,37 @@ struct PlatformAlbumDetailView: View {
                     isCurrent: model.catalogFailure == nil && album.flatMap { PlatformShareCard.album($0, locale: model.locale) } == card)
             }
             .refreshable { await model.load() }.accessibilityIdentifier("platformAlbumDetail")
+    }
+}
+
+/// Album art is independent of its member songs. The legacy public album-cover
+/// route validates the published album and version and does not depend on the
+/// separately gated share-card service.
+struct PlatformAlbumArtwork: View {
+    let album: PlatformAlbum
+    let model: AppModel
+
+    nonisolated static func coverURL(album: PlatformAlbum, locale: String, host: String?, mock: Bool) -> URL? {
+        guard !mock, let url = PlatformShareCard.album(album, locale: locale)?.albumArtworkURL,
+              let originHost = PlatformMusicAPI.productionOrigin.host, host == originHost,
+              url.host == originHost else { return nil }
+        return url
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                Palette.panel
+                if let host = model.artworkHost,
+                   let url = Self.coverURL(album: album, locale: model.locale, host: host,
+                                           mock: model.scope.environment == .mock) {
+                    CachedArtwork(url: url, host: host, loader: model.artwork, fill: true,
+                                  retryGeneration: model.artworkRetryGeneration)
+                } else {
+                    Image(systemName: "music.note").foregroundStyle(Palette.muted)
+                }
+            }.frame(width: geometry.size.width, height: geometry.size.height).clipped()
+        }.accessibilityHidden(true)
     }
 }
 

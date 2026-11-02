@@ -42,7 +42,10 @@ nonisolated struct PlatformShareCard: Identifiable, Equatable, Sendable {
                   $0.title == album.title && $0.summary == album.summary }),
               let url = link(kind: .album, slug: first.slug, locale: locale) else { return nil }
         var image = URLComponents(url: PlatformMusicAPI.productionOrigin, resolvingAgainstBaseURL: false)!
-        image.path = "/music/share/albums/\(first.slug)/cover.png"
+        // Use the existing, separately gated public album artwork route. Its
+        // version is part of the URL so replacement invalidates local images.
+        image.path = "/api/music/collections/\(first.slug)/cover"
+        image.queryItems = [.init(name: "v", value: String(first.version)), .init(name: "size", value: "display")]
         return Self(kind: .album, id: album.id, title: album.title, artist: "",
                     summary: album.summary, artwork: nil, albumArtworkURL: image.url, url: url)
     }

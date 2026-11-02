@@ -91,7 +91,8 @@ struct PlatformShareCardView: View {
     }
 
     @ViewBuilder private var artwork: some View {
-        if let url = card.albumArtworkURL, let host = model.artworkHost, url.host == host {
+        if model.scope.environment != .mock, let url = card.albumArtworkURL,
+           let host = model.artworkHost, url.host == host {
             CachedArtwork(url: url, host: host, loader: model.artwork, fill: true,
                           retryGeneration: model.artworkRetryGeneration)
                 .accessibilityHidden(true)

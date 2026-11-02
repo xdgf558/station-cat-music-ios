@@ -3,6 +3,8 @@ import json
 root=Path(__file__).resolve().parents[1]
 rows='''shareCardTitle|Share card|分享卡片|分享卡片|シェアカード
 releaseShareCards|Share songs and albums with a card featuring the work’s introduction and an App Store download link.|单曲和专辑可生成分享卡片，展示作品介绍并提供 App Store 下载入口。|單曲和專輯可產生分享卡片，展示作品介紹並提供 App Store 下載入口。|楽曲とアルバムの紹介文と App Store のダウンロードリンクを含むシェアカードを追加しました。
+releaseAlbumArtwork|Album pages and share previews use the album’s own cover when available.|专辑列表、详情和分享预览使用专辑自己的封面；暂无封面时显示占位。|專輯列表、詳情和分享預覽使用專輯自己的封面；暫無封面時顯示佔位圖。|アルバムの一覧、詳細、共有プレビューに専用のカバーを表示します。ない場合は代替画像を表示します。
+releaseListeningNavigation|Limits NetEase webpage document navigation to the selected song; external opening remains available.|网易云网页收听限制页面跳转到所选歌曲，并保留外部打开入口。|網易雲網頁收聽限制頁面跳轉到所選歌曲，並保留外部開啟入口。|NetEase の Web ページの遷移を選択した楽曲に制限し、外部で開く操作も利用できます。
 shareCardSingle|SINGLE|单曲|單曲|シングル
 shareCardAlbum|ALBUM|专辑|專輯|アルバム
 shareCardOpen|Open Station Cat Music|打开 Station Cat Music|開啟 Station Cat Music|Station Cat Music を開く

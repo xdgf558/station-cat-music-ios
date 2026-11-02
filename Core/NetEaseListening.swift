@@ -32,7 +32,7 @@ nonisolated enum NetEaseListeningNavigationPolicy {
     enum Target { case mainFrame, subframe, newWindow }
     private static let documentHosts: Set<String> = ["music.163.com", "y.music.163.com"]
 
-    static func allows(_ url: URL, target: Target) -> Bool {
+    static func allows(_ url: URL, target: Target, request: NetEaseListeningRequest) -> Bool {
         guard target != .newWindow else { return false }
         if target == .subframe && url.absoluteString == "about:blank" { return true }
         let raw = url.absoluteString
@@ -41,8 +41,15 @@ nonisolated enum NetEaseListeningNavigationPolicy {
               let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
               parts.scheme == "https", let host = parts.host, documentHosts.contains(host),
               parts.percentEncodedHost == host, parts.port == nil,
-              parts.user == nil, parts.password == nil else { return false }
-        return true
+              parts.user == nil, parts.password == nil, parts.fragment == nil,
+              let expected = URLComponents(url: request.pageURL, resolvingAgainstBaseURL: false),
+              let query = expected.percentEncodedQuery,
+              parts.percentEncodedQuery == query else { return false }
+        // Restrict all documents and redirects to this request's song. The
+        // pre-existing mobile-host route is also constrained to the same ID;
+        // supporting this URL is not evidence that NetEase serves or plays it.
+        return (host == "music.163.com" && parts.percentEncodedPath == "/song") ||
+            (host == "y.music.163.com" && parts.percentEncodedPath == "/m/song")
     }
 
     /// Ephemeral troubleshooting text only. Never includes paths, query values,
@@ -51,7 +58,8 @@ nonisolated enum NetEaseListeningNavigationPolicy {
         let stage = response ? "response" : "action"
         let frame = target == .mainFrame ? "main" : target == .subframe ? "child" : "popup"
         let parts = url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
-        let reason = download ? "download" : parts?.scheme == "https" ? "host" : "scheme"
+        let reason = download ? "download" : parts?.scheme != "https" ? "scheme" :
+            documentHosts.contains(parts?.host ?? "") && parts?.percentEncodedHost == parts?.host ? "document" : "host"
         var result = stage + "/" + frame + "/" + reason
         if let parts, ["http", "https"].contains(parts.scheme ?? ""),
            parts.user == nil, parts.password == nil, let host = parts.host,

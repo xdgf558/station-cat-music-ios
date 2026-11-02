@@ -79,8 +79,23 @@ private actor AlbumTestTransport: HTTPTransport {
         let albumCard = try XCTUnwrap(PlatformShareCard.album(album, locale: "ja"))
         XCTAssertEqual(albumCard.summary, "The real album introduction.")
         XCTAssertEqual(albumCard.url.absoluteString, "https://wwwstationcat.org/music/share/albums/real-album/?locale=ja")
-        XCTAssertEqual(albumCard.albumArtworkURL?.absoluteString, "https://wwwstationcat.org/music/share/albums/real-album/cover.png")
+        XCTAssertEqual(albumCard.albumArtworkURL?.absoluteString, "https://wwwstationcat.org/api/music/collections/real-album/cover?v=7&size=display")
         XCTAssertNil(albumCard.artwork, "An album card must not use a song cover as the album cover")
+        let cover = PlatformAlbumArtwork.coverURL(album: album, locale: "ja", host: "wwwstationcat.org", mock: false)
+        XCTAssertEqual(cover?.absoluteString, "https://wwwstationcat.org/api/music/collections/real-album/cover?v=7&size=display")
+        XCTAssertEqual(cover, albumCard.albumArtworkURL, "Catalog and share preview must use the same album image")
+        XCTAssertNil(PlatformAlbumArtwork.coverURL(album: album, locale: "ja", host: "other.example", mock: false))
+        XCTAssertNil(PlatformAlbumArtwork.coverURL(album: album, locale: "ja", host: "wwwstationcat.org", mock: true))
+
+        // A new album revision changes the requested URL, so a long-lived
+        // artwork view will not keep displaying the previous cover.
+        var updatedSong = song
+        updatedSong.release?.albums = [.init(id: first.id, slug: first.slug, title: first.title,
+                                            summary: first.summary, version: 8, position: first.position)]
+        let updatedAlbum = try XCTUnwrap(PlatformAlbum.catalog([updatedSong]).first)
+        XCTAssertEqual(PlatformAlbumArtwork.coverURL(album: updatedAlbum, locale: "ja", host: "wwwstationcat.org", mock: false)?.query,
+                       "v=8&size=display")
+        XCTAssertNotEqual(cover, PlatformAlbumArtwork.coverURL(album: updatedAlbum, locale: "ja", host: "wwwstationcat.org", mock: false))
 
         var invalid = song
         invalid.release = PlatformTrackRelease(slug: "../bad", summary: "", webURL: PlatformMusicAPI.productionOrigin,
@@ -89,7 +104,9 @@ private actor AlbumTestTransport: HTTPTransport {
         XCTAssertNil(PlatformShareCard.track(detail, locale: "untrusted"))
         let mismatch = PlatformAlbum(id: album.id, title: album.title, summary: "Wrong summary", tracks: album.tracks)
         XCTAssertNil(PlatformShareCard.album(mismatch, locale: "en"))
+        XCTAssertNil(PlatformAlbumArtwork.coverURL(album: mismatch, locale: "en", host: "wwwstationcat.org", mock: false))
         let missing = PlatformAlbum(id: "missing", title: album.title, summary: album.summary, tracks: album.tracks)
         XCTAssertNil(PlatformShareCard.album(missing, locale: "en"))
+        XCTAssertNil(PlatformAlbumArtwork.coverURL(album: missing, locale: "en", host: "wwwstationcat.org", mock: false))
     }
 }

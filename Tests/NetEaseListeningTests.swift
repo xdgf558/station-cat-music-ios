@@ -80,22 +80,23 @@ private actor NetEaseListeningProvider: PlatformMusicProviding {
         XCTAssertNil(NetEaseListeningRequest(link: pair.1, track: removed))
     }
 
-    func testAllDocumentFramesUseExactHTTPSHostAndNeverOpenWindows() throws {
-        for value in ["https://music.163.com/song?id=3446748064", "https://music.163.com/m/song?id=3446748064", "https://music.163.com/login", "https://y.music.163.com/m/song?id=3446748064"] {
+    func testAllDocumentFramesAreConfinedToTheSelectedSongAndNeverOpenWindows() throws {
+        let current = try request(fixture())
+        for value in ["https://music.163.com/song?id=3446748064", "https://y.music.163.com/m/song?id=3446748064"] {
             let url = try XCTUnwrap(URL(string: value))
-            XCTAssertTrue(NetEaseListeningNavigationPolicy.allows(url, target: .mainFrame))
-            XCTAssertTrue(NetEaseListeningNavigationPolicy.allows(url, target: .subframe))
-            XCTAssertFalse(NetEaseListeningNavigationPolicy.allows(url, target: .newWindow))
+            XCTAssertTrue(NetEaseListeningNavigationPolicy.allows(url, target: .mainFrame, request: current))
+            XCTAssertTrue(NetEaseListeningNavigationPolicy.allows(url, target: .subframe, request: current))
+            XCTAssertFalse(NetEaseListeningNavigationPolicy.allows(url, target: .newWindow, request: current))
         }
-        for value in ["https://outside.invalid/ad", "https://music.163.com.evil.invalid", "https://child.music.163.com/", "https://y.music.163.com.evil.invalid/", "https://child.y.music.163.com/", "https://music.163.com./", "https://y.music.163.com./", "https://%6Dusic.163.com/", "https://%79.music.163.com/", "https://user@music.163.com/", "https://user:password@y.music.163.com/", "https://music.163.com:443/", "https://y.music.163.com:443/", "http://music.163.com/", "http://y.music.163.com/", "orpheus://song/1", "javascript:alert(1)", "data:text/html,unexpected", "file:///private/file", "blob:https://music.163.com/other", "about:blank#unexpected"] {
+        for value in ["https://music.163.com/login", "https://music.163.com/user/home?id=3446748064", "https://music.163.com/song?id=123", "https://y.music.163.com/m/song?id=123", "https://music.163.com/m/song?id=3446748064", "https://music.163.com/%73ong?id=3446748064", "https://music.163.com/song?%69d=3446748064", "https://music.163.com/song?id=%33%34%34%36%37%34%38%30%36%34", "https://music.163.com/song?id=3446748064&id=3446748064", "https://music.163.com/song?id=3446748064&other=x", "https://music.163.com/song?id=3446748064#section", "https://music.163.com/#/song?id=3446748064", "https://outside.invalid/ad", "https://music.163.com.evil.invalid", "https://child.music.163.com/", "https://y.music.163.com.evil.invalid/", "https://child.y.music.163.com/", "https://music.163.com./", "https://y.music.163.com./", "https://%6Dusic.163.com/", "https://%79.music.163.com/", "https://user@music.163.com/", "https://user:password@y.music.163.com/", "https://music.163.com:443/", "https://y.music.163.com:443/", "http://music.163.com/", "http://y.music.163.com/", "orpheus://song/1", "javascript:alert(1)", "data:text/html,unexpected", "file:///private/file", "blob:https://music.163.com/other", "about:blank#unexpected"] {
             let url = try XCTUnwrap(URL(string: value))
             for target: NetEaseListeningNavigationPolicy.Target in [.mainFrame, .subframe, .newWindow] {
-                XCTAssertFalse(NetEaseListeningNavigationPolicy.allows(url, target: target), value)
+                XCTAssertFalse(NetEaseListeningNavigationPolicy.allows(url, target: target, request: current), value)
             }
         }
         let blank = URL(string: "about:blank")!
-        XCTAssertTrue(NetEaseListeningNavigationPolicy.allows(blank, target: .subframe))
-        XCTAssertFalse(NetEaseListeningNavigationPolicy.allows(blank, target: .mainFrame))
+        XCTAssertTrue(NetEaseListeningNavigationPolicy.allows(blank, target: .subframe, request: current))
+        XCTAssertFalse(NetEaseListeningNavigationPolicy.allows(blank, target: .mainFrame, request: current))
     }
 
     func testNavigationDiagnosticContainsOnlyFixedReasonAndCleanBoundedHost() throws {
@@ -128,6 +129,46 @@ private actor NetEaseListeningProvider: PlatformMusicProviding {
         XCTAssertEqual(response, .cancel); XCTAssertNil(session.webView)
         XCTAssertEqual(session.phase, .failed)
         XCTAssertEqual(session.navigationDiagnostic, "response/main/host · y.music.163.com.evil.invalid")
+    }
+
+    func testSameHostDifferentDocumentsAreCancelledWithoutDiscardingCommittedSong() async throws {
+        let pair = fixture(), current = try request(pair), provider = NetEaseListeningProvider(pair.0)
+        let session = NetEaseListeningSession(loadDocument: localDocument)
+        session.start(current, track: pair.0, locale: "en", provider: provider)
+        try await wait { session.webView != nil }
+        let view = try XCTUnwrap(session.webView); try attach(view)
+        defer { session.stop(); view.removeFromSuperview() }
+        try await wait { session.phase == .loaded }
+        let login = try XCTUnwrap(URL(string: "https://music.163.com/login"))
+        let otherSong = try XCTUnwrap(URL(string: "https://y.music.163.com/m/song?id=123"))
+        for (url, target) in [(login, NetEaseListeningNavigationPolicy.Target.subframe), (otherSong, .newWindow)] {
+            session.decideDocumentAction(url: url, target: target, download: false) { XCTAssertEqual($0, .cancel) }
+            XCTAssertTrue(session.webView === view); XCTAssertEqual(session.phase, .loaded)
+        }
+        session.decideDocumentAction(url: login, target: .mainFrame, download: false) { XCTAssertEqual($0, .cancel) }
+        XCTAssertTrue(session.webView === view); XCTAssertEqual(session.phase, .failed)
+        XCTAssertEqual(session.failureKey, "neteaseBrowserNavigationBlocked")
+        XCTAssertEqual(session.navigationDiagnostic, "action/main/document · music.163.com")
+        session.decideDocumentResponse(url: otherSong, mainFrame: true, displayable: true, status: 200, mimeType: "text/html") { XCTAssertEqual($0, .cancel) }
+        XCTAssertTrue(session.webView === view); XCTAssertEqual(session.phase, .failed)
+        XCTAssertEqual(session.navigationDiagnostic, "response/main/document · y.music.163.com")
+        var opened: URL?
+        session.openExternal(current, track: pair.0, locale: "en", provider: provider) { opened = $0 }
+        try await wait { opened != nil }
+        XCTAssertEqual(opened, songURL)
+        let calls = await provider.calls; XCTAssertEqual(calls, 2)
+    }
+
+    func testDocumentPostToSelectedSongIsRejected() async throws {
+        let pair = fixture(), session = NetEaseListeningSession(loadDocument: localDocument)
+        session.start(try request(pair), track: pair.0, locale: "en", provider: NetEaseListeningProvider(pair.0))
+        try await wait { session.webView != nil }
+        let view = try XCTUnwrap(session.webView); try attach(view)
+        defer { session.stop(); view.removeFromSuperview() }
+        try await wait { session.phase == .loaded }
+        session.decideDocumentAction(url: songURL, target: .mainFrame, download: false, method: "POST") { XCTAssertEqual($0, .cancel) }
+        XCTAssertEqual(session.phase, .failed); XCTAssertTrue(session.webView === view)
+        XCTAssertEqual(session.failureKey, "neteaseBrowserNavigationBlocked")
     }
 
     func testInitialUncommittedBlockedNavigationNeverPreservesBlankBrowser() async throws {
@@ -368,6 +409,20 @@ private actor NetEaseListeningProvider: PlatformMusicProviding {
         view.evaluateJavaScript("location.href='https://untrusted.invalid/';", completionHandler: nil)
         try await wait { session.phase == .failed }
         XCTAssertEqual(session.failureKey, "neteaseBrowserNavigationBlocked")
+        XCTAssertTrue(session.webView === view)
+    }
+
+    func testRealWebKitBlocksSameHostLoginDocument() async throws {
+        let pair = fixture(), session = NetEaseListeningSession(loadDocument: localDocument)
+        session.start(try request(pair), track: pair.0, locale: "en", provider: NetEaseListeningProvider(pair.0))
+        try await wait { session.webView != nil }
+        let view = try XCTUnwrap(session.webView); try attach(view)
+        defer { session.stop(); view.removeFromSuperview() }
+        try await wait { session.phase == .loaded }
+        view.evaluateJavaScript("location.href='https://music.163.com/login';", completionHandler: nil)
+        try await wait { session.phase == .failed }
+        XCTAssertEqual(session.failureKey, "neteaseBrowserNavigationBlocked")
+        XCTAssertEqual(session.navigationDiagnostic, "action/main/document · music.163.com")
         XCTAssertTrue(session.webView === view)
     }
 

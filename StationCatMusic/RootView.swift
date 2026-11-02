@@ -597,6 +597,8 @@ struct RootView: View {
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
                 Label(model.t("releaseShareCards"), systemImage: "square.and.arrow.up")
+                Label(model.t("releaseAlbumArtwork"), systemImage: "square.stack")
+                Label(model.t("releaseListeningNavigation"), systemImage: "globe")
             }.listRowBackground(Palette.panel)
             Section(model.t("previousUpdates") + " · 1.0.6 (19) · 2026-10-28") {
                 Label(model.t("releaseNetEaseBrowserRelease"), systemImage: "globe")

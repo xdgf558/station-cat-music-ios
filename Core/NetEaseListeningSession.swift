@@ -142,9 +142,10 @@ import WebKit
     }
 
     func decideDocumentAction(url: URL?, target: NetEaseListeningNavigationPolicy.Target,
-                              download: Bool, decisionHandler: (WKNavigationActionPolicy) -> Void) {
+                              download: Bool, method: String? = "GET", decisionHandler: (WKNavigationActionPolicy) -> Void) {
         guard webView != nil else { decisionHandler(.cancel); return }
-        guard !download, let url, NetEaseListeningNavigationPolicy.allows(url, target: target) else {
+        guard !download, method == "GET", let request, let url,
+              NetEaseListeningNavigationPolicy.allows(url, target: target, request: request) else {
             decisionHandler(.cancel)
             navigationDiagnostic = NetEaseListeningNavigationPolicy.diagnostic(url, target: target, response: false, download: download)
             // Preserve the existing notice-only handling of attempts to launch
@@ -162,7 +163,7 @@ import WebKit
                                 status: Int?, mimeType: String?, decisionHandler: (WKNavigationResponsePolicy) -> Void) {
         guard webView != nil else { decisionHandler(.cancel); return }
         let target: NetEaseListeningNavigationPolicy.Target = mainFrame ? .mainFrame : .subframe
-        guard let url, NetEaseListeningNavigationPolicy.allows(url, target: target) else {
+        guard let request, let url, NetEaseListeningNavigationPolicy.allows(url, target: target, request: request) else {
             decisionHandler(.cancel)
             navigationDiagnostic = NetEaseListeningNavigationPolicy.diagnostic(url, target: target, response: true)
             blocked(target); return
@@ -199,8 +200,9 @@ extension NetEaseListeningSession: WKNavigationDelegate, WKUIDelegate {
         guard webView === self.webView else { decisionHandler(.cancel); return }
         let target: NetEaseListeningNavigationPolicy.Target = navigationAction.targetFrame.map { $0.isMainFrame ? .mainFrame : .subframe } ?? .newWindow
         if target == .mainFrame, navigationAction.navigationType == .linkActivated,
-           !navigationAction.shouldPerformDownload, let url = navigationAction.request.url,
-           NetEaseListeningNavigationPolicy.allows(url, target: target) {
+           !navigationAction.shouldPerformDownload, navigationAction.request.httpMethod == "GET",
+           let request, let url = navigationAction.request.url,
+           NetEaseListeningNavigationPolicy.allows(url, target: target, request: request) {
             // Cancel WebKit's user-link path, which can attempt an associated-
             // app handoff, then issue an owned navigation in this same browser.
             // The resulting .other navigation still passes the normal policy.
@@ -209,7 +211,8 @@ extension NetEaseListeningSession: WKNavigationDelegate, WKUIDelegate {
             return
         }
         decideDocumentAction(url: navigationAction.request.url, target: target,
-                             download: navigationAction.shouldPerformDownload, decisionHandler: decisionHandler)
+                             download: navigationAction.shouldPerformDownload, method: navigationAction.request.httpMethod,
+                             decisionHandler: decisionHandler)
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,

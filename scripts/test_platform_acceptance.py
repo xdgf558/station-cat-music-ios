@@ -118,7 +118,7 @@ class PlatformReleaseChecks(unittest.TestCase):
 
     def test_experiment_notes_must_be_present_in_every_locale(self):
         for locale in ["zh-Hans", "zh-Hant", "en", "ja"]:
-            for key in ["releaseShareCards", "releaseNetEaseBrowserRelease", "releaseNetEaseNavigationFix", "releaseNetEaseBrowserExperiment", "releaseNetEaseBrowserControl"]:
+            for key in ["releaseShareCards", "releaseAlbumArtwork", "releaseListeningNavigation", "releaseNetEaseBrowserRelease", "releaseNetEaseNavigationFix", "releaseNetEaseBrowserExperiment", "releaseNetEaseBrowserControl"]:
                 with self.subTest(locale=locale, key=key):
                     notes = copy.deepcopy(self.notes)
                     notes[locale].pop(key, None)

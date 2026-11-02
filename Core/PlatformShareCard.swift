@@ -25,8 +25,18 @@ nonisolated struct PlatformShareCard: Identifiable, Equatable, Sendable {
     static func track(_ detail: PlatformTrackDetail, locale: String) -> Self? {
         let track = detail.track
         guard let release = track.release, let url = link(kind: .track, slug: release.slug, locale: locale) else { return nil }
+        // Prefer the published short introduction. When it is blank, use the
+        // same published song detail's story rather than inventing card text.
+        let description: String
+        if !release.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            description = release.summary
+        } else if !detail.story.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            description = detail.story
+        } else {
+            description = ""
+        }
         return Self(kind: .track, id: track.id, title: track.title, artist: track.artist,
-                    summary: release.summary, artwork: track, albumArtworkURL: nil, url: url)
+                    summary: description, artwork: track, albumArtworkURL: nil, url: url)
     }
 
     static func album(_ album: PlatformAlbum, locale: String) -> Self? {

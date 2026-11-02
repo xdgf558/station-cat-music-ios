@@ -109,4 +109,24 @@ private actor AlbumTestTransport: HTTPTransport {
         XCTAssertNil(PlatformShareCard.album(missing, locale: "en"))
         XCTAssertNil(PlatformAlbumArtwork.coverURL(album: missing, locale: "en", host: "wwwstationcat.org", mock: false))
     }
+
+    func testSongShareUsesPublishedStoryWhenIntroductionIsBlank() throws {
+        var song = Track(id: "11111111-1111-4111-8111-111111111111", title: "Real song", artist: "Station Cat",
+                         durationSeconds: 0, audioVersion: 1, access: .unavailable)
+        song.release = PlatformTrackRelease(slug: "real-song", summary: "  \n ", webURL: PlatformMusicAPI.productionOrigin,
+            platforms: [], availability: "available", previewAvailable: false, albums: [])
+        let story = "真实故事第一段。\n\n真实故事第二段。"
+        let detail = PlatformTrackDetail(track: song, story: story, lyricsURL: nil)
+        XCTAssertEqual(try XCTUnwrap(PlatformShareCard.track(detail, locale: "zh-Hans")).summary, story)
+
+        // Missing text stays empty, never a generic or fabricated introduction.
+        let absent = PlatformTrackDetail(track: song, story: " \n", lyricsURL: nil)
+        XCTAssertEqual(try XCTUnwrap(PlatformShareCard.track(absent, locale: "zh-Hans")).summary, "")
+
+        // An introduction takes precedence and retains its original wording.
+        song.release = PlatformTrackRelease(slug: "real-song", summary: "  已发布的歌曲介绍。  ",
+            webURL: PlatformMusicAPI.productionOrigin, platforms: [], availability: "available", previewAvailable: false, albums: [])
+        let both = PlatformTrackDetail(track: song, story: story, lyricsURL: nil)
+        XCTAssertEqual(try XCTUnwrap(PlatformShareCard.track(both, locale: "zh-Hans")).summary, "  已发布的歌曲介绍。  ")
+    }
 }

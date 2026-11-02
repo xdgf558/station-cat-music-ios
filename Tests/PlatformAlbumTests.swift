@@ -60,4 +60,36 @@ private actor AlbumTestTransport: HTTPTransport {
         XCTAssertEqual(albums.map(\.id), ["a", "b"])
         XCTAssertEqual(albums.map { $0.tracks.count }, [1, 1])
     }
+
+    func testShareCardsUsePublishedIntroductionsAndBoundedIdentities() throws {
+        let first = PlatformAlbumMembership(id: "album-id", slug: "real-album", title: "Real album",
+            summary: "The real album introduction.", version: 7, position: 0)
+        var song = Track(id: "11111111-1111-4111-8111-111111111111", title: "Real song", artist: "Station Cat",
+            durationSeconds: 0, audioVersion: 1, access: .unavailable)
+        song.release = PlatformTrackRelease(slug: "real-song", summary: "The real song introduction.",
+            webURL: PlatformMusicAPI.productionOrigin, platforms: [], availability: "available", previewAvailable: false,
+            albums: [first])
+        let detail = PlatformTrackDetail(track: song, story: "A separate story.", lyricsURL: nil)
+        let songCard = try XCTUnwrap(PlatformShareCard.track(detail, locale: "zh-Hans"))
+        XCTAssertEqual(songCard.summary, "The real song introduction.")
+        XCTAssertEqual(songCard.url.absoluteString, "https://wwwstationcat.org/music/share/tracks/real-song/?locale=zh-Hans")
+        XCTAssertNil(songCard.albumArtworkURL)
+
+        let album = try XCTUnwrap(PlatformAlbum.catalog([song]).first)
+        let albumCard = try XCTUnwrap(PlatformShareCard.album(album, locale: "ja"))
+        XCTAssertEqual(albumCard.summary, "The real album introduction.")
+        XCTAssertEqual(albumCard.url.absoluteString, "https://wwwstationcat.org/music/share/albums/real-album/?locale=ja")
+        XCTAssertEqual(albumCard.albumArtworkURL?.absoluteString, "https://wwwstationcat.org/music/share/albums/real-album/cover.png")
+        XCTAssertNil(albumCard.artwork, "An album card must not use a song cover as the album cover")
+
+        var invalid = song
+        invalid.release = PlatformTrackRelease(slug: "../bad", summary: "", webURL: PlatformMusicAPI.productionOrigin,
+            platforms: [], availability: "available", previewAvailable: false, albums: [first])
+        XCTAssertNil(PlatformShareCard.track(PlatformTrackDetail(track: invalid, story: "", lyricsURL: nil), locale: "en"))
+        XCTAssertNil(PlatformShareCard.track(detail, locale: "untrusted"))
+        let mismatch = PlatformAlbum(id: album.id, title: album.title, summary: "Wrong summary", tracks: album.tracks)
+        XCTAssertNil(PlatformShareCard.album(mismatch, locale: "en"))
+        let missing = PlatformAlbum(id: "missing", title: album.title, summary: album.summary, tracks: album.tracks)
+        XCTAssertNil(PlatformShareCard.album(missing, locale: "en"))
+    }
 }

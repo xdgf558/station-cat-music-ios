@@ -25,6 +25,7 @@ struct PlatformMusicDetailView: View {
     @State private var notebookPendingWork: NotebookWork?
     @State private var preparingNotebook = false
     @State private var notebookEntryFailed = false
+    @State private var shareCard: PlatformShareCard?
     @State private var openOperation = 0
     private enum Section: String, CaseIterable { case lyrics, clips, story
         var key: String { "contentTab." + rawValue }
@@ -105,6 +106,10 @@ struct PlatformMusicDetailView: View {
                             .presentationDetents([.large])
                     }
                 }
+                .sheet(item: $shareCard) { card in
+                    PlatformShareCardView(model: model, card: card,
+                        isCurrent: currentDetail.flatMap { PlatformShareCard.track($0, locale: model.locale) } == card)
+                }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -115,8 +120,8 @@ struct PlatformMusicDetailView: View {
                         Text("S T A T I O N   C A T").font(.caption2.weight(.medium)).foregroundStyle(Palette.muted)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        if let url = track?.release?.webURL {
-                            ShareLink(item: url) { Image(systemName: "square.and.arrow.up").frame(minWidth: 44, minHeight: 44) }
+                        if let card = currentDetail.flatMap({ PlatformShareCard.track($0, locale: model.locale) }) {
+                            Button { shareCard = card } label: { Image(systemName: "square.and.arrow.up").frame(minWidth: 44, minHeight: 44) }
                                 .accessibilityLabel(model.t("shareMusic")).accessibilityIdentifier("platformShare")
                         }
                     }

@@ -1,7 +1,14 @@
 from pathlib import Path
 import json
 root=Path(__file__).resolve().parents[1]
-rows='''releaseNetEaseBrowserRelease|Open official NetEase song webpages inside the app, with retry and external-opening options. Playback, sign-in and availability remain subject to NetEase.|可在 App 内打开网易云官方歌曲网页，并保留重试和外部打开入口；播放、登录及可用范围仍由网易云决定。|可在 App 內開啟網易雲官方歌曲網頁，並保留重試與外部開啟入口；播放、登入與可用範圍仍由網易雲決定。|NetEase の公式楽曲ページをアプリ内で開き、再試行や外部で開く操作も利用できます。再生、ログイン、利用可否は NetEase が管理します。
+rows='''shareCardTitle|Share card|分享卡片|分享卡片|シェアカード
+releaseShareCards|Share songs and albums with a card featuring the work’s introduction and an App Store download link.|单曲和专辑可生成分享卡片，展示作品介绍并提供 App Store 下载入口。|單曲和專輯可產生分享卡片，展示作品介紹並提供 App Store 下載入口。|楽曲とアルバムの紹介文と App Store のダウンロードリンクを含むシェアカードを追加しました。
+shareCardSingle|SINGLE|单曲|單曲|シングル
+shareCardAlbum|ALBUM|专辑|專輯|アルバム
+shareCardOpen|Open Station Cat Music|打开 Station Cat Music|開啟 Station Cat Music|Station Cat Music を開く
+shareCardHint|A link will be shared. The preview shown to others depends on the app you choose.|将分享作品链接，接收方看到的预览样式取决于分享平台。|將分享作品連結，接收方看到的預覽樣式取決於分享平台。|作品のリンクを共有します。相手に表示されるプレビューは共有先によって異なります。
+shareCardUnavailable|This work has changed or can no longer be shared. Close this card and refresh.|作品已更改或暂不可分享，请关闭卡片并刷新。|作品已變更或暫時無法分享，請關閉卡片並重新整理。|作品が更新されたか、現在共有できません。カードを閉じて再読み込みしてください。
+releaseNetEaseBrowserRelease|Open official NetEase song webpages inside the app, with retry and external-opening options. Playback, sign-in and availability remain subject to NetEase.|可在 App 内打开网易云官方歌曲网页，并保留重试和外部打开入口；播放、登录及可用范围仍由网易云决定。|可在 App 內開啟網易雲官方歌曲網頁，並保留重試與外部開啟入口；播放、登入與可用範圍仍由網易雲決定。|NetEase の公式楽曲ページをアプリ内で開き、再試行や外部で開く操作も利用できます。再生、ログイン、利用可否は NetEase が管理します。
 releaseNetEaseNavigationFix|Improves navigation compatibility with official NetEase pages. Keeps the displayed page when an additional navigation is blocked, with redacted diagnostics to help investigate loading problems.|改善网易云官方页面跳转兼容；额外跳转被拦截时保留已显示的网页，并显示脱敏诊断便于排查。|改善網易雲官方頁面跳轉相容性；額外跳轉遭攔截時保留已顯示的網頁，並顯示去識別化診斷資訊以便排查。|NetEase 公式ページの画面遷移への対応を改善しました。追加の遷移がブロックされた場合は表示済みのページを保持し、機密情報を除いた診断情報で読み込みの問題を確認できます。
 neteaseBrowserDiagnostic|Load diagnostics|加载诊断|載入診斷|読み込み診断
 releaseNetEaseBrowserExperiment|This TestFlight candidate opens NetEase song webpages inside the app. Full playback depends on NetEase and still needs real-song verification.|TestFlight 测试版支持在 App 内打开网易云歌曲网页；能否完整播放仍取决于网易云，尚待实际验证。|TestFlight 測試版支援在 App 內開啟網易雲歌曲網頁；能否完整播放仍取決於網易雲，尚待實際驗證。|この TestFlight 版では NetEase の曲ページをアプリ内に表示できます。フル再生の可否は NetEase によるため、実際の楽曲での確認が必要です。

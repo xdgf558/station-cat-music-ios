@@ -1,5 +1,12 @@
 {
   "en": {
+    "shareCardTitle": "Share card",
+    "releaseShareCards": "Share songs and albums with a card featuring the work’s introduction and an App Store download link.",
+    "shareCardSingle": "SINGLE",
+    "shareCardAlbum": "ALBUM",
+    "shareCardOpen": "Open Station Cat Music",
+    "shareCardHint": "A link will be shared. The preview shown to others depends on the app you choose.",
+    "shareCardUnavailable": "This work has changed or can no longer be shared. Close this card and refresh.",
     "releaseNetEaseBrowserRelease": "Open official NetEase song webpages inside the app, with retry and external-opening options. Playback, sign-in and availability remain subject to NetEase.",
     "releaseNetEaseNavigationFix": "Improves navigation compatibility with official NetEase pages. Keeps the displayed page when an additional navigation is blocked, with redacted diagnostics to help investigate loading problems.",
     "neteaseBrowserDiagnostic": "Load diagnostics",
@@ -424,6 +431,13 @@
     "error.client_upgrade_required": "Update the app to continue."
   },
   "zh-Hans": {
+    "shareCardTitle": "分享卡片",
+    "releaseShareCards": "单曲和专辑可生成分享卡片，展示作品介绍并提供 App Store 下载入口。",
+    "shareCardSingle": "单曲",
+    "shareCardAlbum": "专辑",
+    "shareCardOpen": "打开 Station Cat Music",
+    "shareCardHint": "将分享作品链接，接收方看到的预览样式取决于分享平台。",
+    "shareCardUnavailable": "作品已更改或暂不可分享，请关闭卡片并刷新。",
     "releaseNetEaseBrowserRelease": "可在 App 内打开网易云官方歌曲网页，并保留重试和外部打开入口；播放、登录及可用范围仍由网易云决定。",
     "releaseNetEaseNavigationFix": "改善网易云官方页面跳转兼容；额外跳转被拦截时保留已显示的网页，并显示脱敏诊断便于排查。",
     "neteaseBrowserDiagnostic": "加载诊断",
@@ -848,6 +862,13 @@
     "error.client_upgrade_required": "请更新应用后继续。"
   },
   "zh-Hant": {
+    "shareCardTitle": "分享卡片",
+    "releaseShareCards": "單曲和專輯可產生分享卡片，展示作品介紹並提供 App Store 下載入口。",
+    "shareCardSingle": "單曲",
+    "shareCardAlbum": "專輯",
+    "shareCardOpen": "開啟 Station Cat Music",
+    "shareCardHint": "將分享作品連結，接收方看到的預覽樣式取決於分享平台。",
+    "shareCardUnavailable": "作品已變更或暫時無法分享，請關閉卡片並重新整理。",
     "releaseNetEaseBrowserRelease": "可在 App 內開啟網易雲官方歌曲網頁，並保留重試與外部開啟入口；播放、登入與可用範圍仍由網易雲決定。",
     "releaseNetEaseNavigationFix": "改善網易雲官方頁面跳轉相容性；額外跳轉遭攔截時保留已顯示的網頁，並顯示去識別化診斷資訊以便排查。",
     "neteaseBrowserDiagnostic": "載入診斷",
@@ -1272,6 +1293,13 @@
     "error.client_upgrade_required": "請更新應用程式後繼續。"
   },
   "ja": {
+    "shareCardTitle": "シェアカード",
+    "releaseShareCards": "楽曲とアルバムの紹介文と App Store のダウンロードリンクを含むシェアカードを追加しました。",
+    "shareCardSingle": "シングル",
+    "shareCardAlbum": "アルバム",
+    "shareCardOpen": "Station Cat Music を開く",
+    "shareCardHint": "作品のリンクを共有します。相手に表示されるプレビューは共有先によって異なります。",
+    "shareCardUnavailable": "作品が更新されたか、現在共有できません。カードを閉じて再読み込みしてください。",
     "releaseNetEaseBrowserRelease": "NetEase の公式楽曲ページをアプリ内で開き、再試行や外部で開く操作も利用できます。再生、ログイン、利用可否は NetEase が管理します。",
     "releaseNetEaseNavigationFix": "NetEase 公式ページの画面遷移への対応を改善しました。追加の遷移がブロックされた場合は表示済みのページを保持し、機密情報を除いた診断情報で読み込みの問題を確認できます。",
     "neteaseBrowserDiagnostic": "読み込み診断",

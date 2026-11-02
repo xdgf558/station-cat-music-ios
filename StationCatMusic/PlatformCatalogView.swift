@@ -152,6 +152,7 @@ struct PlatformCatalogScreen: View {
 struct PlatformAlbumDetailView: View {
     @Bindable var model: AppModel
     let albumID: String
+    @State private var shareCard: PlatformShareCard?
     private var album: PlatformAlbum? { model.platformAlbums.first { $0.id == albumID } }
     var body: some View {
         ScrollView {
@@ -178,6 +179,19 @@ struct PlatformAlbumDetailView: View {
             }.padding(22)
         }.background { OrbitBackground() }.navigationTitle(model.t("catalogCategory.albums"))
             .navigationBarTitleDisplayMode(.inline).toolbar(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if model.catalogFailure == nil, let album, let card = PlatformShareCard.album(album, locale: model.locale) {
+                        Button { shareCard = card } label: {
+                            Image(systemName: "square.and.arrow.up").frame(minWidth: 44, minHeight: 44)
+                        }.accessibilityLabel(model.t("shareMusic")).accessibilityIdentifier("platformAlbumShare")
+                    }
+                }
+            }
+            .sheet(item: $shareCard) { card in
+                PlatformShareCardView(model: model, card: card,
+                    isCurrent: model.catalogFailure == nil && album.flatMap { PlatformShareCard.album($0, locale: model.locale) } == card)
+            }
             .refreshable { await model.load() }.accessibilityIdentifier("platformAlbumDetail")
     }
 }

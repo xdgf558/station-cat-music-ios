@@ -19,8 +19,84 @@ test('fixed labels never include dynamic URLs or query strings',()=>{
   ...['revoke','rotation','rotation-evidence','stability','stability/limited','stability/expiry','stability/revoke']
    .map(route=>['/fixture/'+route,'fixture'])]);
  for(const [path,label] of routes)assert.equal(routeLabel(path+'?secret=not-for-logs'),label);
+ const grant='/api/mobile/v1/music/tracks/12345678-1234-4abc-8abc-123456789abc/playback-grants';
+ assert.equal(routeLabel(grant+'?credential=private'),'playback_grant');
+ assert.equal(routeLabel('/api/mobile/v1/music/tracks/12345678-1234-4abc-8abc-123456789abc/playback-grants/extra'),'other');
+ const token=Buffer.alloc(32,17).toString('base64url');assert.equal(token.length,43);
+ assert.equal(routeLabel('/api/mobile/v1/music/media/'+token+'/audio?credential=private'),'media_audio');
+ for(const bad of [token.slice(1),token+'x',token.slice(0,-1)+'%',token+'/extra'])assert.equal(routeLabel('/api/mobile/v1/music/media/'+bad+'/audio'),'other');
  for(const path of ['/private-secret','/fixture/private-secret','/api/mobile/v1/music/tracks/private-secret/playback-grants',
   '/api/mobile/v1/music/catalog/private-secret','https://user:password@private/api/mobile/v1/music/catalog',null,{}])assert.equal(routeLabel(path),'other');
+});
+test('playback grant success, interruption and timeout retain fixed labels only',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'runtime-grant-')),path=join(dir,'runtime.jsonl');
+ const stop=startRuntimeDiagnostics(path,{interval:10000,budget:16384});
+ const server=createServer((req,res)=>{
+  if(req.url.includes('interrupted-private')){res.destroy();return;}
+  if(req.url.includes('timeout-private'))return;
+  res.writeHead(200);res.end('response-private');
+ });
+ try{
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const song='12345678-1234-4abc-8abc-123456789abc';
+  const base=`http://127.0.0.1:${server.address().port}/api/mobile/v1/music/tracks/${song}/playback-grants`;
+  const request={method:'POST',headers:{Authorization:'Bearer credential-private'},body:'body-private'};
+  const ok=await fetch(base+'?success-private',request);assert.equal(ok.status,200);await ok.text();
+  await assert.rejects(fetch(base+'?interrupted-private',request));
+  await assert.rejects(fetch(base+'?timeout-private',{...request,signal:AbortSignal.timeout(75)}));
+  await delay(50);stop();
+  const text=readFileSync(path,'utf8'),rows=text.trim().split('\n').map(JSON.parse);
+  const events=rows.filter(row=>row.route==='playback_grant');
+  assert.ok(events.every(row=>row.method==='POST'));
+  assert.equal(events.filter(row=>row.event==='http_in_start').length,3);
+  assert.equal(events.filter(row=>row.event==='worker_http_start').length,3);
+  assert.ok(events.some(row=>row.event==='http_in_finish'&&row.status===200));
+  assert.ok(events.some(row=>row.event==='worker_http_headers'&&row.status===200));
+  assert.ok(events.some(row=>row.event==='worker_http_finish'));
+  const started=events.filter(row=>row.event==='worker_http_start');
+  for(const request of started.slice(1)) {
+   assert.ok(events.some(row=>row.event==='worker_http_error'&&row.id===request.id));
+   assert.ok(!events.some(row=>row.event==='worker_http_headers'&&row.id===request.id));
+  }
+  for(const secret of [song,'success-private','interrupted-private','timeout-private','credential-private','body-private','response-private','127.0.0.1','/api/'])assert.ok(!text.includes(secret));
+ }finally{stop();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));rmSync(dir,{recursive:true,force:true});}
+});
+test('media HEAD and GET outcomes expose only fixed method and route labels',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'runtime-media-')),path=join(dir,'runtime.jsonl');
+ const stop=startRuntimeDiagnostics(path,{interval:10000,budget:16384});
+ const server=createServer((req,res)=>{
+  if(req.url.includes('interrupted-private')){res.destroy();return;}
+  if(req.url.includes('timeout-private'))return;
+  res.writeHead(200,{'Content-Type':'audio/mpeg'});res.end('audio-body-private');
+ });
+ try{
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const token=Buffer.alloc(32,17).toString('base64url');
+  const base=`http://127.0.0.1:${server.address().port}/api/mobile/v1/music/media/${token}/audio`;
+  const headers={Authorization:'Bearer credential-private',Range:'bytes=private'};
+  for(const method of ['HEAD','GET','PUT']){
+   const response=await fetch(base+'?success-private',{method,headers});
+   assert.equal(response.status,200);await response.arrayBuffer();
+  }
+  await assert.rejects(fetch(base+'?interrupted-private',{method:'GET',headers}));
+  await assert.rejects(fetch(base+'?timeout-private',{method:'GET',headers,signal:AbortSignal.timeout(75)}));
+  await delay(50);stop();
+  const text=readFileSync(path,'utf8'),rows=text.trim().split('\n').map(JSON.parse);
+  const events=rows.filter(row=>row.route==='media_audio');
+  const incoming=events.filter(row=>row.event==='http_in_start'),outgoing=events.filter(row=>row.event==='worker_http_start');
+  assert.deepEqual(incoming.map(row=>row.method),['HEAD','GET','other','GET','GET']);
+  assert.deepEqual(outgoing.map(row=>row.method),['HEAD','GET','other','GET','GET']);
+  for(const request of outgoing.slice(0,3)){
+   assert.ok(events.some(row=>row.event==='worker_http_headers'&&row.id===request.id&&row.status===200));
+   assert.ok(events.some(row=>row.event==='worker_http_finish'&&row.id===request.id));
+  }
+  for(const request of outgoing.slice(3)){
+   assert.ok(events.some(row=>row.event==='worker_http_error'&&row.id===request.id));
+   assert.ok(!events.some(row=>row.event==='worker_http_headers'&&row.id===request.id));
+  }
+  assert.ok(events.every(row=>['HEAD','GET','POST','other'].includes(row.method)));
+  for(const secret of [token,'success-private','interrupted-private','timeout-private','credential-private','bytes=private','audio-body-private','127.0.0.1','/api/','PUT'])assert.ok(!text.includes(secret));
+ }finally{stop();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));rmSync(dir,{recursive:true,force:true});}
 });
 test('real HTTP and blocked event loop yield bounded numeric diagnostics, not secrets',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'runtime-diagnostic-')),path=join(dir,'runtime.jsonl');
@@ -46,7 +122,7 @@ test('real HTTP and blocked event loop yield bounded numeric diagnostics, not se
   assert.ok(rows.filter(row=>['http_in_finish','worker_http_headers'].includes(row.event)).every(row=>row.status===200));
   assert.ok(rows.some(row=>row.event==='heartbeat'&&row.lagMs>=80));
   assert.equal(statSync(path).mode&0o777,0o600);
-  const allowed=new Set(['sequence','at','elapsedMs','event','id','route','status','lagMs','cpuUserMs','cpuSystemMs','durationMs','unlabelledIncoming','unlabelledOutgoing']);
+  const allowed=new Set(['sequence','at','elapsedMs','event','id','route','method','status','lagMs','cpuUserMs','cpuSystemMs','durationMs','unlabelledIncoming','unlabelledOutgoing']);
   for(const row of rows){
    assert.ok(Object.keys(row).every(key=>allowed.has(key)));
    if(row.route!==undefined)assert.ok(['evidence','catalog','featured','fixture_featured','request','bootstrap','config'].includes(row.route));

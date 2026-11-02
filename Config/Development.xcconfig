@@ -23,3 +23,6 @@ STATION_PUBLIC_RELEASE_ORIGIN =
 
 // Public Universal Links require separate AASA and signed-entitlement acceptance.
 STATION_PUBLIC_APP_LINKS_ENABLED = NO
+
+// Experiment stays closed by default; TestFlight candidates use an explicit reviewed marker.
+STATION_NETEASE_BROWSER_EXPERIMENT_ENABLED = NO

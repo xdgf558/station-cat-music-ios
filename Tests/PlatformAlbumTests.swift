@@ -60,4 +60,73 @@ private actor AlbumTestTransport: HTTPTransport {
         XCTAssertEqual(albums.map(\.id), ["a", "b"])
         XCTAssertEqual(albums.map { $0.tracks.count }, [1, 1])
     }
+
+    func testShareCardsUsePublishedIntroductionsAndBoundedIdentities() throws {
+        let first = PlatformAlbumMembership(id: "album-id", slug: "real-album", title: "Real album",
+            summary: "The real album introduction.", version: 7, position: 0)
+        var song = Track(id: "11111111-1111-4111-8111-111111111111", title: "Real song", artist: "Station Cat",
+            durationSeconds: 0, audioVersion: 1, access: .unavailable)
+        song.release = PlatformTrackRelease(slug: "real-song", summary: "The real song introduction.",
+            webURL: PlatformMusicAPI.productionOrigin, platforms: [], availability: "available", previewAvailable: false,
+            albums: [first])
+        let detail = PlatformTrackDetail(track: song, story: "A separate story.", lyricsURL: nil)
+        let songCard = try XCTUnwrap(PlatformShareCard.track(detail, locale: "zh-Hans"))
+        XCTAssertEqual(songCard.summary, "The real song introduction.")
+        XCTAssertEqual(songCard.url.absoluteString, "https://wwwstationcat.org/music/share/tracks/real-song/?locale=zh-Hans")
+        XCTAssertNil(songCard.albumArtworkURL)
+
+        let album = try XCTUnwrap(PlatformAlbum.catalog([song]).first)
+        let albumCard = try XCTUnwrap(PlatformShareCard.album(album, locale: "ja"))
+        XCTAssertEqual(albumCard.summary, "The real album introduction.")
+        XCTAssertEqual(albumCard.url.absoluteString, "https://wwwstationcat.org/music/share/albums/real-album/?locale=ja")
+        XCTAssertEqual(albumCard.albumArtworkURL?.absoluteString, "https://wwwstationcat.org/api/music/collections/real-album/cover?v=7&size=display")
+        XCTAssertNil(albumCard.artwork, "An album card must not use a song cover as the album cover")
+        let cover = PlatformAlbumArtwork.coverURL(album: album, locale: "ja", host: "wwwstationcat.org", mock: false)
+        XCTAssertEqual(cover?.absoluteString, "https://wwwstationcat.org/api/music/collections/real-album/cover?v=7&size=display")
+        XCTAssertEqual(cover, albumCard.albumArtworkURL, "Catalog and share preview must use the same album image")
+        XCTAssertNil(PlatformAlbumArtwork.coverURL(album: album, locale: "ja", host: "other.example", mock: false))
+        XCTAssertNil(PlatformAlbumArtwork.coverURL(album: album, locale: "ja", host: "wwwstationcat.org", mock: true))
+
+        // A new album revision changes the requested URL, so a long-lived
+        // artwork view will not keep displaying the previous cover.
+        var updatedSong = song
+        updatedSong.release?.albums = [.init(id: first.id, slug: first.slug, title: first.title,
+                                            summary: first.summary, version: 8, position: first.position)]
+        let updatedAlbum = try XCTUnwrap(PlatformAlbum.catalog([updatedSong]).first)
+        XCTAssertEqual(PlatformAlbumArtwork.coverURL(album: updatedAlbum, locale: "ja", host: "wwwstationcat.org", mock: false)?.query,
+                       "v=8&size=display")
+        XCTAssertNotEqual(cover, PlatformAlbumArtwork.coverURL(album: updatedAlbum, locale: "ja", host: "wwwstationcat.org", mock: false))
+
+        var invalid = song
+        invalid.release = PlatformTrackRelease(slug: "../bad", summary: "", webURL: PlatformMusicAPI.productionOrigin,
+            platforms: [], availability: "available", previewAvailable: false, albums: [first])
+        XCTAssertNil(PlatformShareCard.track(PlatformTrackDetail(track: invalid, story: "", lyricsURL: nil), locale: "en"))
+        XCTAssertNil(PlatformShareCard.track(detail, locale: "untrusted"))
+        let mismatch = PlatformAlbum(id: album.id, title: album.title, summary: "Wrong summary", tracks: album.tracks)
+        XCTAssertNil(PlatformShareCard.album(mismatch, locale: "en"))
+        XCTAssertNil(PlatformAlbumArtwork.coverURL(album: mismatch, locale: "en", host: "wwwstationcat.org", mock: false))
+        let missing = PlatformAlbum(id: "missing", title: album.title, summary: album.summary, tracks: album.tracks)
+        XCTAssertNil(PlatformShareCard.album(missing, locale: "en"))
+        XCTAssertNil(PlatformAlbumArtwork.coverURL(album: missing, locale: "en", host: "wwwstationcat.org", mock: false))
+    }
+
+    func testSongShareUsesPublishedStoryWhenIntroductionIsBlank() throws {
+        var song = Track(id: "11111111-1111-4111-8111-111111111111", title: "Real song", artist: "Station Cat",
+                         durationSeconds: 0, audioVersion: 1, access: .unavailable)
+        song.release = PlatformTrackRelease(slug: "real-song", summary: "  \n ", webURL: PlatformMusicAPI.productionOrigin,
+            platforms: [], availability: "available", previewAvailable: false, albums: [])
+        let story = "真实故事第一段。\n\n真实故事第二段。"
+        let detail = PlatformTrackDetail(track: song, story: story, lyricsURL: nil)
+        XCTAssertEqual(try XCTUnwrap(PlatformShareCard.track(detail, locale: "zh-Hans")).summary, story)
+
+        // Missing text stays empty, never a generic or fabricated introduction.
+        let absent = PlatformTrackDetail(track: song, story: " \n", lyricsURL: nil)
+        XCTAssertEqual(try XCTUnwrap(PlatformShareCard.track(absent, locale: "zh-Hans")).summary, "")
+
+        // An introduction takes precedence and retains its original wording.
+        song.release = PlatformTrackRelease(slug: "real-song", summary: "  已发布的歌曲介绍。  ",
+            webURL: PlatformMusicAPI.productionOrigin, platforms: [], availability: "available", previewAvailable: false, albums: [])
+        let both = PlatformTrackDetail(track: song, story: story, lyricsURL: nil)
+        XCTAssertEqual(try XCTUnwrap(PlatformShareCard.track(both, locale: "zh-Hans")).summary, "  已发布的歌曲介绍。  ")
+    }
 }

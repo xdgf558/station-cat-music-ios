@@ -63,6 +63,30 @@ import XCTest
         app.buttons["catalogCategory.all"].tap()
         XCTAssertTrue(app.buttons["track.11111111-1111-4111-8111-111111111111"].exists)
     }
+
+    func testSharePreviewsUseActualAlbumAndSongIntroductions() {
+        let app = launch()
+        app.buttons["catalogCategory.albums"].tap()
+        let first = app.buttons["album." + firstAlbum]
+        XCTAssertTrue(first.waitForExistence(timeout: 5)); first.tap()
+        let albumShare = app.buttons["platformAlbumShare"]
+        XCTAssertTrue(albumShare.waitForExistence(timeout: 5)); albumShare.tap()
+        let summary = app.staticTexts["platformShareCardSummary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertEqual(summary.label, "写给深夜还醒着的人。")
+        XCTAssertTrue(app.buttons["platformShareCardConfirm"].exists)
+        capture(app, "Share-Album-Preview")
+        app.buttons["platformShareCardClose"].tap()
+
+        let firstSong = app.buttons["track." + firstTrack]
+        reveal(firstSong, app: app); firstSong.tap()
+        let songShare = app.buttons["platformShare"]
+        XCTAssertTrue(songShare.waitForExistence(timeout: 5)); songShare.tap()
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertEqual(summary.label, "写给深夜还醒着的人。")
+        XCTAssertTrue(app.buttons["platformShareCardConfirm"].exists)
+        capture(app, "Share-Song-Preview")
+    }
     func testAlbumGalleryFourLanguagesAndAccessibilityText() {
         for locale in ["zh-Hans", "zh-Hant", "en", "ja"] {
             let app = launch(locale: locale, large: true)

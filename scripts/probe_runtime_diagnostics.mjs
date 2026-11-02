@@ -8,6 +8,10 @@ import {performance} from 'node:perf_hooks';
 export function routeLabel(path) {
  if(typeof path!=='string')return 'other';
  const pathname=path.split('?')[0];
+ // Recognize only the shape, never persist the song identifier or query.
+ if(/^\/api\/mobile\/v1\/music\/tracks\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/playback-grants$/i.test(pathname))return 'playback_grant';
+ // Grant values are credentials: classify the exact path shape only.
+ if(/^\/api\/mobile\/v1\/music\/media\/[A-Za-z0-9_-]{43}\/audio$/.test(pathname))return 'media_audio';
  return new Map([['/fixture/prepare','prepare'],['/fixture/seed','seed'],
   ['/request','request'],['/fixture/bootstrap','bootstrap'],['/api/mobile/v1/config','config'],
   ['/fixture/evidence','evidence'],['/api/mobile/v1/auth/refresh','refresh'],
@@ -37,11 +41,13 @@ export function startRuntimeDiagnostics(path,{interval=1000,budget=262144,runId}
  }
  fs.fsyncSync=measuredSync;syncBuiltinESMExports();
  const channels=[],incoming=new WeakMap(),outgoing=new WeakMap();
+ const routeFields=(route,method)=>['playback_grant','media_audio'].includes(route)
+  ? {route,method:['HEAD','GET','POST'].includes(method)?method:'other'} : {route};
  const on=(name,handler)=>{subscribe(name,handler);channels.push([name,handler]);};
  on('http.server.request.start',({request})=>{
   const route=routeLabel(request.url);
   if(route==='other'){unlabelledIncoming++;return;}
-  const value={id:++requestSequence,route};incoming.set(request,value);
+  const value={id:++requestSequence,...routeFields(route,request.method)};incoming.set(request,value);
   write({event:'http_in_start',...value});
  });
  on('http.server.response.finish',({request,response})=>{
@@ -50,7 +56,7 @@ export function startRuntimeDiagnostics(path,{interval=1000,budget=262144,runId}
  on('undici:request:create',({request})=>{
   const route=routeLabel(request.path);
   if(route==='other'){unlabelledOutgoing++;return;}
-  const value={id:++requestSequence,route};outgoing.set(request,value);
+  const value={id:++requestSequence,...routeFields(route,request.method)};outgoing.set(request,value);
   write({event:'worker_http_start',...value});
  });
  on('undici:request:bodySent',({request})=>{const value=outgoing.get(request);if(value)write({event:'worker_http_sent',...value});});

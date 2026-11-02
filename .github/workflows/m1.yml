@@ -23,6 +23,7 @@ jobs:
       - run: python scripts/test_probe_evidence.py
       - run: python scripts/test_probe_preparation.py
       - run: python scripts/test_probe_host_diagnostics.py
+      - run: python scripts/test_ci_result_guard.py
   simulator:
     runs-on: macos-26
     steps:
@@ -111,6 +112,9 @@ jobs:
         run: python3 scripts/verify_native_library.py
       - run: bash scripts/verify_configurations.sh
       - run: bash scripts/test_ios.sh
+        id: mock_tests
+        env:
+          M1_ARCHIVE_CI_XCRESULT: '1'
       - run: bash scripts/verify_keychain_relaunch.sh
       - run: bash scripts/verify_auth_crash_recovery.sh
       - uses: actions/upload-artifact@v4
@@ -121,5 +125,13 @@ jobs:
           # Keep them local even if a future job invokes an R2 probe.
           path: |
             evidence/
+            !evidence/M1-mock-tests.xcresult
+            !evidence/M1-mock-tests.xcresult/**
             !evidence/R2-system-ui-*/**
             !evidence/R2-native-https-*.log
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && steps.mock_tests.outputs.archive_mock_result == 'true' }}
+        with:
+          name: m1-mock-test-result
+          path: evidence/M1-mock-tests.xcresult
+          if-no-files-found: warn

@@ -94,7 +94,9 @@ struct ProbeAuthorizer: PlaybackAuthorizing {
         do { _ = try await channel.read(start: 0, length: 2, total: 65245); XCTFail("Revoked session delivered audio") } catch {}
         let after = try await bridge.fixture("evidence", as: [ProbeRequest].self)
         XCTAssertTrue(after.suffix(2).allSatisfy { $0.status == 401 && $0.r2Reads == 0 })
-        print("M3_NATIVE_MEDIA_PASSED: actual AVPlayer advancement, natural-end replay, manual-pause resume, seek, HEAD/Range Bearer, buffered hard-stop, revoked-session denial")
+        if testRun?.totalFailureCount == 0 {
+            print("M3_NATIVE_MEDIA_PASSED: actual AVPlayer advancement, natural-end replay, manual-pause resume, seek, HEAD/Range Bearer, buffered hard-stop, revoked-session denial")
+        }
     }
     func testConfiguredFeaturedReachesNativeDiscoveryFromRealWorker() async throws {
         let env = ProcessInfo.processInfo.environment

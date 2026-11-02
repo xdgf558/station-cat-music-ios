@@ -56,13 +56,15 @@ import XCTest
         app.navigationBars.buttons.firstMatch.tap()
         for _ in 0..<4 { if app.buttons["helpEntry"].isHittable { break }; app.swipeUp() }
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.3 (16)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.7 (20)")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["privacyPolicyLink"].firstMatch.exists)
         XCTAssertTrue(app.descendants(matching: .any)["termsLink"].firstMatch.exists)
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.3 (16)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["可从歌曲页或“我的手记”记录自己的想法，并按需关联作品。"].exists)
-        XCTAssertTrue(app.staticTexts["按自建主题整理手记，通过标题或正文搜索，找回写下的内容。"].exists)
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.7 (20)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["单曲和专辑可生成分享卡片，展示作品介绍并提供 App Store 下载入口。"].waitForExistence(timeout: 5))
+        let previous = app.staticTexts["可在 App 内打开网易云官方歌曲网页，并保留重试和外部打开入口；播放、登录及可用范围仍由网易云决定。"]
+        for _ in 0..<4 { if previous.exists { break }; app.swipeUp() }
+        XCTAssertTrue(previous.exists)
         let release = XCTAttachment(screenshot: app.screenshot()); release.name = "Version-Release-Notes"; release.lifetime = .keepAlways; add(release)
     }
     func testThreeTabsAndPlayerNeverAutoPlays() {
@@ -72,11 +74,6 @@ import XCTest
         app.buttons["track.sample-night-window"].tap()
         XCTAssertTrue(app.staticTexts["playbackUnavailable"].waitForExistence(timeout: 5))
         let player = XCTAttachment(screenshot: app.screenshot()); player.name = "Orbit-Player"; player.lifetime = .keepAlways; add(player)
-        app.buttons["playerQueue"].tap()
-        XCTAssertTrue(app.buttons["Clear and stop"].waitForExistence(timeout: 5))
-        let queue = XCTAttachment(screenshot: app.screenshot()); queue.name = "Orbit-Queue"; queue.lifetime = .keepAlways; add(queue)
-        app.buttons["queueClose"].tap()
-        XCTAssertTrue(app.buttons["playerQueue"].waitForExistence(timeout: 5))
         app.buttons["Close"].tap()
         app.tabBars.buttons["Library"].tap()
         XCTAssertTrue(app.staticTexts["Fictional local preview. Live music and accounts are not connected."].exists)

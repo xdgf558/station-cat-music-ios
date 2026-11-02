@@ -30,7 +30,20 @@ import XCTest
         }
         XCTAssertTrue(element.isHittable)
     }
-    private func top(_ app: XCUIApplication) { for _ in 0..<5 { app.swipeDown() } }
+    private func revealDetailTab(_ element: XCUIElement, _ app: XCUIApplication) {
+        let detail = app.scrollViews["platformDetailScreen"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 5), "Song detail must remain open")
+        for _ in 0..<8 {
+            let frame = element.frame
+            if element.isHittable && frame.midY > 140 && frame.midY < app.frame.height - 40 { return }
+            XCTAssertTrue(detail.exists, "Song detail closed while locating its tabs")
+            // Scroll from within the content rather than swiping the entire
+            // sheet; stop once the tab can be tapped to avoid dismissing it.
+            detail.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+                .press(forDuration: 0.05, thenDragTo: detail.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7)))
+        }
+        XCTAssertTrue(element.isHittable, "Song detail tab should be reachable")
+    }
     private func capture(_ app: XCUIApplication, _ name: String) {
         let item = XCTAttachment(screenshot: app.screenshot()); item.name = name; item.lifetime = .keepAlways; add(item)
     }
@@ -51,7 +64,8 @@ import XCTest
         XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 10))
         XCTAssertTrue(app.webViews.staticTexts["未连接 YouTube · 无真实视频"].waitForExistence(timeout: 10))
         capture(app, "YouTube-Local-Player-Fixture")
-        top(app); app.buttons["contentTab.story"].tap()
+        let story = app.buttons["contentTab.story"]
+        revealDetailTab(story, app); story.tap()
         XCTAssertTrue(app.webViews.firstMatch.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["contentStoryText"].waitForExistence(timeout: 5))
         app.buttons["contentTab.clips"].tap(); reveal(load, app); load.tap()
@@ -71,7 +85,8 @@ import XCTest
         reveal(app.buttons["youtubeRetry"], app); capture(app, "YouTube-Embedding-Unavailable")
         let external = app.buttons["youtubeOpen." + clip]; reveal(external, app); external.tap()
         XCTAssertTrue(app.buttons["platformCopyLink"].waitForExistence(timeout: 5))
-        top(app); app.buttons["contentTab.lyrics"].tap()
+        let lyrics = app.buttons["contentTab.lyrics"]
+        revealDetailTab(lyrics, app); lyrics.tap()
         XCTAssertTrue(app.staticTexts["lyricStanza.0"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["platformLink.netease"].exists)
     }

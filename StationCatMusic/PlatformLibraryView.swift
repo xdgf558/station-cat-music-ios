@@ -1,13 +1,12 @@
 import SwiftUI
 
+enum PlatformLibraryDestination { case privacy, preferences, help, legacy }
+
 /// Local personal data remains separate from disposable artwork and remote works.
 struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
     @Bindable var model: AppModel
     @ViewBuilder var favorites: () -> Favorites
-    @ViewBuilder var settings: () -> Settings
-    var privacy: (() -> AnyView)? = nil
-    var preferences: (() -> AnyView)? = nil
-    var help: (() -> AnyView)? = nil
+    @ViewBuilder var settings: (PlatformLibraryDestination) -> Settings
     @Environment(\.dynamicTypeSize) private var typeSize
     @AppStorage("radioAppearance") private var appearance = "system"
     private let providers: [PlatformProvider] = [.netease, .qishui, .appleMusic, .spotify, .youtube]
@@ -26,8 +25,8 @@ struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
                         .padding(.vertical, -5).accessibilityAddTraits(.isHeader)
                 }
                 listenerCard
-                favoritesShelf
-                recentReceipt
+                favoritesShelf(model.platformFavorites)
+                recentReceipt(model.platformVisits)
                 preferredPlatforms
                 settingsRows
                 if model.personalError { PlatformPersonalError(model: model) }
@@ -84,7 +83,7 @@ struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
                 .accessibilityLabel(model.t("notebookTitle"))
         }
     }
-    private var favoritesShelf: some View {
+    private func favoritesShelf(_ rows: [PlatformFavoriteRow]) -> some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
                 Text(model.t("favorites")).radioSerif(22).accessibilityAddTraits(.isHeader)
@@ -93,13 +92,13 @@ struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
                     Image(systemName: "arrow.right").frame(width: 44, height: 44)
                 }.buttonStyle(.plain).accessibilityLabel(model.t("viewFavorites")).accessibilityIdentifier("favoritesEntry")
             }
-            if model.platformFavorites.isEmpty {
+            if rows.isEmpty {
                 Text(model.t("radio.favoriteEmpty")).font(.subheadline).foregroundStyle(Palette.muted)
                     .padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 16) {
-                        ForEach(Array(model.platformFavorites.prefix(12))) { row in
+                        ForEach(Array(rows.prefix(12))) { row in
                             Button { model.openPlatformFavorite(row) } label: {
                                 VStack(alignment: .leading, spacing: 9) {
                                     Group {
@@ -122,7 +121,7 @@ struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
             }
         }
     }
-    private var recentReceipt: some View {
+    private func recentReceipt(_ rows: [PlatformVisitRow]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(model.t("radio.recentReceipt")).radioSerif(20).accessibilityAddTraits(.isHeader)
@@ -132,11 +131,11 @@ struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
                 }.buttonStyle(.plain).accessibilityLabel(model.t("viewAll")).accessibilityIdentifier("viewedEntry")
             }
             PaperDash().stroke(Palette.muted, style: StrokeStyle(lineWidth: 1, dash: [3, 3])).frame(height: 1)
-            if model.platformVisits.isEmpty {
+            if rows.isEmpty {
                 Text(model.t(model.personalState?.historyEnabled == false ? "viewingHistoryOff" : "noViewed"))
                     .font(.subheadline).foregroundStyle(Palette.muted).padding(.vertical, 12)
             } else {
-                ForEach(Array(model.platformVisits.prefix(3).enumerated()), id: \.element.id) { index, row in
+                ForEach(Array(rows.prefix(3).enumerated()), id: \.element.id) { index, row in
                     Button { model.openPlatformVisit(row) } label: {
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             Text(row.track?.title ?? row.bookmark?.title ?? model.t("viewedPlaceholder"))
@@ -145,7 +144,7 @@ struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
                             Text(receiptDate(row.visit.viewedAt)).radioMono(11).foregroundStyle(Palette.muted)
                         }.frame(minHeight: 48).contentShape(Rectangle())
                     }.buttonStyle(.plain).accessibilityIdentifier("viewed.track." + row.id)
-                    if index < min(3, model.platformVisits.count) - 1 {
+                    if index < min(3, rows.count) - 1 {
                         PaperDash().stroke(Palette.line, style: StrokeStyle(lineWidth: 1, dash: [3, 3])).frame(height: 1)
                     }
                 }
@@ -221,20 +220,22 @@ struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
             Toggle(model.t("radio.saveViewingReceipt"), isOn: Binding(get: { model.personalState?.historyEnabled ?? false }, set: { value in Task { await model.setBrowsingHistory(value) } }))
                 .disabled(model.personalBusy || model.personalState == nil).frame(minHeight: 56).tint(Palette.accent).accessibilityIdentifier("saveViewed")
             Divider().overlay(Palette.line)
-            NavigationLink { if let preferences { preferences() } else { settings() } } label: {
+            NavigationLink { settings(.preferences) } label: {
                 settingLabel(model.t("language"), detail: languageName)
             }.accessibilityIdentifier("preferencesEntry")
             Divider().overlay(Palette.line)
-            NavigationLink { if let privacy { privacy() } else { settings() } } label: {
+            NavigationLink { settings(.privacy) } label: {
                 settingLabel(model.t("radio.privacyLocalData"))
             }.accessibilityIdentifier("privacyEntry")
             Divider().overlay(Palette.line)
-            NavigationLink { if let help { help() } else { settings() } } label: {
+            NavigationLink { settings(.help) } label: {
                 settingLabel(model.t("radio.aboutStationCat"), detail: version)
             }.accessibilityIdentifier("helpEntry")
-            Divider().overlay(Palette.line)
-            NavigationLink(destination: settings) { settingLabel(model.t("settingsHelp")) }
-                .accessibilityIdentifier("settingsHelpEntry")
+            if model.hasLegacyPlatformData {
+                Divider().overlay(Palette.line)
+                NavigationLink { settings(.legacy) } label: { settingLabel(model.t("legacyData")) }
+                    .accessibilityIdentifier("legacyDataEntry")
+            }
         }.buttonStyle(.plain).font(.subheadline).foregroundStyle(Palette.ink)
     }
     private func settingLabel(_ title: String, detail: String? = nil) -> some View {

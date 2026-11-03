@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// The editor retains the epoch and scope that the user actually opened.
 struct PlatformNotebookEditorContext: Identifiable {
@@ -18,33 +17,32 @@ struct PlatformNotebookEditorContext: Identifiable {
     }
 }
 
+enum NotebookFilter: Equatable { case all, uncategorized, topic(UUID) }
+
 struct PlatformNotebookPage: View {
     @Bindable var model: AppModel
-    @State private var query = ""
-    @State private var filter: Filter = .all
     @State private var editor: PlatformNotebookEditorContext?
     @State private var topics: PlatformNotebookEditorContext?
     @State private var pendingWork: NotebookWork?
-    private enum Filter: Equatable { case all, uncategorized, topic(UUID) }
 
     private var notes: [NotebookNote] {
-        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = model.notebookQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         return (model.notebookState?.notes ?? []).filter { note in
-            guard belongs(note, to: filter) else { return false }
+            guard belongs(note, to: model.notebookFilter) else { return false }
             guard !text.isEmpty else { return true }
             let workTitle = model.notebookTrack(for: note.work)?.title ?? model.notebookBookmark(for: note.work)?.title ?? ""
             let topic = model.notebookState?.topics.first(where: { $0.id == note.topicID })?.name ?? ""
             return [note.title, note.body, note.quote ?? "", topic, workTitle].contains { $0.localizedStandardContains(text) }
         }.sorted { $0.updatedAt == $1.updatedAt ? $0.id.uuidString < $1.id.uuidString : $0.updatedAt > $1.updatedAt }
     }
-    private func belongs(_ note: NotebookNote, to category: Filter) -> Bool {
+    private func belongs(_ note: NotebookNote, to category: NotebookFilter) -> Bool {
         switch category {
         case .all: true
         case .uncategorized: note.topicID == nil
         case .topic(let id): note.topicID == id
         }
     }
-    private func count(_ category: Filter) -> Int {
+    private func count(_ category: NotebookFilter) -> Int {
         (model.notebookState?.notes ?? []).filter { belongs($0, to: category) }.count
     }
 
@@ -91,7 +89,7 @@ struct PlatformNotebookPage: View {
             }
             .sheet(item: $topics) { context in PlatformNotebookTopics(model: model, context: context) }
             .onChange(of: model.notebookState?.topics.map(\.id)) { _, ids in
-                if case .topic(let id) = filter, !(ids ?? []).contains(id) { filter = .all }
+                if case .topic(let id) = model.notebookFilter, !(ids ?? []).contains(id) { model.notebookFilter = .all }
             }
             .onChange(of: model.radioNoteID) { _, _ in openRequestedNote() }
             .onChange(of: model.selectedTab) { _, _ in openRequestedNote() }
@@ -103,7 +101,7 @@ struct PlatformNotebookPage: View {
             Button {
                 guard let state = model.notebookState else { return }
                 let selectedTopic: UUID?
-                if case .topic(let id) = filter { selectedTopic = id } else { selectedTopic = nil }
+                if case .topic(let id) = model.notebookFilter { selectedTopic = id } else { selectedTopic = nil }
                 editor = .init(state: state, scope: model.scope, topicID: selectedTopic)
             } label: {
                 Label(model.t("radio.writePage"), systemImage: "plus")
@@ -117,7 +115,7 @@ struct PlatformNotebookPage: View {
     private var search: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(Palette.muted).accessibilityHidden(true)
-            TextField(model.t("notebookSearch"), text: $query).textInputAutocapitalization(.never)
+            TextField(model.t("notebookSearch"), text: $model.notebookQuery).textInputAutocapitalization(.never)
                 .autocorrectionDisabled().accessibilityIdentifier("notebookSearch")
         }.padding(.horizontal, 15).frame(minHeight: 46)
             .background(Palette.panel, in: RoundedRectangle(cornerRadius: 12))
@@ -143,18 +141,18 @@ struct PlatformNotebookPage: View {
                 .disabled(model.notebookState == nil || model.notebookBusy)
         }.overlay(alignment: .bottom) { Rectangle().fill(Palette.ink).frame(height: 1) }
     }
-    private func chip(_ title: String, filter value: Filter, id: String) -> some View {
-        Button { filter = value } label: {
+    private func chip(_ title: String, filter value: NotebookFilter, id: String) -> some View {
+        Button { model.notebookFilter = value } label: {
             HStack(spacing: 6) {
                 Text(title).font(.subheadline.weight(.semibold))
                 Text(count(value).formatted()).radioMono(11).opacity(0.7)
             }.fixedSize().padding(.horizontal, 15).frame(minHeight: 44)
-                .foregroundStyle(filter == value ? Palette.background : Palette.muted)
-                .background(filter == value ? Palette.ink : .clear,
+                .foregroundStyle(model.notebookFilter == value ? Palette.background : Palette.muted)
+                .background(model.notebookFilter == value ? Palette.ink : .clear,
                             in: UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
         }.buttonStyle(.plain).accessibilityIdentifier("notebook.filter." + id).accessibilityLabel(title)
             .accessibilityValue(count(value).formatted())
-            .accessibilityAddTraits(filter == value ? .isSelected : [])
+            .accessibilityAddTraits(model.notebookFilter == value ? .isSelected : [])
     }
     private func empty(_ noNotes: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -222,7 +220,6 @@ struct PlatformNotebookEditor: View {
     var onSaved: (() -> Void)?
     var openWork: (NotebookWork) -> Void
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var title: String
     @State private var bodyText: String
     @State private var topicID: UUID?
@@ -350,18 +347,7 @@ struct PlatformNotebookEditor: View {
                     Button(model.t("cancel"), role: .cancel) {}
                 } message: { Text(model.t("notebookDeleteDetail")) }
         }.tint(Palette.accent).interactiveDismissDisabled(dirty || busy).accessibilityIdentifier("notebookEditor")
-            .overlay(alignment: .top) {
-                if let message = model.radioToast {
-                    Text(message).font(.subheadline).multilineTextAlignment(.center)
-                        .foregroundStyle(Palette.darkText).padding(.horizontal, 20).padding(.vertical, 13)
-                        .background(Palette.dark, in: Capsule()).padding(.horizontal, 20).padding(.top, 8)
-                        .transition(.opacity).allowsHitTesting(false).accessibilityIdentifier("notebookToast")
-                }
-            }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: model.radioToast)
-            .onChange(of: model.radioToast) { _, message in
-                if let message { UIAccessibility.post(notification: .announcement, argument: message) }
-            }
+            .radioToast(model: model, identifier: "notebookToast")
     }
     private var editorHeader: some View {
         HStack(spacing: 8) {
@@ -420,9 +406,9 @@ struct PlatformNotebookEditor: View {
     private func save() {
         guard !busy, !stale else { return }
         guard hasText else { model.showRadioToast(model.t("radio.noteEmpty")); return }
-        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let savedTitle = trimmedTitle.isEmpty ? (quote.map { String($0.prefix(PlatformNotebookStore.maximumTitleLength)) } ?? model.t("notebookUntitled")) : trimmedTitle
-        let draft = NotebookDraft(id: draftID, work: work, title: savedTitle, body: bodyText, topicID: topicID, quote: quote)
+        // Untitled is a localized display fallback, never text written by the user.
+        let draft = NotebookDraft(id: draftID, work: work, title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                                  body: bodyText, topicID: topicID, quote: quote)
         working = true; failed = false
         Task {
             let success = await model.saveNotebook(draft, expectedEpoch: context.epoch, expectedVersion: context.note?.version, scope: context.scope)

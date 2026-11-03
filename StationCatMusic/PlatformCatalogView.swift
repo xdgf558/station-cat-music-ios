@@ -23,7 +23,9 @@ struct PlatformCatalogScreen: View {
         return model.platformAlbums.filter { $0.matches(query) }
     }
     var body: some View {
-        ScrollView {
+        let trackRows = model.catalogCategory == .albums ? [] : visibleTracks
+        let albumRows = model.catalogCategory == .singles ? [] : visibleAlbums
+        return ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("RECORD SHELF").radioMono(10, weight: .semibold).tracking(2)
@@ -39,7 +41,7 @@ struct PlatformCatalogScreen: View {
                 if model.phase == .loaded, model.catalogCategory != .all, model.platformClassificationUnavailable {
                     PlatformCatalogNotice(model: model, message: "catalogClassificationUnavailable", retained: false)
                 }
-                content
+                content(tracks: trackRows, albums: albumRows)
                 if let notice = model.catalogNoticeKey {
                     Text(model.t(notice)).font(.caption).foregroundStyle(Palette.muted)
                 }
@@ -112,7 +114,7 @@ struct PlatformCatalogScreen: View {
             }.accessibilityElement(children: .contain).accessibilityLabel(model.t("catalogCategories"))
         }
     }
-    @ViewBuilder private var content: some View {
+    @ViewBuilder private func content(tracks: [Track], albums: [PlatformAlbum]) -> some View {
         switch model.phase {
         case .loading:
             ProgressView(model.t("loading")).tint(Palette.accent).frame(maxWidth: .infinity, minHeight: 180)
@@ -125,25 +127,25 @@ struct PlatformCatalogScreen: View {
             ContentUnavailableView(model.t("empty"), systemImage: "music.note")
         case .loaded:
             if model.catalogCategory == .albums {
-                if visibleAlbums.isEmpty { emptyCategory("catalogNoAlbums", symbol: "square.stack") }
-                else { albums }
+                if albums.isEmpty { emptyCategory("catalogNoAlbums", symbol: "square.stack") }
+                else { albumShelf(albums) }
             } else if model.catalogCategory == .singles {
-                if visibleTracks.isEmpty { emptyCategory("catalogNoSingles", symbol: "music.note") }
-                else { songs }
-            } else if visibleAlbums.isEmpty && visibleTracks.isEmpty {
+                if tracks.isEmpty { emptyCategory("catalogNoSingles", symbol: "music.note") }
+                else { songShelf(tracks) }
+            } else if albums.isEmpty && tracks.isEmpty {
                 emptyCategory("empty", symbol: "music.note")
             } else {
-                if !visibleAlbums.isEmpty { albums }
-                if !visibleTracks.isEmpty { songs }
+                if !albums.isEmpty { albumShelf(albums) }
+                if !tracks.isEmpty { songShelf(tracks) }
             }
         }
     }
-    private var albums: some View {
+    private func albumShelf(_ albums: [PlatformAlbum]) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            ShelfSectionHeading(title: model.t("catalogCategory.albums"), count: albumCount(visibleAlbums.count))
+            ShelfSectionHeading(title: model.t("catalogCategory.albums"), count: albumCount(albums.count))
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 22, alignment: .top),
                                      count: typeSize.isAccessibilitySize ? 1 : 2), alignment: .leading, spacing: 26) {
-                ForEach(visibleAlbums) { album in
+                ForEach(albums) { album in
                     Button { searching = false; model.openRadioAlbum(id: album.id) } label: {
                         VStack(alignment: .leading, spacing: 9) {
                             ShelfAlbumSleeve(album: album, model: model).aspectRatio(1 / 0.88, contentMode: .fit)
@@ -158,12 +160,12 @@ struct PlatformCatalogScreen: View {
             }
         }.accessibilityIdentifier("radioShelfAlbums")
     }
-    private var songs: some View {
+    private func songShelf(_ tracks: [Track]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ShelfSectionHeading(title: model.t(model.catalogCategory == .singles ? "catalogCategory.singles" : "radio.shelfTracks"),
-                                count: model.albumTrackCount(visibleTracks.count)).padding(.bottom, 8)
+                                count: model.albumTrackCount(tracks.count)).padding(.bottom, 8)
             LazyVStack(spacing: 0) {
-                ForEach(Array(visibleTracks.enumerated()), id: \.element.id) { index, track in
+                ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                     PlatformCatalogSongRow(model: model, track: track, number: index + 1)
                 }
             }

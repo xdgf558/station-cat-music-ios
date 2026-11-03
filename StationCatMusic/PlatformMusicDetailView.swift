@@ -239,7 +239,7 @@ struct PlatformMusicDetailView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
     private func prepareNotebook(quote: String? = nil) {
-        guard let track = currentDetail?.track, quote.map({ $0.utf16.count <= 200 && !$0.contains("\n") && !$0.contains("\r") }) ?? true,
+        guard let track = currentDetail?.track, quote.map({ NotebookQuoteInput.validation($0) == .valid }) ?? true,
               !preparingNotebook, !model.notebookBusy else { return }
         stopClips(); preparingNotebook = true; notebookEntryFailed = false; notebookSaved = false
         let scope = model.scope, generation = model.platformDetailGeneration, epoch = model.notebookState?.epoch
@@ -390,21 +390,28 @@ struct PlatformMusicDetailView: View {
     }
     private func lyricLine(_ line: String, stanza: Int, index: Int) -> some View {
         let lineID = "\(stanza).\(index)"
+        let validation = NotebookQuoteInput.validation(line)
+        let failureKey = validation == .tooLong ? "radio.quoteTooLong" : "radio.quoteInvalidCharacters"
         return Button {
             if selectedLyricID == lineID { selectedLyric = nil; selectedLyricID = nil }
             else { selectedLyric = line; selectedLyricID = lineID }
         } label: {
-            Text(line).font(Font(RadioTypography.serif(size: CGFloat([18, 21, 24].contains(lyricSize) ? lyricSize : 18) * textScale, weight: .medium)))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(line).font(Font(RadioTypography.serif(size: CGFloat([18, 21, 24].contains(lyricSize) ? lyricSize : 18) * textScale, weight: .medium, locale: Locale(identifier: model.locale))))
                 .lineSpacing(10).fixedSize(horizontal: false, vertical: true)
+                if validation != .valid {
+                    Text(model.t(failureKey)).font(.caption).foregroundStyle(Palette.muted)
+                }
+            }
                 .padding(.horizontal, 5).padding(.vertical, 7).frame(minHeight: 44, alignment: .leading)
                 .foregroundStyle(selectedLyricID == lineID ? .white : selectedLyric == nil ? Palette.ink : Palette.muted)
                 .background(selectedLyricID == lineID ? Palette.accent : .clear, in: RoundedRectangle(cornerRadius: 6))
-        }.buttonStyle(.plain).disabled(line.utf16.count > 200)
+        }.buttonStyle(.plain).disabled(validation != .valid)
             .accessibilityIdentifier("lyricLine.\(stanza).\(index)")
             .accessibilityAddTraits(selectedLyricID == lineID ? .isSelected : [])
-            .accessibilityHint(model.t(line.utf16.count > 200 ? "radio.quoteTooLong" : "radio.tapLyric"))
+            .accessibilityHint(model.t(validation == .valid ? "radio.tapLyric" : failureKey))
             .accessibilityAction(named: model.t("radio.quoteToNote")) {
-                if line.utf16.count <= 200 { selectedLyric = line; selectedLyricID = lineID; prepareNotebook(quote: line) }
+                if validation == .valid { selectedLyric = line; selectedLyricID = lineID; prepareNotebook(quote: line) }
             }
     }
     @ViewBuilder private func clipList(_ detail: PlatformTrackDetail) -> some View {

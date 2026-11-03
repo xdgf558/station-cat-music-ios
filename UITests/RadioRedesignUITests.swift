@@ -118,6 +118,57 @@ import XCTest
         XCTAssertNotEqual(dial.value as? String, before, "A horizontal drag must tune a real catalog work")
         XCTAssertFalse(app.buttons["miniPlayer"].exists)
     }
+    func testSwitchingTabsKeepsTuningAndCatalogNotebookQueries() {
+        let app = launch()
+        let next = app.buttons["radioNext"]
+        XCTAssertTrue(next.waitForExistence(timeout: 10)); reveal(next, in: app); next.tap()
+        let tuned = app.descendants(matching: .any)["radioDial"].firstMatch.value as? String
+        app.buttons["tab.shelf"].tap()
+        let singles = app.buttons["catalogCategory.singles"]
+        XCTAssertTrue(singles.waitForExistence(timeout: 5)); singles.tap()
+        let catalogSearch = app.textFields["catalogSearch"]
+        catalogSearch.tap(); catalogSearch.typeText("No matching record\n")
+        app.buttons["tab.notes"].tap()
+        let unfiled = app.buttons["notebook.filter.uncategorized"]
+        XCTAssertTrue(unfiled.waitForExistence(timeout: 5)); unfiled.tap()
+        let notebookSearch = app.textFields["notebookSearch"]
+        notebookSearch.tap(); notebookSearch.typeText("A private search")
+        app.buttons["tab.radio"].tap()
+        XCTAssertTrue(app.buttons["radioNext"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.descendants(matching: .any)["radioDial"].firstMatch.value as? String, tuned)
+        XCTAssertFalse(app.textFields["catalogSearch"].exists)
+        XCTAssertFalse(app.textFields["notebookSearch"].exists)
+        app.buttons["tab.shelf"].tap()
+        XCTAssertTrue(catalogSearch.waitForExistence(timeout: 5))
+        XCTAssertEqual(catalogSearch.value as? String, "No matching record")
+        XCTAssertTrue(singles.isSelected)
+        app.buttons["tab.notes"].tap()
+        XCTAssertTrue(notebookSearch.waitForExistence(timeout: 5))
+        XCTAssertEqual(notebookSearch.value as? String, "A private search")
+        XCTAssertTrue(unfiled.isSelected)
+        capture(app, "Radio-Tab-Return-Notebook-State")
+    }
+    func testMeSettingsHaveOneRouteAndUseTheChosenAppearance() {
+        for appearance in ["paper", "night"] {
+            let app = launch(appearance: appearance)
+            XCTAssertTrue(app.buttons["tab.me"].waitForExistence(timeout: 10)); app.buttons["tab.me"].tap()
+            XCTAssertTrue(app.buttons["favoritesEntry"].waitForExistence(timeout: 5))
+            XCTAssertFalse(app.buttons["settingsHelpEntry"].exists)
+            XCTAssertFalse(app.buttons["legacyDataEntry"].exists)
+            for (entry, page) in [("preferencesEntry", "preferencesPage"), ("privacyEntry", "privacyPage"), ("helpEntry", "helpPage")] {
+                let link = app.buttons[entry]; reveal(link, in: app); link.tap()
+                XCTAssertTrue(app.descendants(matching: .any)[page].firstMatch.waitForExistence(timeout: 5))
+                capture(app, "Radio-" + page + "-" + appearance)
+                app.navigationBars.buttons.firstMatch.tap()
+            }
+            reveal(app.buttons["helpEntry"], in: app); app.buttons["helpEntry"].tap()
+            XCTAssertTrue(app.descendants(matching: .any)["helpPage"].firstMatch.waitForExistence(timeout: 5))
+            app.buttons["tab.shelf"].tap(); app.buttons["tab.me"].tap()
+            XCTAssertTrue(app.buttons["favoritesEntry"].waitForExistence(timeout: 5))
+            XCTAssertFalse(app.descendants(matching: .any)["helpPage"].firstMatch.exists)
+            app.terminate()
+        }
+    }
     func testStartupCanBeSkippedWhileCatalogStillFinishes() {
         let app = launch(fixture: "song-content", slow: true)
         XCTAssertTrue(app.buttons["startupSkip"].waitForExistence(timeout: 3))

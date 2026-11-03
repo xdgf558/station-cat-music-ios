@@ -55,6 +55,20 @@ private actor PresentationCatalog: PlatformMusicProviding {
         for _ in 0..<200 { if predicate() { return }; try await Task.sleep(for: .milliseconds(10)) }
         XCTFail("Platform presentation did not settle")
     }
+    func testPrivateNotebookPageStateIsClearedWhenAccountScopeChanges() async throws {
+        let folder = directory(); defer { try? FileManager.default.removeItem(at: folder) }
+        let model = AppModel(client: PresentationCatalog(), library: ScopedLibrary(directory: folder.appending(path: "library")), platformMode: true,
+                             personal: PlatformPersonalStore(directory: folder.appending(path: "personal")),
+                             notebook: PlatformNotebookStore(directory: folder.appending(path: "notebook")))
+        await model.initialize()
+        model.notebookQuery = "Private search from the old account"
+        model.notebookFilter = .topic(UUID())
+        model.radioTuning = 96.2
+        await model.changeScope(AccountScope(environment: .mock, accountID: UUID().uuidString))
+        XCTAssertTrue(model.notebookQuery.isEmpty)
+        XCTAssertEqual(model.notebookFilter, .all)
+        XCTAssertEqual(model.radioTuning, RadioDial.frequencies[0])
+    }
     func testSkippingRadioStartupDoesNotCancelInitializationOrInventLoadedContent() async throws {
         let folder = directory(); defer { try? FileManager.default.removeItem(at: folder) }
         let source = PresentationCatalog(); await source.setFailure(true)

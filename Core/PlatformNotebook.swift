@@ -61,6 +61,30 @@ nonisolated enum NotebookTitleInput {
     }
 }
 
+/// The same user-selected quote policy is used before opening the editor and
+/// when saving or reopening its file. Length means Swift Characters, not scalars.
+nonisolated enum NotebookQuoteInput {
+    enum Validation: Equatable, Sendable { case valid, empty, tooLong, invalidCharacters }
+    static let maximumLength = 200
+
+    static func validation(_ value: String) -> Validation {
+        guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return .empty }
+        guard value.count <= maximumLength else { return .tooLong }
+        guard value.rangeOfCharacter(from: .newlines) == nil else { return .invalidCharacters }
+        for character in value {
+            let scalars = Array(character.unicodeScalars)
+            for (index, scalar) in scalars.enumerated() where CharacterSet.controlCharacters.contains(scalar) {
+                // Allow emoji joiners inside one grapheme, not bidi overrides,
+                // hidden separators or arbitrary format/control characters.
+                guard scalar.value == 0x200D,
+                      scalars[..<index].contains(where: { $0.properties.isEmoji }),
+                      scalars[(index + 1)...].contains(where: { $0.properties.isEmoji }) else { return .invalidCharacters }
+            }
+        }
+        return .valid
+    }
+}
+
 nonisolated enum NotebookError: Error, Equatable, Sendable {
     case invalidInput, limitReached, staleEdit, storageUnavailable
 }
@@ -73,7 +97,7 @@ actor PlatformNotebookStore {
     nonisolated static let maximumTitleLength = 120
     nonisolated static let maximumBodyLength = 8_000
     nonisolated static let maximumTopicLength = 40
-    nonisolated static let maximumQuoteLength = 200
+    nonisolated static let maximumQuoteLength = NotebookQuoteInput.maximumLength
     nonisolated static let maximumFileBytes = 4 * 1024 * 1024
     nonisolated static let maximumTotalBytes = 16 * 1024 * 1024
     nonisolated static let maximumScopes = 64
@@ -239,9 +263,7 @@ actor PlatformNotebookStore {
     }
     private func validQuote(_ quote: String?, work: NotebookWork?) -> Bool {
         guard let quote else { return true }
-        return work != nil && !quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            validText(quote, maximum: Self.maximumQuoteLength, multiline: false) &&
-            quote.rangeOfCharacter(from: .newlines) == nil
+        return work != nil && NotebookQuoteInput.validation(quote) == .valid
     }
     private func valid(_ file: File) -> Bool {
         let state = file.state, topicIDs = Set(file.state.topics.map(\.id))

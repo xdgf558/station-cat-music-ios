@@ -98,6 +98,29 @@ private actor NotebookCatalog: PlatformMusicProviding {
         let original = try await model.notebook.snapshot(scope: originalScope)
         XCTAssertTrue(original.notes.isEmpty)
     }
+    func testLanguageAndTabChangesDoNotGenerateTitlesOrRewriteNotebook() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let source = NotebookCatalog(), model = model(source, root: root)
+        model.locale = "en"
+        await model.initialize()
+        let epoch = try XCTUnwrap(model.notebookState?.epoch)
+        let saved = await model.saveNotebook(.init(work: NotebookCatalog.work, body: "My own writing", quote: "A selected lyric"),
+                                             expectedEpoch: epoch, expectedVersion: nil, scope: model.scope)
+        XCTAssertTrue(saved)
+        let path = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: root.appending(path: "notebook"), includingPropertiesForKeys: nil).first)
+        let bytes = try Data(contentsOf: path)
+        model.notebookQuery = "selected lyric"; model.notebookFilter = .uncategorized
+        model.selectedTab = 0; model.selectedTab = 2
+        XCTAssertEqual(model.notebookQuery, "selected lyric"); XCTAssertEqual(model.notebookFilter, .uncategorized)
+        model.locale = "zh-Hans"
+        await model.load()
+        XCTAssertEqual(model.notebookState?.notes.first?.title, "")
+        XCTAssertEqual(model.notebookState?.notes.first?.quote, "A selected lyric")
+        XCTAssertEqual(model.t("notebookUntitled"), "未命名手记")
+        XCTAssertEqual(try Data(contentsOf: path), bytes)
+        await model.changeScope(AccountScope(environment: .mock, accountID: UUID().uuidString))
+        XCTAssertEqual(model.notebookQuery, ""); XCTAssertEqual(model.notebookFilter, .all)
+    }
     func testSaveErrorKeepsEditorDataAndPreviousState() async throws {
         let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
         let source = NotebookCatalog(), model = model(source, root: root)

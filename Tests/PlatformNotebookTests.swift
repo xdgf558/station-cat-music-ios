@@ -370,6 +370,7 @@ private final class NotebookWriter: @unchecked Sendable {
         let draft = NotebookDraft(work: work, topicID: topic.id, quote: quote)
         let saved = try await store.save(draft, expectedEpoch: grouped.epoch, expectedVersion: nil, scope: .guest)
         XCTAssertEqual(saved.notes[0].quote, quote); XCTAssertTrue(saved.notes[0].body.isEmpty)
+        XCTAssertTrue(saved.notes[0].title.isEmpty, "A selected quote must not become a generated title")
         let reopened = PlatformNotebookStore(directory: root)
         let loaded = try await reopened.snapshot(scope: .guest)
         XCTAssertEqual(loaded, saved)
@@ -378,6 +379,66 @@ private final class NotebookWriter: @unchecked Sendable {
         XCTAssertEqual(uncategorized.notes[0].work, work)
         let final = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
         XCTAssertEqual(final, uncategorized)
+    }
+
+    func testBlankTitleRemainsEmptyThroughEditAndExistingTitlesAreNotRewritten() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let store = PlatformNotebookStore(directory: root), empty = try await store.snapshot(scope: .guest)
+        var draft = NotebookDraft(title: "  \n  ", body: "My own untitled writing")
+        let saved = try await store.save(draft, expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+        XCTAssertEqual(saved.notes[0].title, "")
+        draft.title = ""; draft.body += " and a later edit"
+        let edited = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest)
+        XCTAssertEqual(edited.notes[0].title, ""); XCTAssertEqual(edited.notes[0].body, draft.body)
+        // These may be user-entered words, even when they resemble old fallbacks.
+        let existingTitles = ["Untitled note", "未命名手记", "A selected lyric"]
+        for title in existingTitles {
+            _ = try await store.save(.init(work: work, title: title, quote: "A selected lyric"),
+                                     expectedEpoch: edited.epoch, expectedVersion: nil, scope: .guest)
+        }
+        let path = try file(in: root), bytes = try Data(contentsOf: path)
+        let reopened = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
+        XCTAssertEqual(reopened.notes.first(where: { $0.id == draft.id })?.title, "")
+        XCTAssertEqual(Set(reopened.notes.filter { $0.id != draft.id }.map(\.title)), Set(existingTitles))
+        XCTAssertEqual(try Data(contentsOf: path), bytes, "Reading must not guess which historical titles were generated")
+    }
+
+    func testQuotePolicyAndStoreShareCharacterLimitAndUnicodeRules() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let store = PlatformNotebookStore(directory: root), empty = try await store.snapshot(scope: .guest)
+        let composedCharacters = ["歌", "e\u{301}", "🇯🇵", "👨‍👩‍👧‍👦", "❤️‍🔥", "👩🏽‍💻"]
+        for character in composedCharacters {
+            let quote = String(repeating: character, count: 200)
+            XCTAssertEqual(quote.count, 200)
+            XCTAssertEqual(NotebookQuoteInput.validation(quote), .valid)
+            let draft = NotebookDraft(work: work, quote: quote)
+            let saved = try await store.save(draft, expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+            XCTAssertEqual(saved.notes.first(where: { $0.id == draft.id })?.quote, quote)
+            let reopened = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
+            XCTAssertEqual(reopened, saved, "Read validation must accept exactly the same quote as write validation")
+            XCTAssertEqual(NotebookQuoteInput.validation(quote + "a"), .tooLong)
+            await expect(.invalidInput) {
+                _ = try await store.save(.init(work: work, quote: quote + "a"), expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+            }
+        }
+        let invalidQuotes: [(String, NotebookQuoteInput.Validation)] = [
+            ("", .empty), ("  ", .empty), ("First\nsecond", .invalidCharacters),
+            ("First\r\nsecond", .invalidCharacters), ("First\u{0085}second", .invalidCharacters),
+            ("First\u{2028}second", .invalidCharacters), ("First\u{2029}second", .invalidCharacters),
+            ("a\u{0}b", .invalidCharacters), ("a\tb", .invalidCharacters),
+            ("a\u{202E}b", .invalidCharacters), ("a\u{2066}b", .invalidCharacters),
+            ("a\u{200B}b", .invalidCharacters), ("a\u{200C}b", .invalidCharacters),
+            ("a\u{FEFF}b", .invalidCharacters), ("a\u{200D}b", .invalidCharacters),
+            ("👨\u{200D}", .invalidCharacters)
+        ]
+        let path = try file(in: root), bytes = try Data(contentsOf: path)
+        for (quote, expected) in invalidQuotes {
+            XCTAssertEqual(NotebookQuoteInput.validation(quote), expected)
+            await expect(.invalidInput) {
+                _ = try await store.save(.init(work: work, quote: quote), expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+            }
+            XCTAssertEqual(try Data(contentsOf: path), bytes)
+        }
     }
 
     func testInvalidQuoteCannotOverwriteExistingWordsOrLoseTheDraft() async throws {

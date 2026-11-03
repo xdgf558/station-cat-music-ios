@@ -64,9 +64,9 @@ import XCTest
         let preferred = app.buttons["platformPreference.spotify"]; reveal(preferred, app: app); preferred.tap()
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '开启'"), object: preferred)], timeout: 5), .completed)
         capture(app, "My-Inline-Platform-Preference")
-        reveal(app.buttons["settingsHelpEntry"], app: app); app.buttons["settingsHelpEntry"].tap()
+        XCTAssertFalse(app.buttons["legacyDataEntry"].exists)
         XCTAssertFalse(app.buttons["offlineEntry"].exists); XCTAssertFalse(app.buttons["accountEntry"].exists)
-        app.buttons["helpEntry"].tap(); app.buttons["releaseNotesEntry"].tap()
+        reveal(app.buttons["helpEntry"], app: app); app.buttons["helpEntry"].tap(); app.buttons["releaseNotesEntry"].tap()
         XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.8 (21)"].waitForExistence(timeout: 5))
         let changes = [
             "全新暖纸质界面、衬线排版与猫耳唱片图标，提供日间及深夜外观。",

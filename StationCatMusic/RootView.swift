@@ -46,16 +46,7 @@ struct RootView: View {
         .environment(\.locale, Locale(identifier: model.locale))
         .foregroundStyle(Palette.ink)
         .preferredColorScheme(model.platformMode ? (appearance == "night" ? .dark : appearance == "paper" ? .light : nil) : .dark)
-        .overlay(alignment: .top) {
-            if let toast = model.radioToast {
-                Text(toast).font(.subheadline).multilineTextAlignment(.center)
-                    .foregroundStyle(Palette.darkText).padding(.horizontal, 20).padding(.vertical, 13)
-                    .background(Palette.dark, in: Capsule()).padding(.horizontal, 20).padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity)).allowsHitTesting(false)
-                    .accessibilityIdentifier("radioToast")
-            }
-        }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: model.radioToast)
+        .radioToast(model: model)
     }
     @ViewBuilder private var mainTabs: some View {
         if model.platformMode { radioTabs }
@@ -63,41 +54,31 @@ struct RootView: View {
     }
     private var radioTabs: some View {
         VStack(spacing: 0) {
-        ZStack {
-            radioPage(0) { PlatformMusicScreen(model: model, discovery: true) }
-            radioPage(1) {
-                PlatformCatalogScreen(model: model)
-                    .navigationDestination(item: $model.radioAlbumID) { id in
-                        PlatformAlbumDetailView(model: model, albumID: id)
-                    }
-            }
-            radioPage(2) { PlatformNotebookPage(model: model) }
-            radioPage(3) { library }
-        }
-        if model.selectedTab != 1 || model.radioAlbumID == nil { RadioTabBar(model: model) }
-        }
-        .background(Palette.background.ignoresSafeArea())
+            NavigationStack {
+                activeRadioPage
+            }.id(model.selectedTab)
+            if model.selectedTab != 1 || model.radioAlbumID == nil { RadioTabBar(model: model) }
+        }.background(Palette.background.ignoresSafeArea())
     }
-    private func radioPage<Content: View>(_ index: Int, @ViewBuilder content: () -> Content) -> some View {
-        NavigationStack {
-            content()
-                .allowsHitTesting(model.selectedTab == index)
-                .accessibilityHidden(model.selectedTab != index)
+    @ViewBuilder private var activeRadioPage: some View {
+        switch model.selectedTab {
+        case 1:
+            PlatformCatalogScreen(model: model)
+                .navigationDestination(item: $model.radioAlbumID) { id in
+                    PlatformAlbumDetailView(model: model, albumID: id)
+                }
+        case 2: PlatformNotebookPage(model: model)
+        case 3: library
+        default: PlatformMusicScreen(model: model, discovery: true)
         }
-            .opacity(model.selectedTab == index ? 1 : 0)
-            .zIndex(model.selectedTab == index ? 1 : 0)
-            .allowsHitTesting(model.selectedTab == index)
-            .accessibilityHidden(model.selectedTab != index)
     }
     private var legacyTabs: some View {
         TabView(selection: $model.selectedTab) {
             NavigationStack {
-                if model.platformMode { PlatformMusicScreen(model: model, discovery: true) }
-                else { discover.safeAreaInset(edge: .bottom) { miniPlayer } }
+                discover.safeAreaInset(edge: .bottom) { miniPlayer }
             }.tabItem { Label(model.t("discover"), systemImage: "sparkles") }.tag(0)
             NavigationStack {
-                if model.platformMode { PlatformMusicScreen(model: model, discovery: false) }
-                else { catalog.safeAreaInset(edge: .bottom) { miniPlayer } }
+                catalog.safeAreaInset(edge: .bottom) { miniPlayer }
             }.tabItem { Label(model.t("catalog"), systemImage: "music.note.list") }.tag(1)
             NavigationStack { library.safeAreaInset(edge: .bottom) { miniPlayer } }.tabItem { Label(model.t("library"), systemImage: "person.crop.circle") }.tag(2)
         }
@@ -316,30 +297,29 @@ struct RootView: View {
     }
     @ViewBuilder private var library: some View {
         if model.platformMode {
-            PlatformLibraryHome(model: model, favorites: { favoritesPage }, settings: { platformSettingsPage },
-                                privacy: { AnyView(privacyPage) }, preferences: { AnyView(preferencesPage) }, help: { AnyView(helpPage) })
+            PlatformLibraryHome(model: model, favorites: { favoritesPage }) { destination in
+                switch destination {
+                case .privacy: privacyPage
+                case .preferences: preferencesPage
+                case .help: helpPage
+                case .legacy: legacyDataPage
+                }
+            }
         } else { legacyLibrary }
     }
-    private var platformSettingsPage: some View {
-        libraryPage("settingsHelp", id: "settingsHelpPage") {
+    private var legacyDataPage: some View {
+        libraryPage("legacyData", id: "legacyDataPage") {
             Section {
-                NavigationLink { preferencesPage } label: { Label(model.t("preferences"), systemImage: "slider.horizontal.3") }.accessibilityIdentifier("preferencesEntry")
-                NavigationLink { privacyPage } label: { Label(model.t("privacyStorage"), systemImage: "hand.raised") }.accessibilityIdentifier("privacyEntry")
-                NavigationLink { helpPage } label: { Label(model.t("aboutSupport"), systemImage: "questionmark.circle") }.accessibilityIdentifier("helpEntry")
+                if !model.recent.isEmpty {
+                    NavigationLink { historyPage } label: { Label(model.t("legacyListeningHistory"), systemImage: "clock.arrow.circlepath") }.accessibilityIdentifier("historyEntry")
+                }
+                if model.hasLegacyOfflineFiles {
+                    NavigationLink { offlinePage } label: { Label(model.t("platformCacheManagement"), systemImage: "arrow.down.circle") }.accessibilityIdentifier("offlineEntry")
+                }
+                if model.account.enabled || model.account.scope.accountID != nil || !model.account.deletionHistory.isEmpty {
+                    NavigationLink { accountPage } label: { Label(model.t("accountSecurity"), systemImage: "person.crop.circle") }.accessibilityIdentifier("accountEntry")
+                }
             }.listRowBackground(Palette.panel)
-            if model.hasLegacyOfflineFiles || !model.recent.isEmpty || model.account.enabled || model.account.scope.accountID != nil || !model.account.deletionHistory.isEmpty {
-                Section(model.t("legacyData")) {
-                    if !model.recent.isEmpty {
-                        NavigationLink { historyPage } label: { Label(model.t("legacyListeningHistory"), systemImage: "clock.arrow.circlepath") }.accessibilityIdentifier("historyEntry")
-                    }
-                    if model.hasLegacyOfflineFiles {
-                        NavigationLink { offlinePage } label: { Label(model.t("platformCacheManagement"), systemImage: "arrow.down.circle") }.accessibilityIdentifier("offlineEntry")
-                    }
-                    if model.account.enabled || model.account.scope.accountID != nil || !model.account.deletionHistory.isEmpty {
-                        NavigationLink { accountPage } label: { Label(model.t("accountSecurity"), systemImage: "person.crop.circle") }.accessibilityIdentifier("accountEntry")
-                    }
-                }.listRowBackground(Palette.panel)
-            }
         }.task { await model.refreshOffline() }
     }
     private var legacyLibrary: some View {
@@ -369,7 +349,7 @@ struct RootView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(model.t("settings")).font(.headline).foregroundStyle(Palette.muted)
                     VStack(spacing: 0) {
-                        NavigationLink { offlinePage } label: { libraryCategory(model.platformMode ? "platformCacheManagement" : "offlineMusic", subtitle: model.platformMode ? "platformCacheSummary" : "offlineSummary", symbol: "arrow.down.circle") }.accessibilityIdentifier("offlineEntry")
+                        NavigationLink { offlinePage } label: { libraryCategory("offlineMusic", subtitle: "offlineSummary", symbol: "arrow.down.circle") }.accessibilityIdentifier("offlineEntry")
                         Divider().overlay(Palette.line).padding(.leading, 66)
                         NavigationLink { privacyPage } label: { libraryCategory("privacyStorage", subtitle: "privacyStorageDetail", symbol: "hand.raised") }.accessibilityIdentifier("privacyEntry")
                         Divider().overlay(Palette.line).padding(.leading, 66)
@@ -771,7 +751,7 @@ struct RootView: View {
                 Button(model.t("confirmDelete"), role: .destructive) { Task { await model.account.confirmDeletion() } }
             } message: { Text(model.t("deleteScope")) }
             .onDisappear { deletionPassword = ""; deletionTotp = "" }
-        }.preferredColorScheme(.dark)
+        }
     }
     private func progress(for track: Track) -> some View {
         let selected = model.playback.selectedTrack?.id == track.id
@@ -854,7 +834,7 @@ struct RootView: View {
                     ToolbarItem(placement: .principal) { Text("S T A T I O N   C A T").font(.caption2.weight(.medium)).foregroundStyle(Palette.muted) }
                 }
                 .sheet(isPresented: $showQueue) { queueSheet }
-        }.preferredColorScheme(.dark).tint(Palette.accent)
+        }.tint(Palette.accent)
     }
     @ViewBuilder private var playerDock: some View {
         if let track = model.playback.selectedTrack {
@@ -900,6 +880,6 @@ struct RootView: View {
                 Button(model.t("clearQueue"), role: .destructive) { model.playback.clear(); showQueue = false; model.showPlayer = false }.listRowBackground(Palette.panel)
             }.scrollContentBackground(.hidden).background(Palette.background).navigationTitle(model.t("queue"))
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button(model.t("close")) { showQueue = false }.accessibilityIdentifier("queueClose") } }
-        }.preferredColorScheme(.dark).tint(Palette.accent)
+        }.tint(Palette.accent)
     }
 }

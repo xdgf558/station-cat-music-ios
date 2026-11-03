@@ -1,5 +1,6 @@
 import SwiftUI
 import Observation
+import UIKit
 
 @MainActor @Observable final class AppModel {
     enum Phase: Equatable { case loading, loaded, empty, unavailable }
@@ -21,6 +22,9 @@ import Observation
     var selectedTab = 0
     var radioSearchRequest = 0
     var radioAlbumID: String?
+    var radioTuning = RadioDial.frequencies[0]
+    var notebookQuery = ""
+    var notebookFilter: NotebookFilter = .all
     var radioNoteID: UUID?
     var radioWantsPlatformPicker = false
     var radioToast: String?
@@ -485,6 +489,9 @@ import Observation
         playback.clear(); platformAttribution = [:]; showPlayer = true
         resolvePlatformSelection(slug: work.slug, expectedID: work.id)
     }
+    var hasLegacyPlatformData: Bool {
+        hasLegacyOfflineFiles || !recent.isEmpty || account.enabled || account.scope.accountID != nil || !account.deletionHistory.isEmpty
+    }
     var favoriteCount: Int { platformMode ? favorites.count : favoriteTracks.count }
     var favoriteTracks: [Track] { tracks.filter { favorites.contains($0.id) } }
     var platformAlbums: [PlatformAlbum] { (try? PlatformAlbum.catalog(tracks)) ?? [] }
@@ -530,6 +537,7 @@ import Observation
     }
     func changeScope(_ requested: AccountScope) async {
         radioNoteID = nil; radioAlbumID = nil; radioSearchRequest = 0; radioWantsPlatformPicker = false
+        radioTuning = RadioDial.frequencies[0]; notebookQuery = ""; notebookFilter = .all
         radioToastTask?.cancel(); radioToast = nil
         let scope = AccountScope(environment: self.scope.environment, accountID: requested.accountID)
         scopeTransition = true
@@ -706,6 +714,7 @@ import Observation
     func showRadioToast(_ text: String) {
         radioToastTask?.cancel()
         radioToast = text
+        UIAccessibility.post(notification: .announcement, argument: text)
         radioToastTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(2200))
             guard !Task.isCancelled else { return }

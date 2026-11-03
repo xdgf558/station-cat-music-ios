@@ -74,10 +74,9 @@ import XCTest
         XCTAssertTrue(app.buttons["tab.me"].waitForExistence(timeout: 45))
         app.buttons["tab.me"].tap()
         for _ in 0..<5 {
-            if app.buttons["settingsHelpEntry"].isHittable { break }
+            if app.buttons["helpEntry"].isHittable { break }
             app.swipeUp()
         }
-        app.buttons["settingsHelpEntry"].tap()
         app.buttons["helpEntry"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.8 (21)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()

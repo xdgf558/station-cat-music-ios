@@ -163,19 +163,25 @@ import XCTest
         XCTAssertTrue(quote.waitForExistence(timeout: 5))
         XCTAssertTrue(quote.label.contains("手机亮了一下 你把消息回完"))
         XCTAssertFalse(quote.label.contains("顺手扣向桌面"))
-        XCTAssertFalse((app.textViews["notebookBodyField"].value as? String ?? "").contains("顺手扣向桌面"))
+        let title = app.textFields["notebookTitleField"]
+        XCTAssertTrue((title.value as? String ?? "").isEmpty || title.value as? String == title.placeholderValue)
+        let body = app.textViews["notebookBodyField"]
+        XCTAssertTrue((body.value as? String ?? "").isEmpty)
         capture(app, "Radio-User-Selected-Quote")
         app.buttons["notebookSave"].tap()
         XCTAssertTrue(app.buttons["notebookEditorClose"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.buttons["platformDetailClose"].waitForNonExistence(timeout: 5))
         let notes = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "notebook.note."))
         XCTAssertTrue(notes.firstMatch.waitForExistence(timeout: 5)); XCTAssertEqual(notes.count, 1)
-        XCTAssertTrue(notes.firstMatch.label.contains("手机亮了一下 你把消息回完"))
+        XCTAssertEqual(notes.firstMatch.label.components(separatedBy: "手机亮了一下 你把消息回完").count - 1, 1)
         XCTAssertFalse(notes.firstMatch.label.contains("顺手扣向桌面"))
         notes.firstMatch.tap()
         XCTAssertTrue(app.buttons["notebookUnlinkWork"].waitForExistence(timeout: 5))
+        XCTAssertTrue((title.value as? String ?? "").isEmpty || title.value as? String == title.placeholderValue)
+        XCTAssertTrue((body.value as? String ?? "").isEmpty)
         app.buttons["notebookUnlinkWork"].tap()
         XCTAssertFalse(app.descendants(matching: .any)["notebookQuote"].firstMatch.exists)
+        body.tap(); body.typeText("继续写自己的话。")
         app.buttons["notebookSave"].tap()
     }
 

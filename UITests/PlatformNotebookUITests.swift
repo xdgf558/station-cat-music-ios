@@ -57,7 +57,8 @@ import UIKit
     private func addNote(_ app: XCUIApplication, title: String, body: String) {
         reveal(app.buttons["notebookNew"], app: app); app.buttons["notebookNew"].tap()
         let heading = field(app, "notebookTitleField")
-        XCTAssertTrue(heading.waitForExistence(timeout: 5)); heading.tap(); heading.typeText(title)
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        if !title.isEmpty { heading.tap(); heading.typeText(title) }
         let text = app.textViews["notebookBodyField"]; text.tap(); text.typeText(body)
         app.buttons["notebookSave"].tap()
         XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
@@ -95,6 +96,42 @@ import UIKit
         app.buttons["notebookEditorClose"].tap()
         XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
         XCTAssertEqual(rows(app).count, 0)
+    }
+    func testUntitledWritingStaysEditableAndLocalizesWithoutChangingSavedText() {
+        let app = launch(); enter(app)
+        let original = "My original untitled writing."
+        addNote(app, title: "", body: original)
+        XCTAssertEqual(rows(app).count, 1)
+        XCTAssertTrue(rows(app).firstMatch.label.contains("Untitled note"))
+        rows(app).firstMatch.tap()
+        let heading = app.textFields["notebookTitleField"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        XCTAssertTrue((heading.value as? String)?.isEmpty == true || heading.value as? String == heading.placeholderValue,
+                      "A display-only untitled label must not fill the editor's title")
+        let body = app.textViews["notebookBodyField"]
+        XCTAssertEqual(body.value as? String, original)
+        body.tap(); body.typeText(" A later thought.")
+        app.buttons["notebookSave"].tap()
+        XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
+        app.terminate()
+        let languageArgument = app.launchArguments.firstIndex(of: "-AppleLanguages")!
+        app.launchArguments[languageArgument + 1] = "(zh-Hans)"
+        app.launch(); XCTAssertTrue(app.buttons["tab.radio"].waitForExistence(timeout: 15)); enter(app)
+        XCTAssertEqual(rows(app).count, 1)
+        XCTAssertTrue(rows(app).firstMatch.label.contains("未命名手记"))
+        XCTAssertFalse(rows(app).firstMatch.label.contains("Untitled note"))
+        rows(app).firstMatch.tap()
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        XCTAssertTrue((heading.value as? String)?.isEmpty == true || heading.value as? String == heading.placeholderValue)
+        let savedBody = body.value as? String ?? ""
+        XCTAssertTrue(savedBody.contains(original)); XCTAssertTrue(savedBody.contains("A later thought."))
+        app.buttons["notebookEditorClose"].tap()
+        let search = app.textFields["notebookSearch"]
+        search.tap(); search.typeText("original untitled writing")
+        XCTAssertEqual(rows(app).count, 1, "The note must remain searchable by the user's own words")
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "original untitled writing".count))
+        search.typeText("Untitled note")
+        XCTAssertEqual(rows(app).count, 0, "A localized fallback must not be persisted as searchable user text")
     }
     func testTitleNextMovesTypingToBodyAndSavesSingleLineTitle() {
         let app = launch(); enter(app); app.buttons["notebookNew"].tap()

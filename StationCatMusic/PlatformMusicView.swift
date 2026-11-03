@@ -6,7 +6,10 @@ struct PlatformMusicScreen: View {
     let discovery: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var frequency = RadioDial.frequencies[0]
+    private var frequency: Double {
+        get { model.radioTuning }
+        nonmutating set { model.radioTuning = newValue }
+    }
     @State private var dragStart: Double?
     private var stations: [Track] { model.radioTracks }
     private var index: Int { RadioDial.nearest(frequency, count: stations.count) ?? 0 }
@@ -45,6 +48,7 @@ struct PlatformMusicScreen: View {
                 .frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity)
         }.background { OrbitBackground() }.toolbar(.hidden, for: .navigationBar)
             .refreshable { await model.load() }.accessibilityIdentifier("discoverScreen")
+            .onAppear { frequency = RadioDial.frequencies[min(index, max(0, stations.count - 1))] }
             .onChange(of: stations.map(\.id)) { _, _ in
                 dragStart = nil
                 frequency = RadioDial.frequencies[min(index, max(0, stations.count - 1))]

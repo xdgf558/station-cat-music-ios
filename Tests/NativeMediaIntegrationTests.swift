@@ -1,7 +1,7 @@
 import XCTest
+import AVFAudio
 @testable import StationCatMusic
 #if DEBUG
-import AVFAudio
 
 nonisolated struct MediaAudioSessionProbeSnapshot: Encodable {
     let at: Double
@@ -67,6 +67,16 @@ struct ProbeAuthorizer: PlaybackAuthorizing {
         let bridge = MusicProbeBridge(port: port, key: key), identity = try await bridge.fixture("bootstrap", as: ProbeIdentity.self)
         let track = Track(id: identity.trackId, title: "Synthetic sine", artist: "Local fixture", durationSeconds: 4.049, audioVersion: 1, access: .vip)
         let player = PlaybackService(transport: bridge)
+        // Match the native App entry; activation stays inside this requestPlay.
+        let session = AVAudioSession.sharedInstance()
+        let priorSession = (session.category, session.mode, session.categoryOptions)
+        let system = SystemPlayback(playback: player, artworkHost: "native.local.test")
+        player.attachSystem(system)
+        defer {
+            player.shutdown()
+            do { try session.setCategory(priorSession.0, mode: priorSession.1, options: priorSession.2) }
+            catch { XCTFail("Could not restore the test audio-session configuration") }
+        }
         player.configure(authorizer: ProbeAuthorizer(identity: identity, bridge: bridge, shortDeadline: false))
 #if DEBUG
         NativeMediaProbeTrace.reset()
@@ -106,6 +116,9 @@ struct ProbeAuthorizer: PlaybackAuthorizing {
         print("M3_INITIAL_AUDIO_SESSION:" + String(decoding: try diagnosticEncoder.encode(sessionSnapshot), as: UTF8.self))
 #endif
         XCTAssertTrue(initialAudioSource); XCTAssertTrue(initialPlaying); XCTAssertGreaterThan(initialPosition, 0.15)
+        XCTAssertEqual(session.category, .playback)
+        XCTAssertEqual(session.mode, .default)
+        XCTAssertEqual(session.categoryOptions, [])
         player.seek(to: 2)
         try await Task.sleep(for: .milliseconds(400)); XCTAssertGreaterThan(player.position, 1.5)
         player.pause(); XCTAssertFalse(player.hasAudioSource); XCTAssertFalse(player.isPlaying)

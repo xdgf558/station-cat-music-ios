@@ -58,3 +58,11 @@ v11 又给 Douyin 类增加预览内部向上滑动的四语最大字号对照�
 测试在原循环结束立刻冻结 hasAudioSource、isPlaying、position，之后输出诊断并断言这些已冻结值，避免日志开销将边界后的迟到起播算作通过。只在原等待之后读取音频会话类别、模式、采样率与输出数量；没有提前激活、预热、重新播放或放宽 50×100ms／0.15。Apple 的默认会话支持前台播放，未显式激活本身不能当作根因。
 
 本机固定后端的新增 trace 用例实际通过，正文与两次 loader finish 均约在 0.121 秒内，已发布 position 首次越过阈值约在 1.029 秒；原始输出保留为 loader-clock-snapshot-v3。会话为默认 SoloAmbient、48kHz、一个输出。这仍是 Xcode27.2 beta／26.4.1 单次检查，没有复现托管 26.5 的停滞，不能宣称解决远端失败。线程安全、96 上限、reset 和 JSON 字段另通过 Foundation 自检。正式 Production 构建及最终 archive／IPA 必须继续检查诊断类型完全排除。
+
+## 首个媒体夹具与实际原生入口对齐
+
+`fd29c0d` 的 [Native PR attempt 2](https://github.com/xdgf558/station-cat-music-ios/actions/runs/41704247226/attempts/2) 仍在首次起播推进断言失败。这次 18 条 loader 事件确认：206 正文 65,245 字节读完，2 字节元数据探测及完整资源请求均已回应并 finishLoading，最后一次完成在首样本后约 0.427 秒；无加载取消或错误。随后约 5.204 秒的 51 个播放器样本仍为 mediaTime／timebaseRate／position 全零、item unknown。故这次失败已可排除客户端正文消费或字节交付停滞，但尚不能解释 AVFoundation 内部未就绪原因。
+
+首个 M3 夹具此前直接构造 PlaybackService，没有像 StationCatMusicApp 的受开关控制原生分支一样连接 SystemPlayback。现在仅修改该测试，使用真实系统适配器，并仍由原 requestPlay 在授权及边界确认后 activate；不单独提前 setActive、不预播放、不增加等待。原 50×100ms／0.15、边界值冻结及后续 seek、暂停、重播、期限和撤销断言保持，另断言有效类别为 playback、模式 default、选项为空。测试 defer 停止播放器、移除系统适配器的命令与观察者，并恢复先前类别／模式／选项；不能声称恢复未知的先前 active 状态。两个执行脚本均禁止并行测试，避免共享音频会话冲突。
+
+本机独立 XCTest 进程的 v4 用例实际通过（8.484 秒），首次已发布进度过阈值约 1.029 秒，会话为 Playback／Default／48kHz。对照的旧夹具本机也能通过，因此本机结果不构成托管失败的复现或内部根因证明。默认音频会话本身支持播放；SystemPlayback 的系统媒体服务注册也可能影响初始化时序。后续只能依据新 head 的完整托管验证声明“对齐实际产品链路后通过原门槛”，不能声称 SoloAmbient 必然不能播放。正式 App 产品源码、配置、版本和开关未因这次夹具对齐而改变。

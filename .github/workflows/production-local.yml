@@ -30,6 +30,11 @@ jobs:
           assert available, 'No iPhone simulator installed'
           with open(os.environ['GITHUB_ENV'],'a') as output:output.write('M1_SIMULATOR_ID='+available[0]['udid']+'\n')
           PY
+      - name: Finish simulator cold boot before the verification budget
+        timeout-minutes: 15
+        run: |
+          mkdir -p evidence
+          xcrun simctl bootstatus "$M1_SIMULATOR_ID" -b > evidence/production-local-initial-bootstatus.log 2>&1
       - name: Read independently reviewed production backend fixture revision
         id: backend
         run: |
@@ -61,6 +66,7 @@ jobs:
         with:
           name: production-local-implementation-evidence
           path: |
+            evidence/production-local-initial-bootstatus.log
             evidence/production-local-build.log
             evidence/production-local-boot.log
             evidence/production-local-bootstatus.log

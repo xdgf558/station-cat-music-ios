@@ -48,3 +48,13 @@ v11 又给 Douyin 类增加预览内部向上滑动的四语最大字号对照�
 正常 Production 应用构建已成功，实际模拟器应用中不存在新增诊断类型和 getter。去掉两个 `DEBUG` 块及新增分隔空行后，`Core/Playback.swift` 与原产品代码逐字节一致；测试文件去掉诊断块、还原循环排版后也与原版本一致。此处是非分发的构建与静态排除核对；实际归档和 IPA 仍需各自校验。诊断尚不等于重复失败已定位，后续若再次发生，应根据快照继续处理，不靠增大时限放行。
 
 修正提交后仍需完成对应 `push`、`pull_request` 的全部必需验证，最终远端结果以 [PR #24 最新 head 的官方 Checks](https://github.com/xdgf558/station-cat-music-ios/pull/24/checks) 为准。本文不提前声明远端成功；全部必需检查成功后才可正常合并，再进入已授权的 Apple 更新流程。
+
+## 资源交付与等待边界的进一步诊断
+
+`0fd00d1` 的 [Native push](https://github.com/xdgf558/station-cat-music-ios/actions/runs/41696285010) 再次在首次进度断言失败。51 个样本中已发布 position、原始 mediaTime 和 timebase rate 始终为 0，最后 itemStatus 仍为 unknown；约 5.124 秒内没有观察到媒体时钟推进。授权及服务端首个 206 较早完成，不足以证明客户端已读完正文或交付给 AVFoundation。同一 head 的 PR 运行通过了媒体阶段，不能据此撤销 push 的失败或直接归因环境。
+
+为区分这些边界，NativeMediaLoader 增加 DEBUG-only、线程安全的前 96 条事件，覆盖请求、响应头、完整正文／退出时部分字节、元数据、respond 返回、finishLoading、取消和固定错误类别／数值码。无 URL、凭据、账号、正文或自由文本错误。上限达到 96 时后续事件被丢弃，因此缺少事件不能据此推断未执行；并发事件也不能仅凭相邻顺序绑定为同一请求。
+
+测试在原循环结束立刻冻结 hasAudioSource、isPlaying、position，之后输出诊断并断言这些已冻结值，避免日志开销将边界后的迟到起播算作通过。只在原等待之后读取音频会话类别、模式、采样率与输出数量；没有提前激活、预热、重新播放或放宽 50×100ms／0.15。Apple 的默认会话支持前台播放，未显式激活本身不能当作根因。
+
+本机固定后端的新增 trace 用例实际通过，正文与两次 loader finish 均约在 0.121 秒内，已发布 position 首次越过阈值约在 1.029 秒；原始输出保留为 loader-clock-snapshot-v3。会话为默认 SoloAmbient、48kHz、一个输出。这仍是 Xcode27.2 beta／26.4.1 单次检查，没有复现托管 26.5 的停滞，不能宣称解决远端失败。线程安全、96 上限、reset 和 JSON 字段另通过 Foundation 自检。正式 Production 构建及最终 archive／IPA 必须继续检查诊断类型完全排除。

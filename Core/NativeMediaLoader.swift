@@ -2,6 +2,88 @@ import Foundation
 import AVFoundation
 import UniformTypeIdentifiers
 
+#if DEBUG
+// Bounded process-local observations; never records URLs, identifiers or payloads.
+nonisolated enum NativeMediaProbeTrace {
+    enum Phase: String, Encodable, Sendable {
+        case transportStart = "transport_start", transportHeaders = "transport_headers"
+        case transportBodyComplete = "transport_body_complete", transportBodyEnd = "transport_body_end"
+        case transportEnd = "transport_end"
+        case loaderRequest = "loader_request", loaderTaskStart = "loader_task_start"
+        case loaderSizeStart = "loader_size_start", loaderSizeReady = "loader_size_ready"
+        case loaderMetadataReady = "loader_metadata_ready", loaderRespond = "loader_respond"
+        case loaderFinish = "loader_finish", loaderError = "loader_error"
+        case loaderDidCancel = "loader_did_cancel", loaderCancelAll = "loader_cancel_all"
+    }
+    enum ErrorCategory: String, Encodable, Sendable {
+        case cancelled, api, url, avFoundation, coreMedia, posix, osStatus, cocoa, other
+    }
+    struct Event: Encodable, Sendable {
+        let sequence: Int
+        let at: Double
+        let phase: Phase
+        let status: Int?
+        let expectedLength: Int64?
+        let bytes: Int?
+        let offset: Int64?
+        let length: Int?
+        let allToEnd: Bool?
+        let hasInfo: Bool?
+        let hasData: Bool?
+        let tasks: Int?
+        let cancelled: Bool?
+        let errorCategory: ErrorCategory?
+        let errorCode: Int?
+    }
+    private final class Storage: @unchecked Sendable {
+        private let lock = NSLock()
+        private var entries = [Event]()
+        func reset() { lock.lock(); defer { lock.unlock() }; entries.removeAll(keepingCapacity: true) }
+        func events() -> [Event] { lock.lock(); defer { lock.unlock() }; return entries }
+        func append(_ make: (Int) -> Event) {
+            lock.lock(); defer { lock.unlock() }
+            guard entries.count < 96 else { return }
+            entries.append(make(entries.count + 1))
+        }
+    }
+    private static let storage = Storage()
+    static func reset() { storage.reset() }
+    static func events() -> [Event] { storage.events() }
+    static func record(_ phase: Phase, status: Int? = nil, expectedLength: Int64? = nil,
+                       bytes: Int? = nil, offset: Int64? = nil, length: Int? = nil,
+                       allToEnd: Bool? = nil, hasInfo: Bool? = nil, hasData: Bool? = nil,
+                       tasks: Int? = nil, cancelled: Bool? = nil, error: (any Error)? = nil) {
+        let category: ErrorCategory?
+        var code: Int?
+        if let error {
+            let native = error as NSError
+            code = native.code
+            if error is CancellationError { category = .cancelled }
+            else if let api = error as? APIError {
+                category = .api
+                if case .rejected(let status) = api { code = status }
+            } else {
+                switch native.domain {
+                case NSURLErrorDomain: category = .url
+                case "AVFoundationErrorDomain": category = .avFoundation
+                case "CoreMediaErrorDomain": category = .coreMedia
+                case NSPOSIXErrorDomain: category = .posix
+                case NSOSStatusErrorDomain: category = .osStatus
+                case NSCocoaErrorDomain: category = .cocoa
+                default: category = .other
+                }
+            }
+        } else { category = nil; code = nil }
+        storage.append { sequence in
+            Event(sequence: sequence, at: Date().timeIntervalSince1970, phase: phase,
+                  status: status, expectedLength: expectedLength, bytes: bytes, offset: offset,
+                  length: length, allToEnd: allToEnd, hasInfo: hasInfo, hasData: hasData,
+                  tasks: tasks, cancelled: cancelled, errorCategory: category, errorCode: code)
+        }
+    }
+}
+#endif
+
 nonisolated struct MediaHTTPResult: Sendable {
     let status: Int; let data: Data; let headers: [String: String]
     func header(_ name: String) -> String? { headers[name.lowercased()] }
@@ -18,15 +100,30 @@ actor NativeMediaTransport: MediaHTTPTransport {
         session = URLSession(configuration: c, delegate: RejectRedirects(), delegateQueue: nil)
     }
     func send(_ request: URLRequest) async throws -> MediaHTTPResult {
+#if DEBUG
+        NativeMediaProbeTrace.record(.transportStart)
+        defer { NativeMediaProbeTrace.record(.transportEnd, cancelled: Task.isCancelled) }
+#endif
         let (bytes, response) = try await session.bytes(for: request)
+#if DEBUG
+        NativeMediaProbeTrace.record(.transportHeaders, status: (response as? HTTPURLResponse)?.statusCode,
+                                    expectedLength: response.expectedContentLength)
+#endif
         defer { bytes.task.cancel() }
         guard let r = response as? HTTPURLResponse, r.url == request.url else { throw APIError.invalidPayload }
         var data = Data()
+#if DEBUG
+        // Snapshot the partial count on every exit without adding per-byte work.
+        defer { NativeMediaProbeTrace.record(.transportBodyEnd, bytes: data.count, cancelled: Task.isCancelled) }
+#endif
         // One bounded 512 KiB range, including error bodies. Never persist media.
         for try await byte in bytes {
             try Task.checkCancellation()
             guard data.count < NativeMediaLimits.rangeBytes else { throw APIError.invalidPayload }; data.append(byte)
         }
+#if DEBUG
+        NativeMediaProbeTrace.record(.transportBodyComplete, bytes: data.count, cancelled: Task.isCancelled)
+#endif
         let headers = Dictionary(uniqueKeysWithValues: r.allHeaderFields.map { (String(describing: $0.key).lowercased(), String(describing: $0.value)) })
         return MediaHTTPResult(status: r.statusCode, data: data, headers: headers)
     }
@@ -180,15 +277,38 @@ actor AuthorizedMediaChannel {
         return asset
     }
     func resourceLoader(_ resourceLoader: AVAssetResourceLoader, shouldWaitForLoadingOfRequestedResource request: AVAssetResourceLoadingRequest) -> Bool {
-        guard !cancelled, tasks.count < 4 else { request.finishLoading(with: APIError.unavailable); return true }
+#if DEBUG
+        NativeMediaProbeTrace.record(.loaderRequest, offset: request.dataRequest?.requestedOffset,
+            length: request.dataRequest?.requestedLength, allToEnd: request.dataRequest?.requestsAllDataToEndOfResource,
+            hasInfo: request.contentInformationRequest != nil, hasData: request.dataRequest != nil,
+            tasks: tasks.count, cancelled: cancelled)
+#endif
+        guard !cancelled, tasks.count < 4 else {
+#if DEBUG
+            NativeMediaProbeTrace.record(.loaderFinish, tasks: tasks.count, cancelled: cancelled, error: APIError.unavailable)
+#endif
+            request.finishLoading(with: APIError.unavailable); return true
+        }
         let id = ObjectIdentifier(request)
         tasks[id] = Task { [weak self] in
+#if DEBUG
+            NativeMediaProbeTrace.record(.loaderTaskStart, cancelled: Task.isCancelled)
+#endif
             guard let self else { return }
             defer { self.tasks.removeValue(forKey: id) }
             do {
+#if DEBUG
+                NativeMediaProbeTrace.record(.loaderSizeStart, tasks: self.tasks.count, cancelled: Task.isCancelled)
+#endif
                 let size = try await self.channel.size(); try Task.checkCancellation()
+#if DEBUG
+                NativeMediaProbeTrace.record(.loaderSizeReady, expectedLength: size, tasks: self.tasks.count, cancelled: Task.isCancelled)
+#endif
                 if let info = request.contentInformationRequest {
                     info.contentType = UTType.mp3.identifier; info.contentLength = size; info.isByteRangeAccessSupported = true
+#if DEBUG
+                    NativeMediaProbeTrace.record(.loaderMetadataReady, expectedLength: size, hasInfo: true, tasks: self.tasks.count)
+#endif
                 }
                 if let data = request.dataRequest {
                     let initial = max(data.requestedOffset, data.currentOffset)
@@ -200,19 +320,43 @@ actor AuthorizedMediaChannel {
                         try Task.checkCancellation()
                         let chunk = try await self.read(start: offset, length: Int(min(Int64(NativeMediaLimits.rangeBytes), end - offset)), total: size)
                         try Task.checkCancellation(); guard !self.cancelled else { throw CancellationError() }
-                        data.respond(with: chunk); offset += Int64(chunk.count)
+                        data.respond(with: chunk)
+#if DEBUG
+                        NativeMediaProbeTrace.record(.loaderRespond, bytes: chunk.count, offset: offset, tasks: self.tasks.count, cancelled: Task.isCancelled)
+#endif
+                        offset += Int64(chunk.count)
                     }
                 }
                 try Task.checkCancellation(); request.finishLoading()
+#if DEBUG
+                NativeMediaProbeTrace.record(.loaderFinish, tasks: self.tasks.count, cancelled: Task.isCancelled)
+#endif
             } catch {
+#if DEBUG
+                NativeMediaProbeTrace.record(.loaderError, tasks: self.tasks.count, cancelled: Task.isCancelled, error: error)
+#endif
                 request.finishLoading(with: error)
+#if DEBUG
+                NativeMediaProbeTrace.record(.loaderFinish, tasks: self.tasks.count, cancelled: Task.isCancelled, error: error)
+#endif
                 if !Task.isCancelled && !self.cancelled { self.onFailure() }
             }
         }
         return true
     }
-    func resourceLoader(_ resourceLoader: AVAssetResourceLoader, didCancel request: AVAssetResourceLoadingRequest) { tasks.removeValue(forKey: ObjectIdentifier(request))?.cancel() }
-    func cancelAll() { cancelled = true; for task in tasks.values { task.cancel() }; tasks.removeAll() }
+    func resourceLoader(_ resourceLoader: AVAssetResourceLoader, didCancel request: AVAssetResourceLoadingRequest) {
+#if DEBUG
+        NativeMediaProbeTrace.record(.loaderDidCancel, offset: request.dataRequest?.requestedOffset,
+            length: request.dataRequest?.requestedLength, tasks: tasks.count, cancelled: true)
+#endif
+        tasks.removeValue(forKey: ObjectIdentifier(request))?.cancel()
+    }
+    func cancelAll() {
+#if DEBUG
+        NativeMediaProbeTrace.record(.loaderCancelAll, tasks: tasks.count, cancelled: true)
+#endif
+        cancelled = true; for task in tasks.values { task.cancel() }; tasks.removeAll()
+    }
 }
 
 // Return on deadline even if a coalesced credential refresh is still completing its

@@ -26,28 +26,51 @@ import XCTest
         return app
     }
     private func reveal(_ element: XCUIElement, _ app: XCUIApplication) {
+        guard element.waitForExistence(timeout: 5) else { XCTFail("Expected scroll target is missing"); return }
+        let identifier = element.identifier
         let detail = app.descendants(matching: .any)["platformDetailScreen"].firstMatch
-        let footerControl = element.identifier.hasPrefix("platformLink.") || ["notebookWriteForSong", "lyricQuoteToNote", "platformPickerOpen"].contains(element.identifier)
-        for _ in 0..<12 {
+        let footerControl = identifier.hasPrefix("platformLink.") || ["notebookWriteForSong", "lyricQuoteToNote", "platformPickerOpen"].contains(identifier)
+        func align(_ target: CGRect?, top: CGFloat, bottom: CGFloat, x: CGFloat) {
+            let height = bottom - top
+            let adjustment: CGFloat
+            if let target, target.minY < top { adjustment = top + 12 - target.minY }
+            else if let target, target.maxY > bottom { adjustment = bottom - 12 - target.maxY }
+            else { adjustment = -min(140, height * 0.3) }
+            let distance = min(max(abs(adjustment), 80), min(160, height * 0.3))
+            let delta = adjustment > 0 ? distance : -distance
+            let startY = top + height * (delta > 0 ? 0.3 : 0.7)
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            print("YOUTUBE_REVEAL_ADJUST id=\(identifier) target=\(target ?? .zero) top=\(top) bottom=\(bottom) delta=\(delta)")
+            // Keep a real scroll-length drag, using the original event type.
+            // Short slow presses can activate the preview instead of panning.
+            origin.withOffset(CGVector(dx: x - app.frame.minX, dy: startY - app.frame.minY))
+                .press(forDuration: 0.05,
+                       thenDragTo: origin.withOffset(CGVector(dx: x - app.frame.minX, dy: startY + delta - app.frame.minY)))
+        }
+        for attempt in 0...12 {
+            if !element.exists { _ = element.waitForExistence(timeout: 2) }
             let modal = app.buttons["youtubePrivacyClose"].exists || app.buttons["douyinPrivacyClose"].exists
             if !detail.exists || modal {
                 let home = app.descendants(matching: .any)["discoverScreen"].firstMatch
                 let visibleScroll = app.scrollViews.allElementsBoundByIndex.first { $0.isHittable && $0.frame.height > 80 }
-                let viewport = !modal && home.exists ? home.frame : (visibleScroll?.frame ?? app.frame)
+                let targetScroll = app.scrollViews.containing(.any, identifier: identifier).firstMatch
+                let viewport = !modal && home.exists ? home.frame :
+                    (modal && targetScroll.exists ? targetScroll.frame : (visibleScroll?.frame ?? app.frame))
                 let navigationBottom = app.navigationBars.allElementsBoundByIndex.map { $0.frame.maxY }.max() ?? viewport.minY
                 let top = max(max(viewport.minY, navigationBottom), app.frame.minY + 60) + 8
                 let tabBar = app.descendants(matching: .any)["radioTabBar"].firstMatch
                 let bottom = min(viewport.maxY, !modal && tabBar.exists ? tabBar.frame.minY : app.frame.maxY - 24) - 8
-                let frame = element.frame
-                if element.isHittable && frame.minY >= top && frame.maxY <= bottom { return }
-                let up = !element.exists || frame.maxY > bottom || (frame.minY >= top && frame.midY > (top + bottom) / 2)
-                let lower = top + (bottom - top) * 0.8, upper = top + (bottom - top) * 0.25
-                let origin = app.coordinate(withNormalizedOffset: .zero)
-                // The outer margin avoids the dial and keeps the drag inside
-                // the active scroll view, above the fixed tab bar.
-                let x = max(app.frame.minX + 14, viewport.minX + 14)
-                origin.withOffset(CGVector(dx: x, dy: up ? lower : upper))
-                    .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: x, dy: up ? upper : lower)))
+                guard bottom - top > 80 else { XCTFail("No visible scroll area above fixed controls"); return }
+                let frame = element.exists ? element.frame : nil
+                if let frame, element.isHittable && frame.minY >= top && frame.maxY <= bottom { return }
+                guard attempt < 12 else { break }
+                if modal && targetScroll.exists {
+                    // Nested sheets need a gesture scoped to their own scroll view.
+                    if let frame, frame.minY < top { targetScroll.swipeDown(velocity: .slow) }
+                    else { targetScroll.swipeUp(velocity: .slow) }
+                    continue
+                }
+                align(frame, top: top, bottom: bottom, x: max(app.frame.minX + 14, viewport.minX + 14))
                 continue
             }
             if footerControl {
@@ -58,21 +81,19 @@ import XCTest
             let top = max(detail.frame.minY, navigationBottom) + 8
             let footer = app.buttons["notebookWriteForSong"]
             let bottom = min(detail.frame.maxY, footer.exists ? footer.frame.minY - 16 : app.frame.maxY - 40)
-            let frame = element.frame
-            let tallText = element.elementType == .staticText && frame.height > bottom - top
-            if element.isHittable && (tallText ? frame.maxY > top && frame.minY < bottom : frame.minY >= top && frame.maxY <= bottom) { return }
-            // Keep the drag inside the reading viewport, away from the sheet
-            // handle and the permanent listening controls.
-            let up = !element.exists || frame.maxY > bottom
-            let lower = top + (bottom - top) * 0.8, upper = top + (bottom - top) * 0.25
-            let origin = app.coordinate(withNormalizedOffset: .zero)
-            origin.withOffset(CGVector(dx: app.frame.midX, dy: up ? lower : upper))
-                .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: app.frame.midX, dy: up ? upper : lower)))
+            guard bottom - top > 80 else { XCTFail("No visible reading area above the listening footer"); return }
+            let frame = element.exists ? element.frame : nil
+            if let frame {
+                let tallText = element.elementType == .staticText && frame.height > bottom - top
+                if element.isHittable && (tallText ? frame.maxY > top && frame.minY < bottom : frame.minY >= top && frame.maxY <= bottom) { return }
+            }
+            guard attempt < 12 else { break }
+            align(frame, top: top, bottom: bottom, x: detail.frame.midX)
         }
-        capture(app, "Reveal-Failure-" + element.identifier)
-        print("REVEAL_FAILED identifier=\(element.identifier) exists=\(element.exists) hittable=\(element.isHittable) target=\(element.exists ? element.frame : .zero) app=\(app.frame)")
+        capture(app, "Reveal-Failure-" + identifier)
+        print("REVEAL_FAILED identifier=\(identifier) exists=\(element.exists) hittable=\(element.isHittable) target=\(element.exists ? element.frame : .zero) app=\(app.frame)")
         print(app.debugDescription)
-        XCTFail("Control should be fully reachable inside the active scroll area: " + element.identifier)
+        XCTFail("Control should be fully reachable inside the active scroll area: " + identifier)
     }
     private func revealDetailTab(_ element: XCUIElement, _ app: XCUIApplication) {
         let detail = app.descendants(matching: .any)["platformDetailScreen"].firstMatch

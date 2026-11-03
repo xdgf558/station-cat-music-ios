@@ -17,14 +17,25 @@ import UIKit
         XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
     }
     private func reveal(_ element: XCUIElement, app: XCUIApplication) {
-        for _ in 0..<10 {
-            if element.isHittable { return }
+        let identifier = element.exists ? element.identifier : "missing-control"
+        for attempt in 0...10 {
+            if !element.exists { _ = element.waitForExistence(timeout: 2) }
             let editorScroll = app.scrollViews.containing(.any, identifier: "notebookWritingHelp").firstMatch
-            guard editorScroll.exists else { app.swipeUp(); continue }
+            guard editorScroll.exists else {
+                if element.isHittable { return }
+                guard attempt < 10 else { break }
+                app.swipeUp(); continue
+            }
             // The full-screen swipe starts on the keyboard after Next/Paste.
             // Pan the editor's outer scroll view, along the paper's left margin,
             // without tapping the body or sending a key that could edit the draft.
             var viewport = editorScroll.frame.intersection(app.frame)
+            let header = app.buttons["notebookEditorClose"]
+            if header.exists {
+                let top = max(viewport.minY, header.frame.maxY)
+                viewport.size.height = max(0, viewport.maxY - top)
+                viewport.origin.y = top
+            }
             let keyboard = app.keyboards.firstMatch
             if keyboard.exists {
                 let bottom = min(viewport.maxY, keyboard.frame.minY)
@@ -34,9 +45,13 @@ import UIKit
                 XCTFail("The notebook editor must have a visible scroll viewport above the keyboard")
                 return
             }
+            // Stable Xcode can report controls behind the keyboard as hittable.
+            let frame = element.exists ? element.frame : .zero
+            if element.exists && element.isHittable && frame.minY >= viewport.minY && frame.maxY <= viewport.maxY { return }
+            guard attempt < 10 else { break }
             // Recompute after each pan: interactive keyboard dismissal changes
             // the viewport, and a target above it needs the opposite direction.
-            let towardTop = element.frame.midY < viewport.midY
+            let towardTop = element.exists && frame.midY < viewport.midY
             let startY = viewport.minY + viewport.height * (towardTop ? 0.25 : 0.80)
             let endY = viewport.minY + viewport.height * (towardTop ? 0.80 : 0.25)
             let origin = app.coordinate(withNormalizedOffset: .zero)
@@ -45,7 +60,9 @@ import UIKit
             let end = origin.withOffset(CGVector(dx: x - app.frame.minX, dy: endY - app.frame.minY))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
-        XCTAssertTrue(element.isHittable)
+        capture(app, "Notebook-Reveal-Failure-" + identifier)
+        print("NOTEBOOK_REVEAL_FAILED id=\(identifier) target=\(element.exists ? element.frame : .zero) keyboard=\(app.keyboards.firstMatch.exists ? app.keyboards.firstMatch.frame : .zero)")
+        XCTFail("Control must be fully visible above the keyboard and below the editor header: " + identifier)
     }
     private func field(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
@@ -261,8 +278,8 @@ import UIKit
         reveal(app.buttons["notebookChooseWork"], app: app); app.buttons["notebookChooseWork"].tap()
         let work = app.buttons["notebook.song.883d3be1-2f28-4d81-b590-c3be6d80e8cd"]
         XCTAssertTrue(work.waitForExistence(timeout: 5)); work.tap()
-        let option = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "notebook.editorTopic.", "关系")).allElementsBoundByIndex.first { $0.isHittable }
-        XCTAssertNotNil(option); option?.tap()
+        let option = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "notebook.editorTopic.", "关系")).firstMatch
+        XCTAssertTrue(option.waitForExistence(timeout: 5)); reveal(option, app: app); option.tap()
         app.buttons["notebookSave"].tap()
         XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
         XCTAssertEqual(rows(app).count, 3)

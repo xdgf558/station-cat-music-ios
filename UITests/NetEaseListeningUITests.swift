@@ -63,7 +63,8 @@ import XCTest
     func testApprovedMobileDocumentLoadsFromLocalFixture() {
         let app = launch(mode: "mobile")
         XCTAssertTrue(app.staticTexts["neteaseBrowserLoaded"].waitForExistence(timeout: 15))
-        XCTAssertTrue(app.webViews.staticTexts["官方分享域名本机夹具"].exists)
+        // Document completion can precede WebKit's accessibility tree.
+        XCTAssertTrue(app.webViews.staticTexts["官方分享域名本机夹具"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["neteaseBrowserFailure"].exists)
         app.buttons["neteaseBrowserClose"].tap()
     }

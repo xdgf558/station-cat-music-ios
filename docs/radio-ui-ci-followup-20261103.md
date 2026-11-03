@@ -27,4 +27,14 @@
 
 本机最终补测在 iPhone 17 Pro / iOS 26.4 上按执行快照分两组完成：v7 中专辑目录 5 项、笔记 3 项（包含两条原失败用例及中文主题用例）、网易云正文 1 项通过；v8 中两个完整短片 UI 类 6 项通过，包含四语最大辅助字号下的详情控件及隐私弹层可达检查。合计 15 项是分批实际通过的结果；v7 整体仍有短片失败，不能记为整轮通过。分组结果以对应执行快照为依据，提交前逐文件核对最终五个测试文件与各组快照的 SHA-256。产品源码字节仍与原审查 head 一致。
 
+## 2026-11-04：预览区域的滚动手势对照
+
+`01fda55` 的 [Native push attempt 2](https://github.com/xdgf558/station-cat-music-ios/actions/runs/41662215028/attempts/2) 已通过前置恢复、媒体、双会话及四配置检查，但完整测试仍失败：414 项单元零失败、23 跳过；62 项 UI 中 1 失败、5 跳过，后续 Keychain 重启和认证恢复被跳过。唯一失败为繁中最大辅助字号下 `DouyinClipUITests.testFourLocalesLargeTextCanReachSourceFallbackAndListening` 的无 WebView 断言。没有主动 `tap()` 加载，但定位辅助函数的合成按住拖动从预览 Button 内部起手，之后原始可访问树出现 `douyinOfficialPlayer`。这份失败及校验过的 xcresult 已保留；不能仅凭没有 `tap()` 命令就将真实触摸事件称为自动加载或环境波动。
+
+本机 v9 改用详情 ScrollView 的原生整幅 swipe 作对照：YouTube 四语通过，Douyin 因一次大幅滑动越过大字号 Tab，定位在有限次数内未收敛而失败；该轮没有出现原无 WebView 断言失败。v9 不能写成整轮通过，也不能代替实体机手势验证。
+
+v10 保留 80–160 点的有限定位距离，将详情滚动起手点移至 ScrollView 左侧空白区。实际详情外框从 x=0 开始，内容水平内边距为 20 点，起点为外框 minX+14，避开整卡预览 Button。隐私弹层继续使用目标 ScrollView 的原生 swipe。预览、外部入口和隐私入口定位后各增加一次无 WebView 断言，原末态无加载、显式点击加载、停止与后台清理断言均保留，没有通过清空播放器状态掩盖失败。两个完整短片类已实际通过 6 项、零失败、零跳过。
+
+v11 又给 Douyin 类增加预览内部向上滑动的四语最大字号对照。该手势刻意从预览 Button 内部发出，要求预览位置实际上移、详情与选中 Tab 保持、无 WebView；之后主动点击同一预览才必须出现本机播放器夹具。完整 Douyin 类 4 项通过、零失败、零跳过。最终 Douyin 文件与 v11 快照一致、YouTube 文件与 v10 快照一致，两个类合计 7 项分批通过；不能把 v10 的旧 Douyin 文件当成最终文件的测试依据。没有修改产品源码、配置或版本，也没有执行真实第三方视频或实体机验证。
+
 修正提交后仍需完成对应 `push`、`pull_request` 的全部必需验证，最终远端结果以 [PR #24 最新 head 的官方 Checks](https://github.com/xdgf558/station-cat-music-ios/pull/24/checks) 为准。本文不提前声明远端成功；全部必需检查成功后才可正常合并，再进入已授权的 Apple 更新流程。

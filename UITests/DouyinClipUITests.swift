@@ -40,7 +40,7 @@ import XCTest
             let delta = adjustment > 0 ? distance : -distance
             let startY = top + height * (delta > 0 ? 0.3 : 0.7)
             let origin = app.coordinate(withNormalizedOffset: .zero)
-            print("DOUYIN_REVEAL_ADJUST id=\(identifier) target=\(target ?? .zero) top=\(top) bottom=\(bottom) delta=\(delta)")
+            print("DOUYIN_REVEAL_ADJUST id=\(identifier) target=\(target ?? .zero) top=\(top) bottom=\(bottom) x=\(x) delta=\(delta)")
             // Keep a real scroll-length drag, using the original event type.
             // Short slow presses can activate the preview instead of panning.
             origin.withOffset(CGVector(dx: x - app.frame.minX, dy: startY - app.frame.minY))
@@ -88,7 +88,9 @@ import XCTest
                 if element.isHittable && (tallText ? frame.maxY > top && frame.minY < bottom : frame.minY >= top && frame.maxY <= bottom) { return }
             }
             guard attempt < 12 else { break }
-            align(frame, top: top, bottom: bottom, x: detail.frame.midX)
+            // Start in the scroll view's blank gutter, outside the full-card
+            // preview Button. Keep bounded drags so large-text tabs don't overshoot.
+            align(frame, top: top, bottom: bottom, x: detail.frame.minX + 14)
         }
         capture(app, "Reveal-Failure-" + identifier)
         print("REVEAL_FAILED identifier=\(identifier) exists=\(element.exists) hittable=\(element.isHittable) target=\(element.exists ? element.frame : .zero) app=\(app.frame)")
@@ -149,16 +151,43 @@ import XCTest
         XCTAssertTrue(app.descendants(matching: .any)["lyricStanza.0"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["platformLink.netease"].exists)
     }
+    func testUpwardDragInsidePreviewScrollsWithoutLoadingPlayer() {
+        for locale in ["zh-Hans", "zh-Hant", "en", "ja"] {
+            let app = launch(locale: locale, large: true)
+            let load = app.buttons["douyinLoad." + clip]
+            reveal(load, app)
+            XCTAssertFalse(app.webViews.firstMatch.exists)
+            let initialY = load.frame.minY
+            // Unlike the positioning helper, this gesture deliberately starts
+            // inside the preview. The long fixture leaves content below it.
+            load.swipeUp(velocity: .slow)
+            XCTAssertFalse(app.webViews.firstMatch.exists, "Dragging the preview must not load it: " + locale)
+            XCTAssertTrue(app.buttons["platformDetailClose"].exists)
+            XCTAssertTrue(app.buttons["contentTab.clips"].isSelected)
+            XCTAssertTrue(load.exists)
+            XCTAssertLessThan(load.frame.minY, initialY - 5, "The preview drag must actually scroll: " + locale)
+            capture(app, "Douyin-Preview-Drag-" + locale)
+            reveal(load, app)
+            load.tap()
+            XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.webViews.staticTexts["未连接 Douyin · 无真实视频"].waitForExistence(timeout: 10))
+            app.terminate()
+        }
+    }
     func testFourLocalesLargeTextCanReachSourceFallbackAndListening() {
         for locale in ["zh-Hans", "zh-Hant", "en", "ja"] {
             let app = launch(locale: locale, large: true)
             let load = app.buttons["douyinLoad." + clip]; reveal(load, app)
+            XCTAssertFalse(app.webViews.firstMatch.exists, "Revealing the preview must not load it: " + locale)
             capture(app, "Douyin-" + locale + "-Accessibility")
             reveal(app.buttons["douyinOpen." + clip], app)
+            XCTAssertFalse(app.webViews.firstMatch.exists, "Revealing fallback must not load a preview: " + locale)
             reveal(app.buttons["platformLink.netease"], app)
             XCTAssertTrue(app.buttons["platformLink.netease"].isHittable)
             XCTAssertFalse(app.webViews.firstMatch.exists)
-            let info = app.buttons["douyinPrivacyInfo"]; reveal(info, app); info.tap()
+            let info = app.buttons["douyinPrivacyInfo"]; reveal(info, app)
+            XCTAssertFalse(app.webViews.firstMatch.exists, "Revealing privacy info must not load a preview: " + locale)
+            info.tap()
             XCTAssertTrue(app.buttons["douyinPrivacyClose"].waitForExistence(timeout: 5))
             reveal(app.buttons["douyinPrivacy"], app)
             XCTAssertTrue(app.buttons["douyinPrivacy"].isHittable)

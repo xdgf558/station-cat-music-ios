@@ -37,4 +37,14 @@ v10 保留 80–160 点的有限定位距离，将详情滚动起手点移至 Sc
 
 v11 又给 Douyin 类增加预览内部向上滑动的四语最大字号对照。该手势刻意从预览 Button 内部发出，要求预览位置实际上移、详情与选中 Tab 保持、无 WebView；之后主动点击同一预览才必须出现本机播放器夹具。完整 Douyin 类 4 项通过、零失败、零跳过。最终 Douyin 文件与 v11 快照一致、YouTube 文件与 v10 快照一致，两个类合计 7 项分批通过；不能把 v10 的旧 Douyin 文件当成最终文件的测试依据。没有修改产品源码、配置或版本，也没有执行真实第三方视频或实体机验证。
 
+## 首次原生起播的诊断边界
+
+`8d71897` 的 [Native PR](https://github.com/xdgf558/station-cat-music-ios/actions/runs/41687131980) 在前置媒体验证失败，尚未进入 UI 回归。唯一失败是 `NativeMediaIntegrationTests.testRealAVPlayerRangeAndHardStopAgainstIsolatedWorker` 第一次起播的 `position > 0.15` 断言；50 次、每次 100ms 的原等待结束后仍为 0。授权返回 200、首音频 GET 返回 206，服务已正常就绪；另外 11 项媒体测试通过，包含真实五分钟认证轮换。它与旧 `f8d5fe7` 的一次失败处于同一边界，但不能据此认定两次内部原因相同，或归为可忽略的环境波动。
+
+`isPlaying` 读取的是 AVPlayer 的期望 rate，不能替代真实媒体时钟。因此本次只在 `DEBUG` 编译条件下增加只读、有限快照，区分原始 currentTime、已发布 position、item/player/timeControl 状态、有效 timebase rate、seeking 与进度任务是否仍存在。错误仅记录白名单 domain 与数值 code，不记录 URL、凭据、账号标识、描述或 userInfo。原始 50×100ms 迭代、0.15 阈值、后续 seek／暂停／重播／期限／撤销断言均保留，没有加等待、重新请求播放或跳过检查。快照记录本身有同步观测开销，不把任务引用存在误写成采样循环已经执行。
+
+本机使用固定后端 `4d51e1a5b9f9f41945a918e21cf1f8ff9aab1fa8`、19 项文件摘要、真实隔离 D1/R2 与合成音频验证了这条测试，结果通过；第一轮已发布进度超过阈值约为 0.95 秒。工具链为 Xcode 27.2 beta、iOS 26.4.1 Simulator、Node 24.15.0，不能代替失败运行的固定 Xcode 26.4.1／iOS 26.5，也不能据此宣布原始失败根因已解决。初次本机清单路径失败没有执行测试，保留为输入失败记录，不计通过。
+
+正常 Production 应用构建已成功，实际模拟器应用中不存在新增诊断类型和 getter。去掉两个 `DEBUG` 块及新增分隔空行后，`Core/Playback.swift` 与原产品代码逐字节一致；测试文件去掉诊断块、还原循环排版后也与原版本一致。此处是非分发的构建与静态排除核对；实际归档和 IPA 仍需各自校验。诊断尚不等于重复失败已定位，后续若再次发生，应根据快照继续处理，不靠增大时限放行。
+
 修正提交后仍需完成对应 `push`、`pull_request` 的全部必需验证，最终远端结果以 [PR #24 最新 head 的官方 Checks](https://github.com/xdgf558/station-cat-music-ios/pull/24/checks) 为准。本文不提前声明远端成功；全部必需检查成功后才可正常合并，再进入已授权的 Apple 更新流程。

@@ -58,7 +58,21 @@ struct ProbeAuthorizer: PlaybackAuthorizing {
         let player = PlaybackService(transport: bridge)
         player.configure(authorizer: ProbeAuthorizer(identity: identity, bridge: bridge, shortDeadline: false))
         player.select(track); player.requestPlay()
-        for _ in 0..<50 { if player.position > 0.15 { break }; try await Task.sleep(for: .milliseconds(100)) }
+#if DEBUG
+        var initialSamples = [PlaybackProbeSnapshot]()
+#endif
+        for _ in 0..<50 {
+#if DEBUG
+            initialSamples.append(player.nativeMediaProbeSnapshot)
+#endif
+            if player.position > 0.15 { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+#if DEBUG
+        initialSamples.append(player.nativeMediaProbeSnapshot)
+        let diagnosticEncoder = JSONEncoder(); diagnosticEncoder.outputFormatting = [.sortedKeys]
+        print("M3_INITIAL_AVPLAYER_DIAGNOSTICS:" + String(decoding: try diagnosticEncoder.encode(initialSamples), as: UTF8.self))
+#endif
         XCTAssertTrue(player.hasAudioSource); XCTAssertTrue(player.isPlaying); XCTAssertGreaterThan(player.position, 0.15)
         player.seek(to: 2)
         try await Task.sleep(for: .milliseconds(400)); XCTAssertGreaterThan(player.position, 1.5)

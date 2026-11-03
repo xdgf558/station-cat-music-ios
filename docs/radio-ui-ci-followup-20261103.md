@@ -80,3 +80,11 @@ v11 又给 Douyin 类增加预览内部向上滑动的四语最大字号对照�
 用户已明确确认：当前产品使用网易云网页／外部平台收听，不提供自建音乐；旧自建音源 M3/M4 专用集成退出默认 push／PR 验收，保留为 workflow_dispatch 的 include_legacy_native_media 布尔选项，默认 false。后端版本读取、checkout、依赖安装和专用集成四步统一受该手动条件约束，不删除测试，也不通过 continue-on-error 将历史失败改为成功。
 
 默认流程继续执行完整契约、四配置构建、单元和 UI（含网易云网页、作品与链接、歌词／笔记／分享等）、A11–A13、M5 双会话、Keychain 和认证恢复；独立 Production profile 工作流也保留。专用媒体集成未执行时不宣称自建音源、原生后台播放或队列验收通过。正式包仍要求原生音乐、原生登录、个人同步和 production activation 关闭；将来开放自建音源前，须恢复其必需验证并全绿。
+
+## 资料库集成中的实播边界同步退出默认验收
+
+`6023ec7` 的 [Native PR](https://github.com/xdgf558/station-cat-music-ios/actions/runs/41731477268) 在 M5 的旧实播等待处失败：onListen 未产生，XCTUnwrap(heard) 为 nil，后续清空／关闭历史断言因此尚未执行。按用户明确“当前网易云收听、不自建音乐”的范围，M5 默认也不再实例化自建播放器，而使用明确标记的受控收听事件检查真实双会话存储；这沿用同文件原有的隐私事件输入方式。
+
+全部收藏同步、另一账号隔离、并发冲突、迟到顺序、历史 epoch、关闭历史、退出及不同进程隐私恢复保持。另增加跨会话播放位置与待传排空断言，确认本次事件写入，避免同一歌曲之前的记录造成假通过。默认 marker 明确为 M5_LIBRARY_EVENT_SOURCE:fixture，不宣称真实可听阈值通过。workflow_dispatch 显式选中 include_legacy_native_media 时，M5_REQUIRE_AUDIBLE_PLAYBACK 才为 YES，原 AVPlayer／onListen／至少五秒断言保留；驱动拒绝非法标志并校验对应事件来源 marker。
+
+本机 Mock 全目标编译通过；固定 a5c0ad0 后端15项摘要一致，默认模式真实 Worker／D1 单case完成全部非音频断言并通过（0.743秒）。这是 Xcode27.2 beta／iOS26.4.1 Simulator，不替代新提交的稳定托管完整验证，也不是实体机或实播验收。产品源码、版本和服务开关未改。

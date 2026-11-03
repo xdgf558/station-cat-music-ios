@@ -121,6 +121,7 @@ jobs:
       - name: Verify two-session native library and history isolation
         env:
           M5_BACKEND_PATH: ${{ github.workspace }}/.backend-m5
+          M5_REQUIRE_AUDIBLE_PLAYBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.include_legacy_native_media && 'YES' || 'NO' }}
         run: python3 scripts/verify_native_library.py
       - run: bash scripts/verify_configurations.sh
       - run: bash scripts/test_ios.sh

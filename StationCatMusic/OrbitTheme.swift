@@ -1,21 +1,30 @@
 import SwiftUI
+import UIKit
 
 enum Palette {
-    static let background = Color(red: 0.025, green: 0.04, blue: 0.085)
-    static let panel = Color(red: 0.065, green: 0.085, blue: 0.15)
-    static let accent = Color(red: 0.68, green: 0.64, blue: 1)
+    private static func adaptive(_ paper: UInt32, _ night: UInt32) -> Color {
+        Color(uiColor: UIColor { traits in
+            let value = traits.userInterfaceStyle == .dark ? night : paper
+            return UIColor(red: CGFloat((value >> 16) & 255) / 255,
+                           green: CGFloat((value >> 8) & 255) / 255,
+                           blue: CGFloat(value & 255) / 255, alpha: 1)
+        })
+    }
+    static let background = adaptive(0xEEE6D5, 0x16120E)
+    static let panel = adaptive(0xF7F1E3, 0x211B16)
+    static let ink = adaptive(0x1E1A15, 0xF1E7D4)
+    static let accent = Color(red: 200 / 255, green: 71 / 255, blue: 43 / 255)
     static let gold = accent
-    static let muted = Color(red: 0.65, green: 0.69, blue: 0.79)
-    static let line = Color.white.opacity(0.10)
+    static let muted = adaptive(0x6E6353, 0xA7987F)
+    static let line = ink.opacity(0.14)
+    static let dark = adaptive(0x1E1A15, 0x2A231C)
+    static let darkText = adaptive(0xF3EBDA, 0xF1E7D4)
+    static let darkMuted = adaptive(0xA89C88, 0xA7987F)
 }
 
 struct OrbitBackground: View {
     var body: some View {
-        GeometryReader { geometry in
-            Image("OrbitBackground").resizable().scaledToFill()
-                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
-                .clipped()
-        }.background(Palette.background).ignoresSafeArea().accessibilityHidden(true)
+        Palette.background.ignoresSafeArea().accessibilityHidden(true)
     }
 }
 
@@ -84,7 +93,7 @@ struct OrbitIconButton: View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 20, weight: .medium))
                 .frame(minWidth: 44, minHeight: 44)
-                .foregroundStyle(selected ? Palette.accent : .white)
+                .foregroundStyle(selected ? Palette.accent : Palette.ink)
         }.buttonStyle(.plain).accessibilityLabel(label)
     }
 }

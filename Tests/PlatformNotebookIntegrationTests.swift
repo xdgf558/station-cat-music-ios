@@ -93,7 +93,7 @@ private actor NotebookCatalog: PlatformMusicProviding {
         await model.initialize()
         let originalScope = model.scope, epoch = try XCTUnwrap(model.notebookState?.epoch)
         await model.changeScope(AccountScope(environment: .mock, accountID: UUID().uuidString))
-        let saved = await model.saveNotebook(NotebookDraft(title: "Old editor"), expectedEpoch: epoch, expectedVersion: nil, scope: originalScope)
+        let saved = await model.saveNotebook(NotebookDraft(work: NotebookCatalog.work, title: "Old editor", quote: "A line selected before the scope changed"), expectedEpoch: epoch, expectedVersion: nil, scope: originalScope)
         XCTAssertFalse(saved); XCTAssertTrue(model.notebookState?.notes.isEmpty == true)
         let original = try await model.notebook.snapshot(scope: originalScope)
         XCTAssertTrue(original.notes.isEmpty)

@@ -5,6 +5,7 @@ struct RootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
+    @AppStorage("radioAppearance") private var appearance = "system"
     @State private var showQueue = false
     @State private var confirmHistoryClear = false
     @State private var confirmLocalCleanup = false
@@ -26,7 +27,7 @@ struct RootView: View {
         .tint(Palette.accent)
         .onOpenURL { url in Task { await model.receiveMusicLink(url) } }
         .alert(model.t("linkUnavailable"), isPresented: $model.linkUnavailable) { Button(model.t("close"), role: .cancel) {} }
-        .sheet(isPresented: $model.showPlayer) {
+        .sheet(isPresented: $model.showPlayer, onDismiss: { model.radioWantsPlatformPicker = false }) {
             if model.platformMode { PlatformMusicDetailView(model: model) }
             else { player }
         }
@@ -43,8 +44,52 @@ struct RootView: View {
         .sheet(isPresented: $showDeletion) { deletionSheet }
         .onChange(of: scenePhase) { _, phase in if phase == .active { model.playback.becameActive(); model.syncLibrary() } }
         .environment(\.locale, Locale(identifier: model.locale))
+        .foregroundStyle(Palette.ink)
+        .preferredColorScheme(model.platformMode ? (appearance == "night" ? .dark : appearance == "paper" ? .light : nil) : .dark)
+        .overlay(alignment: .top) {
+            if let toast = model.radioToast {
+                Text(toast).font(.subheadline).multilineTextAlignment(.center)
+                    .foregroundStyle(Palette.darkText).padding(.horizontal, 20).padding(.vertical, 13)
+                    .background(Palette.dark, in: Capsule()).padding(.horizontal, 20).padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity)).allowsHitTesting(false)
+                    .accessibilityIdentifier("radioToast")
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: model.radioToast)
     }
-    private var mainTabs: some View {
+    @ViewBuilder private var mainTabs: some View {
+        if model.platformMode { radioTabs }
+        else { legacyTabs }
+    }
+    private var radioTabs: some View {
+        VStack(spacing: 0) {
+        ZStack {
+            radioPage(0) { PlatformMusicScreen(model: model, discovery: true) }
+            radioPage(1) {
+                PlatformCatalogScreen(model: model)
+                    .navigationDestination(item: $model.radioAlbumID) { id in
+                        PlatformAlbumDetailView(model: model, albumID: id)
+                    }
+            }
+            radioPage(2) { PlatformNotebookPage(model: model) }
+            radioPage(3) { library }
+        }
+        if model.selectedTab != 1 || model.radioAlbumID == nil { RadioTabBar(model: model) }
+        }
+        .background(Palette.background.ignoresSafeArea())
+    }
+    private func radioPage<Content: View>(_ index: Int, @ViewBuilder content: () -> Content) -> some View {
+        NavigationStack {
+            content()
+                .allowsHitTesting(model.selectedTab == index)
+                .accessibilityHidden(model.selectedTab != index)
+        }
+            .opacity(model.selectedTab == index ? 1 : 0)
+            .zIndex(model.selectedTab == index ? 1 : 0)
+            .allowsHitTesting(model.selectedTab == index)
+            .accessibilityHidden(model.selectedTab != index)
+    }
+    private var legacyTabs: some View {
         TabView(selection: $model.selectedTab) {
             NavigationStack {
                 if model.platformMode { PlatformMusicScreen(model: model, discovery: true) }
@@ -271,7 +316,8 @@ struct RootView: View {
     }
     @ViewBuilder private var library: some View {
         if model.platformMode {
-            PlatformLibraryHome(model: model, favorites: { favoritesPage }, settings: { platformSettingsPage })
+            PlatformLibraryHome(model: model, favorites: { favoritesPage }, settings: { platformSettingsPage },
+                                privacy: { AnyView(privacyPage) }, preferences: { AnyView(preferencesPage) }, help: { AnyView(helpPage) })
         } else { legacyLibrary }
     }
     private var platformSettingsPage: some View {
@@ -593,9 +639,15 @@ struct RootView: View {
         libraryPage("releaseNotes", id: "releaseNotesPage") {
             Section {
                 Text("Station Cat Music · " + appVersion).font(.headline)
-                Text("2026-11-02").font(.caption).foregroundStyle(Palette.muted)
+                Text("2026-11-03").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("radio.releaseDesign"), systemImage: "circle.lefthalf.filled")
+                Label(model.t("radio.releaseNavigation"), systemImage: "square.grid.2x2")
+                Label(model.t("radio.releaseQuotes"), systemImage: "text.quote")
+                Label(model.t("radio.releaseAppearance"), systemImage: "moon")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 1.0.7 (20) · 2026-11-02") {
                 Label(model.t("releaseShareCards"), systemImage: "square.and.arrow.up")
                 Label(model.t("releaseAlbumArtwork"), systemImage: "square.stack")
                 Label(model.t("releaseListeningNavigation"), systemImage: "globe")

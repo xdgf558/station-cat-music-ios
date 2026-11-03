@@ -7,8 +7,8 @@ nonisolated struct NotebookWork: Codable, Equatable, Sendable {
     let slug: String
 }
 
-/// Title and body are authored by the user. Server lyrics, stories, artwork,
-/// platform URLs and attribution are never copied into this representation.
+/// User writing and, only after an explicit selection, one short lyric quote.
+/// Artwork, platform URLs and server documents are never copied automatically.
 nonisolated struct NotebookNote: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     let work: NotebookWork?
@@ -18,6 +18,13 @@ nonisolated struct NotebookNote: Codable, Equatable, Identifiable, Sendable {
     let createdAt: Date
     let updatedAt: Date
     let version: Int
+    let quote: String?
+
+    init(id: UUID, work: NotebookWork?, title: String, body: String, topicID: UUID?,
+         createdAt: Date, updatedAt: Date, version: Int, quote: String? = nil) {
+        self.id = id; self.work = work; self.title = title; self.body = body; self.topicID = topicID
+        self.createdAt = createdAt; self.updatedAt = updatedAt; self.version = version; self.quote = quote
+    }
 }
 
 nonisolated struct NotebookTopic: Codable, Equatable, Identifiable, Sendable {
@@ -38,9 +45,10 @@ nonisolated struct NotebookDraft: Equatable, Sendable {
     var title: String
     var body: String
     var topicID: UUID?
+    var quote: String?
 
-    init(id: UUID = UUID(), work: NotebookWork? = nil, title: String = "", body: String = "", topicID: UUID? = nil) {
-        self.id = id; self.work = work; self.title = title; self.body = body; self.topicID = topicID
+    init(id: UUID = UUID(), work: NotebookWork? = nil, title: String = "", body: String = "", topicID: UUID? = nil, quote: String? = nil) {
+        self.id = id; self.work = work; self.title = title; self.body = body; self.topicID = topicID; self.quote = quote
     }
 }
 
@@ -65,6 +73,7 @@ actor PlatformNotebookStore {
     nonisolated static let maximumTitleLength = 120
     nonisolated static let maximumBodyLength = 8_000
     nonisolated static let maximumTopicLength = 40
+    nonisolated static let maximumQuoteLength = 200
     nonisolated static let maximumFileBytes = 4 * 1024 * 1024
     nonisolated static let maximumTotalBytes = 16 * 1024 * 1024
     nonisolated static let maximumScopes = 64
@@ -98,7 +107,8 @@ actor PlatformNotebookStore {
             let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
             guard validText(title, maximum: Self.maximumTitleLength, multiline: false),
                   validText(draft.body, maximum: Self.maximumBodyLength, multiline: true),
-                  !title.isEmpty || !draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !title.isEmpty || !draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draft.quote != nil,
+                  validQuote(draft.quote, work: draft.work),
                   draft.work.map(validWork) ?? true else { throw NotebookError.invalidInput }
             if let topic = draft.topicID, !file.state.topics.contains(where: { $0.id == topic }) {
                 throw NotebookError.staleEdit
@@ -117,7 +127,7 @@ actor PlatformNotebookStore {
             let updatedAt = max(date, previous?.updatedAt ?? date)
             let note = NotebookNote(id: draft.id, work: draft.work, title: title, body: draft.body,
                                     topicID: draft.topicID, createdAt: previous?.createdAt ?? date,
-                                    updatedAt: updatedAt, version: version)
+                                    updatedAt: updatedAt, version: version, quote: draft.quote)
             file.state.notes.removeAll { $0.id == draft.id }
             file.state.notes.append(note)
             file.state.notes.sort { $0.updatedAt == $1.updatedAt ? $0.id.uuidString < $1.id.uuidString : $0.updatedAt > $1.updatedAt }
@@ -174,7 +184,7 @@ actor PlatformNotebookStore {
                 guard note.topicID == id else { return note }
                 return NotebookNote(id: note.id, work: note.work, title: note.title, body: note.body,
                                     topicID: nil, createdAt: note.createdAt, updatedAt: note.updatedAt,
-                                    version: try increment(note.version))
+                                    version: try increment(note.version), quote: note.quote)
             }
             file.state.revision = try increment(file.state.revision)
             try write(file)
@@ -227,6 +237,12 @@ actor PlatformNotebookStore {
         UUID(uuidString: work.id) != nil && (1...100).contains(work.slug.utf8.count) &&
         work.slug.range(of: "^[a-z0-9]+(?:-[a-z0-9]+)*$", options: .regularExpression) != nil
     }
+    private func validQuote(_ quote: String?, work: NotebookWork?) -> Bool {
+        guard let quote else { return true }
+        return work != nil && !quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            validText(quote, maximum: Self.maximumQuoteLength, multiline: false) &&
+            quote.rangeOfCharacter(from: .newlines) == nil
+    }
     private func valid(_ file: File) -> Bool {
         let state = file.state, topicIDs = Set(file.state.topics.map(\.id))
         return file.schema == 1 && (0..<Int.max).contains(state.revision) &&
@@ -238,7 +254,8 @@ actor PlatformNotebookStore {
             (1..<Int.max).contains($0.version) && validDate($0.createdAt) && validDate($0.updatedAt) && $0.updatedAt >= $0.createdAt &&
             $0.title == $0.title.trimmingCharacters(in: .whitespacesAndNewlines) &&
             validText($0.title, maximum: Self.maximumTitleLength, multiline: false) && validText($0.body, maximum: Self.maximumBodyLength, multiline: true) &&
-            (!$0.title.isEmpty || !$0.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) &&
+            (!$0.title.isEmpty || !$0.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || $0.quote != nil) &&
+            validQuote($0.quote, work: $0.work) &&
             ($0.work.map(validWork) ?? true) && ($0.topicID.map { topicIDs.contains($0) } ?? true)
         }
     }

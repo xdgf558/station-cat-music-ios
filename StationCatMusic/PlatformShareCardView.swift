@@ -38,7 +38,7 @@ struct PlatformShareCardView: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) {
                 Button(model.t("close")) { dismiss() }.accessibilityIdentifier("platformShareCardClose")
             } }
-        }.preferredColorScheme(.dark)
+        }.foregroundStyle(Palette.ink)
     }
 
     private var postcard: some View {

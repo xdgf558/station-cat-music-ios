@@ -1,0 +1,137 @@
+{
+  "fontFamily": "Noto Serif SC",
+  "sourceRepository": "https://github.com/google/fonts",
+  "sourceCommit": "2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc",
+  "sourceDirectory": "ofl/notoserifsc",
+  "metadataUpstreamRepository": "https://github.com/notofonts/noto-cjk",
+  "metadataUpstreamCommit": "985fa52c81c1d6692ccdd82bc3656e8fb932fd89",
+  "license": "SIL Open Font License 1.1",
+  "downloadedAt": "2026-11-03T07:29:26.768177+00:00",
+  "modified": false,
+  "subset": false,
+  "variableSingleFile": true,
+  "files": [
+    {
+      "path": "NotoSerifSC.ttf",
+      "upstreamFilename": "NotoSerifSC[wght].ttf",
+      "bytes": 25125512,
+      "sha256": "050080d9255a86808f2945bffac582b31ef32bc36411ce29563b4961670c66f9",
+      "gitBlobSha1": "eab063faf229160a52d3760f5555150e4eb9e5bf",
+      "sourceUrl": "https://github.com/google/fonts/blob/2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf"
+    },
+    {
+      "path": "METADATA.pb",
+      "upstreamFilename": "METADATA.pb",
+      "bytes": 1373,
+      "sha256": "e0c253c6f850fc3ef6e7fc398361133dd55acc408c931822a3f69cfac08554c2",
+      "gitBlobSha1": "8dec93ddf145e23e1041986fef1c10ea8d43a222",
+      "sourceUrl": "https://github.com/google/fonts/blob/2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc/ofl/notoserifsc/METADATA.pb"
+    },
+    {
+      "path": "OFL.txt",
+      "upstreamFilename": "OFL.txt",
+      "bytes": 4350,
+      "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6",
+      "gitBlobSha1": "94d1bf7b52481343e2983fb7751e8b7abe1ea07b",
+      "sourceUrl": "https://github.com/google/fonts/blob/2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc/ofl/notoserifsc/OFL.txt"
+    }
+  ],
+  "nameTable": {
+    "1": [
+      "Noto Serif SC ExtraLight"
+    ],
+    "2": [
+      "Regular"
+    ],
+    "4": [
+      "Noto Serif SC ExtraLight"
+    ],
+    "6": [
+      "NotoSerifSC-ExtraLight"
+    ],
+    "16": [
+      "Noto Serif SC"
+    ],
+    "17": [
+      "ExtraLight"
+    ]
+  },
+  "variationAxes": [
+    {
+      "tag": "wght",
+      "minimum": 200.0,
+      "default": 200.0,
+      "maximum": 900.0,
+      "name": [
+        "Weight"
+      ]
+    }
+  ],
+  "namedInstances": [
+    {
+      "name": [
+        "ExtraLight"
+      ],
+      "coordinates": {
+        "wght": 200.0
+      }
+    },
+    {
+      "name": [
+        "Light"
+      ],
+      "coordinates": {
+        "wght": 300.0
+      }
+    },
+    {
+      "name": [
+        "Regular"
+      ],
+      "coordinates": {
+        "wght": 400.0
+      }
+    },
+    {
+      "name": [
+        "Medium"
+      ],
+      "coordinates": {
+        "wght": 500.0
+      }
+    },
+    {
+      "name": [
+        "SemiBold"
+      ],
+      "coordinates": {
+        "wght": 600.0
+      }
+    },
+    {
+      "name": [
+        "Bold"
+      ],
+      "coordinates": {
+        "wght": 700.0
+      }
+    },
+    {
+      "name": [
+        "ExtraBold"
+      ],
+      "coordinates": {
+        "wght": 800.0
+      }
+    },
+    {
+      "name": [
+        "Black"
+      ],
+      "coordinates": {
+        "wght": 900.0
+      }
+    }
+  ],
+  "glyphCount": 31058
+}

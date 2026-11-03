@@ -1,0 +1,28 @@
+[
+  {
+    "file": "Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+    "sourceFile": "AppIcon-1024-light.png",
+    "sourceSha256": "569452f14ab9575832bfb8bf76a188301af95e1b90c07fb0578cc7df061b375c",
+    "preparedSha256": "4cd2bcb2dfe4006d3c4237c2e2e14e35ebce49568c80669f07a461e9525d35fa",
+    "pixels": [
+      1024,
+      1024
+    ],
+    "mode": "RGB",
+    "sourceRgbPixelsUnchanged": true,
+    "change": "Lossless removal of an entirely opaque alpha channel; no redesign or recoloring."
+  },
+  {
+    "file": "Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-dark.png",
+    "sourceFile": "AppIcon-1024-dark.png",
+    "sourceSha256": "4dd9e21b5080bd329dc869036ba6bdf03b2ce16ef6417d353797dabd1e43c9c7",
+    "preparedSha256": "116d338aeb806f751d819d09c0374f7b253a97359c41d079682ef46ecce3b5ac",
+    "pixels": [
+      1024,
+      1024
+    ],
+    "mode": "RGB",
+    "sourceRgbPixelsUnchanged": true,
+    "change": "Lossless removal of an entirely opaque alpha channel; no redesign or recoloring."
+  }
+]

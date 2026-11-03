@@ -13,7 +13,18 @@ struct PlatformMusicDetailView: View {
     @State private var youtube = YouTubeClipSession.forCurrentEnvironment()
     @State private var douyin = DouyinClipSession.forCurrentEnvironment()
     @State private var section: Section = .lyrics
+    @State private var configuredContentKey: String?
     @State private var expanded = false
+    @State private var selectedLyric: String?
+    @State private var selectedLyricID: String?
+    @State private var showPlatformPicker = false
+    @State private var pickedLinkID: String?
+    @State private var rememberPlatform = true
+    @State private var applyingPlatform = false
+    @State private var pickerGeneration = 0
+    @State private var pickerScope = AccountScope.guest
+    @State private var pendingPickedLink: PlatformLink?
+    @State private var notebookSaved = false
     @AppStorage("platformLyricsFontSize") private var lyricSize = 18
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
     @State private var failedURL: URL?
@@ -41,27 +52,22 @@ struct PlatformMusicDetailView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: section == .clips && !typeSize.isAccessibilitySize ? 12 : 28) {
+                VStack(alignment: .leading, spacing: 22) {
                     if let track {
                         identity(track)
-                        if let detail = currentDetail, let release = detail.track.release {
-                            if section != .clips || typeSize.isAccessibilitySize { platformLinks(release) }
+                        if let detail = currentDetail {
                             if let failedURL { linkFailure(failedURL) }
                             tabs
                             sectionBody(detail)
-                            notebookEntry(detail.track)
-                            if section == .clips && !typeSize.isAccessibilitySize { platformLinks(release, placement: .remaining) }
                         } else { detailStatus }
                     } else { detailStatus }
-                }.padding(.horizontal, 22).padding(.top, section == .clips && !typeSize.isAccessibilitySize ? 12 : 26).padding(.bottom, 36)
+                }.padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 24)
                     .frame(maxWidth: .infinity, alignment: .leading)
-            }.background { OrbitBackground() }.accessibilityIdentifier("platformDetailScreen")
+            }.background(Palette.background).accessibilityIdentifier("platformDetailScreen")
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if section == .clips, !typeSize.isAccessibilitySize, let release = currentDetail?.track.release, !release.platforms.isEmpty {
-                        platformLinks(release, placement: .footer)
-                            .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 8)
-                            .background(Palette.background.opacity(0.96))
-                    }
+                    // Keep persistent controls compact like native toolbars;
+                    // lyrics, stories and the scrollable content retain full AX scaling.
+                    listeningFooter.dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 }
                 .sheet(isPresented: $showYouTubeInfo) {
                     NavigationStack {
@@ -70,13 +76,12 @@ struct PlatformMusicDetailView: View {
                                 Text(model.t("youtubePrivacyNotice")).fixedSize(horizontal: false, vertical: true)
                                 youtubePolicies
                             }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                            .background(Palette.background).navigationTitle("YouTube")
+                        }.background(Palette.background).navigationTitle("YouTube")
                             .navigationBarTitleDisplayMode(.inline)
                             .toolbar { ToolbarItem(placement: .confirmationAction) {
                                 Button(model.t("close")) { showYouTubeInfo = false }.accessibilityIdentifier("youtubePrivacyClose")
                             } }
-                    }.presentationDetents([.medium, .large]).preferredColorScheme(.dark)
+                    }.presentationDetents([.medium, .large])
                 }
                 .sheet(isPresented: $showDouyinInfo) {
                     NavigationStack {
@@ -91,14 +96,19 @@ struct PlatformMusicDetailView: View {
                             .toolbar { ToolbarItem(placement: .confirmationAction) {
                                 Button(model.t("close")) { showDouyinInfo = false }.accessibilityIdentifier("douyinPrivacyClose")
                             } }
-                    }.presentationDetents([.medium, .large]).preferredColorScheme(.dark)
+                    }.presentationDetents([.medium, .large])
                 }
-                .sheet(item: $notebookEditor, onDismiss: {
-                    guard let work = notebookPendingWork else { return }
-                    notebookPendingWork = nil; model.openNotebookWork(work)
+                .fullScreenCover(item: $notebookEditor, onDismiss: {
+                    if notebookSaved {
+                        notebookSaved = false; model.showPlayer = false; model.selectedTab = 2
+                        model.showRadioToast(model.t("radio.noteSaved"))
+                    } else if let work = notebookPendingWork {
+                        notebookPendingWork = nil; model.openNotebookWork(work)
+                    }
                 }) { context in
-                    PlatformNotebookEditor(model: model, context: context) { notebookPendingWork = $0 }
+                    PlatformNotebookEditor(model: model, context: context, onSaved: { notebookSaved = true }) { notebookPendingWork = $0 }
                 }
+                .sheet(isPresented: $showPlatformPicker, onDismiss: finishPlatformChoice) { platformPicker }
                 .sheet(item: $listeningRequest) { request in
                     if let detail = currentDetail, let provider = model.platformCatalog {
                         NetEaseListeningView(request: request, track: detail.track, locale: model.locale,
@@ -117,88 +127,168 @@ struct PlatformMusicDetailView: View {
                             .accessibilityIdentifier("platformDetailClose")
                     }
                     ToolbarItem(placement: .principal) {
-                        Text("S T A T I O N   C A T").font(.caption2.weight(.medium)).foregroundStyle(Palette.muted)
+                        VStack(spacing: 3) {
+                            Text(track.flatMap { model.radioFrequency(for: $0) } ?? track.map { "SC–" + $0.id.prefix(6).uppercased() } ?? "STATION CAT")
+                                .radioMono(12, weight: .semibold).foregroundStyle(Palette.accent)
+                            Text("STATION CAT").radioMono(9).tracking(2).foregroundStyle(Palette.muted)
+                        }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         if let card = currentDetail.flatMap({ PlatformShareCard.track($0, locale: model.locale) }) {
-                            Button { shareCard = card } label: { Image(systemName: "square.and.arrow.up").frame(minWidth: 44, minHeight: 44) }
+                            Button { stopClips(); shareCard = card } label: { Image(systemName: "square.and.arrow.up").frame(minWidth: 44, minHeight: 44) }
                                 .accessibilityLabel(model.t("shareMusic")).accessibilityIdentifier("platformShare")
                         }
                     }
                 }
                 .task(id: contentKey) {
-                    stopClips(); invalidateOpen(); section = .lyrics; expanded = false
-                    content.configure(model.showPlayer ? currentDetail : nil, locale: model.locale, provider: model.platformCatalog)
-                }
-                .onChange(of: currentDetail?.track.release) { _, _ in invalidateOpen() }
-                .onChange(of: section) { _, _ in stopClips() }
-                .onChange(of: scenePhase) { _, phase in if phase != .active { stopClips() } }
-        }.preferredColorScheme(.dark).tint(Palette.accent)
-            .onDisappear { content.clear(); stopClips(); invalidateOpen() }
-    }
-    private func notebookEntry(_ track: Track) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                stopClips(); preparingNotebook = true; notebookEntryFailed = false
-                let scope = model.scope
-                let generation = model.platformDetailGeneration
-                Task {
-                    await model.refreshNotebook()
-                    preparingNotebook = false
-                    guard model.scope == scope, model.platformDetailGeneration == generation,
-                          model.showPlayer, currentDetail?.track.id == track.id else { return }
-                    guard let state = model.notebookState, let slug = track.release?.slug else {
-                        notebookEntryFailed = true; return
+                    stopClips(); invalidateOpen()
+                    if configuredContentKey != contentKey {
+                        configuredContentKey = contentKey
+                        section = .lyrics; expanded = false; selectedLyric = nil; selectedLyricID = nil
+                        showPlatformPicker = false; pendingPickedLink = nil
                     }
-                    notebookEditor = .init(work: .init(id: track.id, slug: slug), state: state, scope: scope)
+                    content.configure(model.showPlayer ? currentDetail : nil, locale: model.locale, provider: model.platformCatalog)
+                    consumeRequestedPlatformPicker()
                 }
-            } label: {
-                HStack(spacing: 12) {
-                    if preparingNotebook { ProgressView() }
-                    else { Image(systemName: "square.and.pencil").accessibilityHidden(true) }
-                    Text(model.t("notebookWriteForSong")).font(.headline).frame(maxWidth: .infinity, alignment: .leading)
-                    Image(systemName: "chevron.right").font(.caption).accessibilityHidden(true)
-                }.padding(16).frame(minHeight: 56)
-                    .background(Palette.panel, in: RoundedRectangle(cornerRadius: 17))
-                    .overlay(RoundedRectangle(cornerRadius: 17).stroke(Palette.accent.opacity(0.25), lineWidth: 1))
-            }.buttonStyle(.plain).disabled(preparingNotebook || model.notebookBusy).accessibilityIdentifier("notebookWriteForSong")
-            if notebookEntryFailed {
-                Label(model.t(model.notebookErrorKey ?? "notebookError"), systemImage: "exclamationmark.circle")
-                    .font(.footnote).foregroundStyle(Palette.muted).accessibilityIdentifier("notebookEntryError")
+                .onChange(of: model.radioWantsPlatformPicker) { _, _ in consumeRequestedPlatformPicker() }
+                .onChange(of: model.platformDetailFailure) { _, failed in if failed { model.radioWantsPlatformPicker = false } }
+                .onChange(of: currentDetail?.track.release) { _, _ in invalidateOpen() }
+                .onChange(of: section) { _, _ in stopClips(); selectedLyric = nil; selectedLyricID = nil }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase != .active { stopClips(); pendingPickedLink = nil }
+                }
+        }.foregroundStyle(Palette.ink).tint(Palette.accent)
+            .presentationBackground(Palette.background).presentationCornerRadius(34)
+            .presentationDragIndicator(.visible)
+            .onDisappear { content.clear(); stopClips(); invalidateOpen(); model.radioWantsPlatformPicker = false }
+    }
+
+    private var listeningFooter: some View {
+        VStack(spacing: 9) {
+            if let selectedLyric, section == .lyrics {
+                Button { prepareNotebook(quote: selectedLyric) } label: {
+                    HStack(spacing: 12) {
+                        Text("「" + selectedLyric + "」").radioSerif(15, weight: .medium).lineLimit(1)
+                            .foregroundStyle(Palette.darkText).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(model.t("radio.quoteToNote")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.accent)
+                        Image(systemName: "arrow.right").foregroundStyle(Palette.accent)
+                    }.padding(.horizontal, 16).frame(minHeight: 48)
+                        .background(Palette.dark, in: RoundedRectangle(cornerRadius: 14))
+                }.buttonStyle(.plain).disabled(preparingNotebook || model.notebookBusy)
+                    .accessibilityIdentifier("lyricQuoteToNote")
             }
+            HStack(alignment: .top, spacing: 10) {
+                Button { prepareNotebook() } label: {
+                    Group {
+                        if preparingNotebook { ProgressView() }
+                        else { Image(systemName: "pencil.line").font(.system(size: 21, weight: .medium)) }
+                    }.frame(width: 52, height: 52).foregroundStyle(Palette.ink)
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.ink, lineWidth: 1.5))
+                }.buttonStyle(.plain).disabled(currentDetail == nil || preparingNotebook || model.notebookBusy)
+                    .accessibilityLabel(model.t("notebookWriteForSong")).accessibilityIdentifier("notebookWriteForSong")
+                VStack(spacing: 6) {
+                    listenButton
+                    Text(listenHint).font(.caption2).foregroundStyle(Palette.muted)
+                        .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier(missingPreferredPlatform ? "preferredPlatformMissing" : "radioListenHint")
+                }.frame(maxWidth: .infinity)
+            }
+            if notebookEntryFailed {
+                Text(model.t(model.notebookErrorKey ?? "notebookError")).font(.caption).foregroundStyle(Palette.muted)
+                    .accessibilityIdentifier("notebookEntryError")
+            }
+        }.padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 8)
+            .background(Palette.background)
+            .overlay(alignment: .top) { Rectangle().fill(Palette.line).frame(height: 1) }
+    }
+
+    private var preferredLink: PlatformLink? {
+        currentDetail?.track.release.flatMap { model.orderedPlatformLinks($0.platforms).first }
+    }
+    private var missingPreferredPlatform: Bool {
+        guard let preferred = model.preferredPlatform, let release = currentDetail?.track.release else { return false }
+        return !release.platforms.contains { $0.provider == preferred }
+    }
+    private var listenHint: String {
+        guard let release = currentDetail?.track.release else { return model.t("radio.listenVerification") }
+        if let preferred = model.preferredPlatform, !release.platforms.contains(where: { $0.provider == preferred }) {
+            return model.t("preferredPlatformMissing")
+        }
+        return model.t(model.preferredPlatform == nil ? "radio.listenDefaultHint" : "radio.listenPreferredHint")
+    }
+    private var listenButton: some View {
+        HStack(spacing: 0) {
+            if let link = preferredLink {
+                Button { listen(link) } label: {
+                    HStack(spacing: 6) {
+                        Text(model.t("listenOnPlatform").replacingOccurrences(of: "{platform}", with: model.t("platform." + link.provider.rawValue)))
+                            .font(.subheadline.weight(.bold)).fixedSize(horizontal: false, vertical: true)
+                        Image(systemName: inlineListening(link) ? "globe" : "arrow.up.right").font(.caption.weight(.bold))
+                    }.padding(.horizontal, 13).padding(.vertical, 13).frame(maxWidth: .infinity, minHeight: 52)
+                }.buttonStyle(.plain).accessibilityIdentifier("platformLink." + link.provider.rawValue)
+                Rectangle().fill(.white.opacity(0.35)).frame(width: 1).padding(.vertical, 13)
+                Button(action: beginPlatformChoice) {
+                    Image(systemName: "chevron.down").font(.body.weight(.semibold)).frame(width: 50, height: 52)
+                }.buttonStyle(.plain).accessibilityLabel(model.t("radio.choosePlatform")).accessibilityIdentifier("platformPickerOpen")
+            } else {
+                Text(model.t(currentDetail?.track.release?.availability == "unreleased" ? "radio.comingSoon" : "radio.listenPending"))
+                    .font(.subheadline.weight(.bold)).foregroundStyle(Palette.background)
+                    .frame(maxWidth: .infinity, minHeight: 52).accessibilityIdentifier("platformLinksPending")
+            }
+        }.foregroundStyle(.white).background(preferredLink == nil ? Palette.muted : Palette.accent, in: RoundedRectangle(cornerRadius: 14))
+            .fixedSize(horizontal: false, vertical: true)
+    }
+    private func prepareNotebook(quote: String? = nil) {
+        guard let track = currentDetail?.track, quote.map({ $0.utf16.count <= 200 && !$0.contains("\n") && !$0.contains("\r") }) ?? true,
+              !preparingNotebook, !model.notebookBusy else { return }
+        stopClips(); preparingNotebook = true; notebookEntryFailed = false; notebookSaved = false
+        let scope = model.scope, generation = model.platformDetailGeneration, epoch = model.notebookState?.epoch
+        Task {
+            await model.refreshNotebook()
+            preparingNotebook = false
+            guard model.scope == scope, model.platformDetailGeneration == generation,
+                  model.showPlayer, currentDetail?.track.id == track.id,
+                  quote == nil || (section == .lyrics && selectedLyric == quote) else { return }
+            guard let state = model.notebookState, epoch == nil || epoch == state.epoch, let slug = track.release?.slug else {
+                notebookEntryFailed = true; return
+            }
+            notebookEditor = .init(work: .init(id: track.id, slug: slug), quote: quote, state: state, scope: scope)
         }
     }
     private func identity(_ track: Track) -> some View {
         ViewThatFits(in: .horizontal) {
             if !typeSize.isAccessibilitySize {
                 HStack(alignment: .center, spacing: 18) {
-                    artwork(track, side: section == .clips ? 104 : 140)
-                    identityText(track).frame(minWidth: 160, maxWidth: .infinity, alignment: .leading)
+                    artwork(track, side: 96)
+                    identityText(track).frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
                 }
             }
-            VStack(alignment: .leading, spacing: 18) { artwork(track, side: 120); identityText(track) }
+            VStack(alignment: .leading, spacing: 16) { artwork(track, side: 96); identityText(track) }
         }
     }
     private func artwork(_ track: Track, side: CGFloat) -> some View {
         OrbitArtwork(track: track, model: model).frame(width: side, height: side)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.line, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .shadow(color: Color(red: 0.16, green: 0.10, blue: 0.04).opacity(0.18), radius: 10, y: 8)
     }
     private func identityText(_ track: Track) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 4) {
-                Text(track.title).font(.title2.weight(.bold)).fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                OrbitIconButton(symbol: model.favorites.contains(track.id) ? "heart.fill" : "heart",
-                    label: model.t("favorite") + " " + track.title, selected: model.favorites.contains(track.id)) {
-                    Task { await model.toggleFavorite(track) }
-                }.accessibilityIdentifier("platformFavorite")
-                    .accessibilityValue(model.t(model.favorites.contains(track.id) ? "on" : "off"))
-            }
-            Text(track.artist).font(.subheadline).foregroundStyle(Palette.muted)
-            if let album = track.release?.albums?.first {
-                Text(album.title).font(.caption).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
-            }
+        HStack(alignment: .center, spacing: 4) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text(track.title).radioSerif(25, weight: .heavy, relativeTo: .title2)
+                    .fixedSize(horizontal: false, vertical: true).accessibilityAddTraits(.isHeader)
+                Text(track.artist).font(.subheadline).foregroundStyle(Palette.muted)
+                if let album = track.release?.albums?.first {
+                    Button { stopClips(); model.openRadioAlbum(id: album.id) } label: {
+                        Text(album.title).font(.subheadline).underline().foregroundStyle(Palette.muted)
+                            .fixedSize(horizontal: false, vertical: true).frame(minHeight: 44, alignment: .leading)
+                    }.buttonStyle(.plain).accessibilityIdentifier("platformDetailAlbum")
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            OrbitIconButton(symbol: model.favorites.contains(track.id) ? "heart.fill" : "heart",
+                label: model.t("favorite") + " " + track.title, selected: model.favorites.contains(track.id)) {
+                Task { await model.toggleFavorite(track) }
+            }.accessibilityIdentifier("platformFavorite")
+                .accessibilityValue(model.t(model.favorites.contains(track.id) ? "on" : "off"))
         }
     }
     @ViewBuilder private var tabs: some View {
@@ -212,7 +302,7 @@ struct PlatformMusicDetailView: View {
                             Spacer(minLength: 0)
                             if section == tab { Image(systemName: "checkmark").font(.system(size: 20, weight: .semibold)).accessibilityHidden(true) }
                         }.padding(.vertical, 12).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                            .foregroundStyle(section == tab ? Palette.accent : Palette.muted).contentShape(Rectangle())
+                            .foregroundStyle(section == tab ? Palette.ink : Palette.muted).contentShape(Rectangle())
                     }.buttonStyle(.plain).accessibilityIdentifier("contentTab." + tab.rawValue)
                         .accessibilityAddTraits(section == tab ? .isSelected : [])
                     Divider().overlay(Palette.line)
@@ -223,9 +313,9 @@ struct PlatformMusicDetailView: View {
                 Button { section = tab } label: {
                     VStack(spacing: 12) {
                         Text(model.t(tab.key)).font(.body.weight(section == tab ? .semibold : .regular))
-                            .foregroundStyle(section == tab ? Palette.accent : Palette.muted)
+                            .foregroundStyle(section == tab ? Palette.ink : Palette.muted)
                             .fixedSize(horizontal: false, vertical: true)
-                        Capsule().fill(section == tab ? Palette.accent : .clear).frame(height: 3).padding(.horizontal, 16)
+                        Rectangle().fill(section == tab ? Palette.accent : .clear).frame(height: 2)
                     }.padding(.top, 12).frame(maxWidth: .infinity, minHeight: 52).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("contentTab." + tab.rawValue)
                     .accessibilityAddTraits(section == tab ? .isSelected : [])
@@ -235,14 +325,20 @@ struct PlatformMusicDetailView: View {
     @ViewBuilder private func sectionBody(_ detail: PlatformTrackDetail) -> some View {
         switch section {
         case .lyrics: lyricReader
-        case .clips: clipList(detail)
+        case .clips:
+            VStack(alignment: .leading, spacing: 14) {
+                Text(model.t("radio.clipPrivacy")).font(.caption).foregroundStyle(Palette.muted)
+                    .fixedSize(horizontal: false, vertical: true).padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.muted, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                clipList(detail)
+            }
         case .story:
             if detail.story.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 empty("storyEmpty", icon: "text.book.closed")
             } else {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(model.t("contentStoryTitle")).font(.headline)
-                    Text(detail.story).font(.body).lineSpacing(9).textSelection(.enabled)
+                    Text(model.t("radio.creativeNotes")).radioMono(10, weight: .semibold).tracking(2).foregroundStyle(Palette.muted)
+                    Text(detail.story).radioSerif(17, weight: .medium).lineSpacing(13).textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("contentStoryText")
                 }
             }
@@ -251,13 +347,17 @@ struct PlatformMusicDetailView: View {
     @ViewBuilder private var lyricReader: some View {
         switch content.lyricsPhase {
         case .loading: loading
-        case .empty: empty("lyricsEmpty", icon: "text.alignleft")
+        case .empty:
+            VStack(alignment: .leading, spacing: 10) {
+                Text(model.t("radio.lyricsOnTheWay")).radioSerif(20)
+                Text(model.t("radio.lyricsEmptyHint")).font(.subheadline).foregroundStyle(Palette.muted)
+            }.padding(.vertical, 24).accessibilityIdentifier("lyricsEmpty")
         case .failed: retry(content.lyricsFailureKey, id: "lyricsRetry") { content.retryLyrics() }
         case .loaded:
             if let lyrics = content.lyrics {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 22) {
                     HStack {
-                        Label(model.t("contentLyricsTitle"), systemImage: "text.alignleft").font(.subheadline).foregroundStyle(Palette.muted)
+                        Text(model.t("radio.tapLyric")).font(.caption).foregroundStyle(Palette.muted)
                         Spacer()
                         Menu {
                             ForEach([18, 21, 24], id: \.self) { size in
@@ -265,19 +365,21 @@ struct PlatformMusicDetailView: View {
                                     Label(model.t("lyricSize.\(size)"), systemImage: lyricSize == size ? "checkmark" : "textformat.size")
                                 }
                             }
-                        } label: {
-                            Text("Aa").font(.title3).frame(minWidth: 44, minHeight: 44)
-                        }.accessibilityLabel(model.t("lyricTextSize")).accessibilityIdentifier("lyricTextSize")
+                        } label: { Text("Aa").radioSerif(18).frame(minWidth: 44, minHeight: 44) }
+                            .accessibilityLabel(model.t("lyricTextSize")).accessibilityIdentifier("lyricTextSize")
                     }
-                    VStack(alignment: .leading, spacing: 32) {
+                    VStack(alignment: .leading, spacing: 22) {
                         ForEach(Array(lyrics.stanzas.prefix(expanded ? lyrics.stanzas.count : 2).enumerated()), id: \.offset) { index, stanza in
-                            Text(stanza).font(.system(size: CGFloat([18, 21, 24].contains(lyricSize) ? lyricSize : 18) * textScale))
-                                .lineSpacing(14).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                                .frame(maxWidth: .infinity, alignment: .leading).accessibilityIdentifier("lyricStanza.\(index)")
+                            VStack(alignment: .leading, spacing: 0) {
+                                ForEach(Array(stanza.components(separatedBy: "\n").enumerated()), id: \.offset) { lineIndex, line in
+                                    lyricLine(line, stanza: index, index: lineIndex)
+                                }
+                            }.frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityElement(children: .contain).accessibilityIdentifier("lyricStanza.\(index)")
                         }
                     }
                     if lyrics.stanzas.count > 2 {
-                        Button { expanded.toggle() } label: {
+                        Button { expanded.toggle(); selectedLyric = nil; selectedLyricID = nil } label: {
                             Label(model.t(expanded ? "lyricsCollapse" : "lyricsExpand"), systemImage: expanded ? "chevron.up" : "chevron.down")
                                 .font(.subheadline).frame(minHeight: 44)
                         }.accessibilityIdentifier("lyricsExpand")
@@ -285,6 +387,25 @@ struct PlatformMusicDetailView: View {
                 }
             }
         }
+    }
+    private func lyricLine(_ line: String, stanza: Int, index: Int) -> some View {
+        let lineID = "\(stanza).\(index)"
+        return Button {
+            if selectedLyricID == lineID { selectedLyric = nil; selectedLyricID = nil }
+            else { selectedLyric = line; selectedLyricID = lineID }
+        } label: {
+            Text(line).font(Font(RadioTypography.serif(size: CGFloat([18, 21, 24].contains(lyricSize) ? lyricSize : 18) * textScale, weight: .medium)))
+                .lineSpacing(10).fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 5).padding(.vertical, 7).frame(minHeight: 44, alignment: .leading)
+                .foregroundStyle(selectedLyricID == lineID ? .white : selectedLyric == nil ? Palette.ink : Palette.muted)
+                .background(selectedLyricID == lineID ? Palette.accent : .clear, in: RoundedRectangle(cornerRadius: 6))
+        }.buttonStyle(.plain).disabled(line.utf16.count > 200)
+            .accessibilityIdentifier("lyricLine.\(stanza).\(index)")
+            .accessibilityAddTraits(selectedLyricID == lineID ? .isSelected : [])
+            .accessibilityHint(model.t(line.utf16.count > 200 ? "radio.quoteTooLong" : "radio.tapLyric"))
+            .accessibilityAction(named: model.t("radio.quoteToNote")) {
+                if line.utf16.count <= 200 { selectedLyric = line; selectedLyricID = lineID; prepareNotebook(quote: line) }
+            }
     }
     @ViewBuilder private func clipList(_ detail: PlatformTrackDetail) -> some View {
         switch content.clipsPhase {
@@ -353,34 +474,14 @@ struct PlatformMusicDetailView: View {
         youtube.start(clip, track: detail.track, locale: model.locale, provider: provider, externalOnly: externalOnly) { url in open(url) }
     }
     @ViewBuilder private func youtubeCard(_ clip: PlatformClip, detail: PlatformTrackDetail) -> some View {
-        let width: CGFloat = typeSize.isAccessibilitySize ? 220 : 200
-        VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 8) {
-            Group {
-                if youtube.selectedID == clip.id, let view = youtube.webView {
-                    OfficialClipWebView(view: view)
-                } else {
-                    Button { startYouTube(clip, detail: detail) } label: {
-                        ZStack {
-                            OrbitArtwork(track: detail.track, model: model)
-                            LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.7)], startPoint: .top, endPoint: .bottom)
-                            VStack(spacing: 14) {
-                                Image(systemName: "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white)
-                                Text(model.t("youtubeLoad")).font(.headline).foregroundStyle(.white)
-                                Text(model.t("youtubeCoverHint")).font(.caption).foregroundStyle(.white.opacity(0.8))
-                            }.padding(20)
-                        }.frame(width: width, height: width * 1.5).clipped()
-                            .clipShape(RoundedRectangle(cornerRadius: 14)).contentShape(Rectangle())
-                    }.buttonStyle(.plain).accessibilityLabel(model.t("youtubeLoad") + " · " + clip.title)
-                        .accessibilityIdentifier("youtubeLoad." + clip.id)
-                }
-            }.frame(width: width, height: width * 1.5).frame(maxWidth: .infinity)
-            // The official iframe fits the complete video in this portrait viewport.
-            // Do not crop it or place app-owned overlays over its controls/ads.
-            if typeSize.isAccessibilitySize {
-                clipDescription(clip)
+        VStack(alignment: .leading, spacing: 10) {
+            if youtube.selectedID == clip.id, let view = youtube.webView {
+                // Preserve the complete official portrait viewport without overlays on controls or ads.
+                OfficialClipWebView(view: view).frame(width: 220, height: 330).frame(maxWidth: .infinity)
             } else {
-                Text(clip.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                clipPreview(clip, track: detail.track, provider: "YOUTUBE", loadKey: "youtubeLoad") { startYouTube(clip, detail: detail) }
             }
+            clipDescription(clip)
             if youtube.selectedID == clip.id, [.checking, .loading].contains(youtube.phase) {
                 ProgressView(model.t("contentLoading")).accessibilityIdentifier("youtubeLoading")
             }
@@ -388,10 +489,6 @@ struct PlatformMusicDetailView: View {
                 retry(youtube.failureKey, id: "youtubeRetry") { startYouTube(clip, detail: detail) }
             }
             HStack {
-                if !typeSize.isAccessibilitySize, !clip.summary.isEmpty {
-                    Text(clip.summary).font(.caption).foregroundStyle(Palette.muted)
-                        .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
-                }
                 Button { startYouTube(clip, detail: detail, externalOnly: true) } label: {
                     Label(model.t("youtubeOpen"), systemImage: "arrow.up.right").fixedSize(horizontal: false, vertical: true)
                 }.frame(minHeight: 44).accessibilityIdentifier("youtubeOpen." + clip.id)
@@ -408,45 +505,14 @@ struct PlatformMusicDetailView: View {
         douyin.start(clip, track: detail.track, locale: model.locale, provider: provider, externalOnly: externalOnly) { url in open(url) }
     }
     @ViewBuilder private func douyinCard(_ clip: PlatformClip, detail: PlatformTrackDetail) -> some View {
-        let width: CGFloat = typeSize.isAccessibilitySize ? 220 : 200
-        VStack(alignment: .leading, spacing: typeSize.isAccessibilitySize ? 12 : 8) {
-            Group {
-                if douyin.selectedID == clip.id, let view = douyin.webView {
-                    OfficialClipWebView(view: view).frame(width: width, height: width * 1.5)
-                } else {
-                    Button { startDouyin(clip, detail: detail) } label: {
-                        VStack(alignment: .leading, spacing: 12) {
-                            ZStack {
-                                OrbitArtwork(track: detail.track, model: model)
-                                LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.7)], startPoint: .top, endPoint: .bottom)
-                                VStack(spacing: 14) {
-                                    Image(systemName: "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white)
-                                    if !typeSize.isAccessibilitySize {
-                                        Text(model.t("douyinLoad")).font(.headline).foregroundStyle(.white)
-                                        Text(model.t("douyinCoverHint")).font(.caption).foregroundStyle(.white.opacity(0.8))
-                                    }
-                                }.padding(20)
-                            }.frame(width: width, height: width * 1.5).clipped()
-                                .clipShape(RoundedRectangle(cornerRadius: 14)).contentShape(Rectangle())
-                                .frame(maxWidth: .infinity)
-                            if typeSize.isAccessibilitySize {
-                                Text(model.t("douyinLoad")).font(.headline)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                Text(model.t("douyinCoverHint")).font(.caption).foregroundStyle(Palette.muted)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                    }.buttonStyle(.plain).accessibilityLabel(model.t("douyinLoad") + " · " + clip.title)
-                        .accessibilityIdentifier("douyinLoad." + clip.id)
-                }
-            }.frame(maxWidth: .infinity)
-            // The official iframe fits the complete video in this portrait viewport.
-            // Do not crop it or place app-owned overlays over its controls/ads.
-            if typeSize.isAccessibilitySize {
-                clipDescription(clip)
+        VStack(alignment: .leading, spacing: 10) {
+            if douyin.selectedID == clip.id, let view = douyin.webView {
+                // Preserve the complete official portrait viewport without overlays on controls or ads.
+                OfficialClipWebView(view: view).frame(width: 220, height: 330).frame(maxWidth: .infinity)
             } else {
-                Text(clip.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                clipPreview(clip, track: detail.track, provider: model.t("douyinName"), loadKey: "douyinLoad") { startDouyin(clip, detail: detail) }
             }
+            clipDescription(clip)
             if douyin.selectedID == clip.id, [.checking, .loading].contains(douyin.phase) {
                 ProgressView(model.t("contentLoading")).accessibilityIdentifier("douyinLoading")
             }
@@ -458,10 +524,6 @@ struct PlatformMusicDetailView: View {
                     .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("douyinPlayerHint")
             }
             HStack {
-                if !typeSize.isAccessibilitySize, !clip.summary.isEmpty {
-                    Text(clip.summary).font(.caption).foregroundStyle(Palette.muted)
-                        .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
-                }
                 Button { startDouyin(clip, detail: detail, externalOnly: true) } label: {
                     Label(model.t("douyinOpen"), systemImage: "arrow.up.right").fixedSize(horizontal: false, vertical: true)
                 }.frame(minHeight: 44).accessibilityIdentifier("douyinOpen." + clip.id)
@@ -472,9 +534,29 @@ struct PlatformMusicDetailView: View {
             }.font(.subheadline)
         }
     }
+    private func clipPreview(_ clip: PlatformClip, track: Track, provider: String, loadKey: String, load: @escaping () -> Void) -> some View {
+        Button(action: load) {
+            ZStack {
+                OrbitArtwork(track: track, model: model).blur(radius: 6)
+                Color.black.opacity(0.45)
+                Image(systemName: "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white)
+                VStack {
+                    HStack {
+                        Text(provider).radioMono(10, weight: .semibold).padding(.horizontal, 9).padding(.vertical, 5)
+                            .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 5))
+                        Spacer()
+                    }
+                    Spacer()
+                    HStack { Spacer(); Text(model.t("radio.tapToLoad")).font(.caption.weight(.semibold)) }
+                }.foregroundStyle(.white).padding(12)
+            }.aspectRatio(16.0 / 9, contentMode: .fit).clipped().clipShape(RoundedRectangle(cornerRadius: 10))
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityLabel(model.t(loadKey) + " · " + clip.title)
+            .accessibilityIdentifier(loadKey + "." + clip.id)
+    }
     private func clipDescription(_ clip: PlatformClip) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(clip.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+            Text(clip.title).radioSerif(17).fixedSize(horizontal: false, vertical: true)
             if !clip.summary.isEmpty {
                 Text(clip.summary).font(.subheadline).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
             }
@@ -514,42 +596,108 @@ struct PlatformMusicDetailView: View {
             }
         } else { ProgressView(model.t("platformDetailLoading")).frame(maxWidth: .infinity, minHeight: 120) }
     }
-    private enum LinkPlacement { case all, footer, remaining }
-    @ViewBuilder private func platformLinks(_ release: PlatformTrackRelease, placement: LinkPlacement = .all) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if release.platforms.isEmpty {
-                Text(model.t(release.availability == "removed" ? "platformUnavailable" :
-                    release.availability == "region_restricted" ? "platformRegionLimited" : "platformLinksPending"))
-                    .font(.subheadline).foregroundStyle(Palette.muted).accessibilityIdentifier("platformLinksPending")
-            } else {
-                let links = model.orderedPlatformLinks(release.platforms)
-                let visible = Array(links.enumerated()).filter { index, _ in
-                    placement == .all || (placement == .footer ? index == 0 : index > 0)
+    private func consumeRequestedPlatformPicker() {
+        guard model.radioWantsPlatformPicker, currentDetail != nil, model.showPlayer else { return }
+        model.radioWantsPlatformPicker = false; beginPlatformChoice()
+    }
+    private var pickerProviders: [PlatformProvider] {
+        let available = currentDetail?.track.release.map { model.orderedPlatformLinks($0.platforms).map(\.provider) } ?? []
+        let ordered = available + PlatformProvider.allCases.filter { !available.contains($0) }
+        return ordered.reduce(into: []) { result, provider in if !result.contains(provider) { result.append(provider) } }
+    }
+    private func beginPlatformChoice() {
+        guard currentDetail != nil else { return }
+        stopClips(); pickerGeneration = model.platformDetailGeneration; pickerScope = model.scope
+        pickedLinkID = preferredLink?.id; rememberPlatform = true; pendingPickedLink = nil; showPlatformPicker = true
+    }
+    private var platformPicker: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(model.t("radio.whereListen")).radioSerif(23, weight: .heavy)
+                        if let track { Text("《" + track.title + "》").font(.subheadline).foregroundStyle(Palette.muted) }
+                    }
+                    Spacer()
+                    Button { showPlatformPicker = false } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                        .accessibilityLabel(model.t("close")).accessibilityIdentifier("platformPickerClose")
                 }
-                ForEach(visible, id: \.element.id) { index, link in
-                    Button { listen(link) } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "music.note").font(.system(size: 20)).frame(width: 24).accessibilityHidden(true)
-                            Text(model.t("listenOnPlatform").replacingOccurrences(of: "{platform}", with: model.t("platform." + link.provider.rawValue)))
-                                .font(.body.weight(index == 0 ? .semibold : .regular)).fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 0)
-                            Image(systemName: inlineListening(link) ? "globe" : "arrow.up.right").font(.system(size: 17)).frame(width: 24).accessibilityHidden(true)
-                        }.padding(.horizontal, 18).padding(.vertical, index == 0 ? 16 : 8)
-                            .frame(maxWidth: .infinity, minHeight: index == 0 ? 54 : 44)
-                            .foregroundStyle(index == 0 ? Palette.background : Palette.accent)
-                            .background(index == 0 ? Palette.accent : .clear, in: RoundedRectangle(cornerRadius: 20))
-                    }.buttonStyle(.plain).accessibilityIdentifier("platformLink." + link.provider.rawValue)
+                VStack(spacing: 3) {
+                    ForEach(pickerProviders, id: \.self) { provider in platformChoice(provider) }
                 }
-                if placement != .footer, let preferred = model.preferredPlatform, !release.platforms.contains(where: { $0.provider == preferred }) {
-                    Text(model.t("preferredPlatformMissing")).font(.caption).foregroundStyle(Palette.muted).accessibilityIdentifier("preferredPlatformMissing")
+                if let release = currentDetail?.track.release, release.previewAvailable {
+                    Button { showPlatformPicker = false; open(release.webURL) } label: {
+                        Label(model.t("platformPreviewWebsite"), systemImage: "safari").frame(minHeight: 44)
+                    }.accessibilityIdentifier("platformPreviewWebsite")
                 }
-            }
-            if placement != .footer, release.previewAvailable {
-                Button { open(release.webURL) } label: {
-                    Label(model.t("platformPreviewWebsite"), systemImage: "safari").font(.subheadline).frame(minHeight: 44)
-                }.accessibilityIdentifier("platformPreviewWebsite")
-            }
+                Button { rememberPlatform.toggle() } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: rememberPlatform ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 23)).foregroundStyle(Palette.ink)
+                        Text(model.t("radio.rememberPlatform")).font(.subheadline).foregroundStyle(Palette.ink)
+                    }.frame(minHeight: 44)
+                }.buttonStyle(.plain).accessibilityIdentifier("platformPickerRemember")
+                    .accessibilityValue(model.t(rememberPlatform ? "on" : "off"))
+                if model.personalError { Text(model.t("personalSaveError")).font(.caption).foregroundStyle(Palette.muted) }
+                Button(action: applyPlatformChoice) {
+                    HStack(spacing: 8) {
+                        if applyingPlatform { ProgressView().tint(.white) }
+                        Text(pickedLink.map { model.t("listenOnPlatform").replacingOccurrences(of: "{platform}", with: model.t("platform." + $0.provider.rawValue)) } ?? model.t("radio.choosePlatform"))
+                            .font(.body.weight(.bold)).fixedSize(horizontal: false, vertical: true)
+                        Image(systemName: "arrow.up.right")
+                    }.foregroundStyle(.white).padding(.horizontal, 15).padding(.vertical, 14)
+                        .frame(maxWidth: .infinity, minHeight: 52).background(Palette.accent, in: RoundedRectangle(cornerRadius: 14))
+                }.buttonStyle(.plain).disabled(pickedLink == nil || applyingPlatform || scenePhase != .active)
+                    .opacity(pickedLink == nil ? 0.45 : 1).accessibilityIdentifier("platformPickerConfirm")
+            }.padding(.horizontal, 20).padding(.top, 22).padding(.bottom, 20)
+        }.background(Palette.background).foregroundStyle(Palette.ink)
+            .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.height(610), .large])
+            .presentationDragIndicator(.visible).presentationCornerRadius(30)
+            .accessibilityIdentifier("platformPicker")
+    }
+    private var pickedLink: PlatformLink? { currentDetail?.track.release?.platforms.first { $0.id == pickedLinkID } }
+    private func platformChoice(_ provider: PlatformProvider) -> some View {
+        let link = currentDetail?.track.release?.platforms.first { $0.provider == provider }
+        let selected = link != nil && link?.id == pickedLinkID
+        return Button { pickedLinkID = link?.id } label: {
+            HStack(spacing: 12) {
+                RadioDetailPlatformIcon(provider: provider).opacity(link == nil ? 0.4 : 1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(model.t("platform." + provider.rawValue)).font(.body.weight(.medium))
+                    Text(model.t(link == nil ? "radio.platformNotListed" : model.preferredPlatform == provider ? "radio.platformAvailablePreferred" : "radio.platformAvailable"))
+                        .font(.caption).foregroundStyle(Palette.muted)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(link == nil ? Palette.muted : Palette.ink)
+                Image(systemName: selected ? "record.circle" : "circle").font(.system(size: 23))
+                    .foregroundStyle(selected ? Palette.accent : Palette.line)
+            }.padding(.horizontal, 12).padding(.vertical, 10).frame(minHeight: 60)
+                .background(selected ? Palette.panel : .clear, in: RoundedRectangle(cornerRadius: 14))
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain).disabled(link == nil || applyingPlatform)
+            .accessibilityIdentifier("platformPicker." + provider.rawValue)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+    private func applyPlatformChoice() {
+        guard let link = pickedLink, !applyingPlatform, pickerGeneration == model.platformDetailGeneration,
+              pickerScope == model.scope, model.showPlayer, scenePhase == .active else { return }
+        applyingPlatform = true
+        let generation = pickerGeneration, scope = pickerScope
+        Task {
+            if rememberPlatform { await model.setPreferredPlatform(link.provider) }
+            applyingPlatform = false
+            guard model.showPlayer, scenePhase == .active, scope == model.scope,
+                  generation == model.platformDetailGeneration,
+                  currentDetail?.track.release?.platforms.contains(link) == true else { return }
+            pendingPickedLink = link; showPlatformPicker = false
         }
+    }
+    private func finishPlatformChoice() {
+        guard let link = pendingPickedLink else { return }
+        pendingPickedLink = nil
+        guard model.showPlayer, scenePhase == .active, pickerScope == model.scope,
+              pickerGeneration == model.platformDetailGeneration,
+              currentDetail?.track.release?.platforms.contains(link) == true else { return }
+        listen(link)
     }
     private func inlineListening(_ link: PlatformLink) -> Bool {
         guard ExperimentalListeningConfiguration.enabledForCurrentEnvironment(), let track = currentDetail?.track else { return false }
@@ -603,4 +751,31 @@ private struct OfficialClipWebView: UIViewRepresentable {
     let view: WKWebView
     func makeUIView(context: Context) -> WKWebView { view }
     func updateUIView(_ uiView: WKWebView, context: Context) {}
+}
+
+private struct RadioDetailPlatformIcon: View {
+    let provider: PlatformProvider
+    private var symbol: String {
+        switch provider {
+        case .netease: "music.note"
+        case .qishui: "waveform"
+        case .appleMusic: "apple.logo"
+        case .youtube: "play.rectangle.fill"
+        case .spotify: "dot.radiowaves.left.and.right"
+        }
+    }
+    private var color: Color {
+        switch provider {
+        case .netease: Color(red: 0.76, green: 0.05, blue: 0.05)
+        case .qishui: Color(red: 0.13, green: 0.54, blue: 0.38)
+        case .appleMusic: Color(red: 0.91, green: 0.20, blue: 0.29)
+        case .youtube: Color(red: 0.85, green: 0.11, blue: 0.11)
+        case .spotify: Color(red: 0.09, green: 0.56, blue: 0.29)
+        }
+    }
+    var body: some View {
+        Image(systemName: symbol).font(.system(size: 19, weight: .semibold)).foregroundStyle(.white)
+            .frame(width: 34, height: 34).background(color, in: RoundedRectangle(cornerRadius: 10))
+            .accessibilityHidden(true)
+    }
 }

@@ -33,7 +33,7 @@ import XCTest
         let app = XCUIApplication(bundleIdentifier: bundleID)
         app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         app.launch()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 45))
+        XCTAssertTrue(app.buttons["tab.radio"].waitForExistence(timeout: 45))
         // Alternate songs so a stale sheet cannot pass the next navigation check.
         for (index, prefix) in ["", "/zh-hant", "/zh-hans", "/en", "/ja"].enumerated() {
             for cold in [true, false] {
@@ -54,7 +54,7 @@ import XCTest
                     "/?utm_source=acceptance&utm_medium=link&utm_campaign=public-links&utm_content=" + phase))
                 XCUIDevice.shared.system.open(url)
                 XCTAssertTrue(app.wait(for: .runningForeground, timeout: 25), phase)
-                XCTAssertTrue(app.scrollViews["platformDetailScreen"].waitForExistence(timeout: 30), phase)
+                XCTAssertTrue(app.descendants(matching: .any)["platformDetailScreen"].firstMatch.waitForExistence(timeout: 30), phase)
                 XCTAssertTrue(app.staticTexts[song.title].waitForExistence(timeout: 20), phase)
                 XCTAssertTrue(app.buttons["platformFavorite"].label.contains(song.title), phase)
                 XCTAssertFalse(app.buttons["miniPlayer"].exists, phase)
@@ -71,18 +71,18 @@ import XCTest
         let app = XCUIApplication(bundleIdentifier: bundleID)
         app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["我的"].waitForExistence(timeout: 45))
-        app.tabBars.buttons["我的"].tap()
+        XCTAssertTrue(app.buttons["tab.me"].waitForExistence(timeout: 45))
+        app.buttons["tab.me"].tap()
         for _ in 0..<5 {
             if app.buttons["settingsHelpEntry"].isHittable { break }
             app.swipeUp()
         }
         app.buttons["settingsHelpEntry"].tap()
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.7 (20)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.8 (21)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.7 (20)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["单曲和专辑可生成分享卡片，展示作品介绍并提供 App Store 下载入口。"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.8 (21)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["全新暖纸质界面、衬线排版与猫耳唱片图标，提供日间及深夜外观。"].waitForExistence(timeout: 5))
         let previous = app.staticTexts["改善网易云官方页面跳转兼容；额外跳转被拦截时保留已显示的网页，并显示脱敏诊断便于排查。"]
         for _ in 0..<4 { if previous.exists { break }; app.swipeUp() }
         XCTAssertTrue(previous.exists)

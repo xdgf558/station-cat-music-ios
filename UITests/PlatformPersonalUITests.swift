@@ -8,11 +8,14 @@ import XCTest
         app.launchEnvironment["STATION_PLATFORM_FIXTURE"] = "catalog-categories"
         app.launchEnvironment["STATION_PERSONAL_TEST_NAMESPACE"] = UUID().uuidString
         app.launch()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["tab.radio"].waitForExistence(timeout: 10))
         return app
     }
-    private func reveal(_ element: XCUIElement, app: XCUIApplication) {
-        for _ in 0..<12 { if element.isHittable { return }; app.swipeUp() }
+    private func reveal(_ element: XCUIElement, app: XCUIApplication, towardTop: Bool = false) {
+        for _ in 0..<12 {
+            if element.isHittable { return }
+            if towardTop { app.swipeDown() } else { app.swipeUp() }
+        }
         XCTAssertTrue(element.isHittable)
     }
     private func capture(_ app: XCUIApplication, _ name: String) {
@@ -20,7 +23,7 @@ import XCTest
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
     private func seed(_ app: XCUIApplication) {
-        app.tabBars.buttons.element(boundBy: 1).tap()
+        app.buttons["tab.shelf"].tap()
         for id in ids {
             let track = app.buttons["track." + id]; reveal(track, app: app); track.tap()
             let favorite = app.buttons["platformFavorite"]
@@ -28,9 +31,11 @@ import XCTest
             // Wait for the verified listening action, not the removed section heading.
             XCTAssertTrue(app.buttons["platformLink.netease"].waitForExistence(timeout: 5))
             if favorite.value as? String != "开启" && favorite.value as? String != "On" { favorite.tap() }
+            let savedFavorite = NSPredicate(format: "value == '开启' OR value == '開啟' OR value == 'On' OR value == 'オン'")
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: savedFavorite, object: favorite)], timeout: 5), .completed)
             app.buttons["platformDetailClose"].tap()
         }
-        app.tabBars.buttons.element(boundBy: 2).tap()
+        app.buttons["tab.me"].tap()
         XCTAssertTrue(app.buttons["favoritesEntry"].waitForExistence(timeout: 5))
     }
     func testPersonalHubNavigationPrivacyPreferenceAndNotes() {
@@ -39,11 +44,11 @@ import XCTest
         capture(app, "My-Hub-zh-Hans")
         XCTAssertFalse(app.buttons["accountEntry"].exists); XCTAssertFalse(app.buttons["historyEntry"].exists)
         XCTAssertFalse(app.buttons["offlineEntry"].exists); XCTAssertFalse(app.buttons["miniPlayer"].exists)
-        app.buttons["viewedEntry"].tap()
+        reveal(app.buttons["viewedEntry"], app: app); app.buttons["viewedEntry"].tap()
         XCTAssertTrue(app.buttons["viewed.track." + ids[0]].waitForExistence(timeout: 5))
         capture(app, "My-Recently-Viewed")
         let clear = app.buttons["clearViewed"]; reveal(clear, app: app); clear.tap()
-        app.buttons["取消"].tap()
+        app.alerts.buttons["取消"].tap()
         XCTAssertTrue(app.buttons["viewed.track." + ids[0]].exists)
         let toggle = app.switches["saveViewed"]; reveal(toggle, app: app)
         XCTAssertEqual(toggle.value as? String, "1")
@@ -55,48 +60,63 @@ import XCTest
         XCTAssertTrue(app.staticTexts["浏览记录已关闭。"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["viewed.track." + ids[0]].exists)
         app.navigationBars.buttons.firstMatch.tap()
-        let preferred = app.buttons["platformPreferenceEntry"]; reveal(preferred, app: app); preferred.tap()
-        app.buttons["platformPreference.spotify"].tap()
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '开启'"), object: app.buttons["platformPreference.spotify"])], timeout: 5), .completed)
-        capture(app, "My-Platform-Preference")
-        app.navigationBars.buttons.firstMatch.tap()
+        // The redesign places platform choices directly in Me rather than a separate form.
+        let preferred = app.buttons["platformPreference.spotify"]; reveal(preferred, app: app); preferred.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '开启'"), object: preferred)], timeout: 5), .completed)
+        capture(app, "My-Inline-Platform-Preference")
         reveal(app.buttons["settingsHelpEntry"], app: app); app.buttons["settingsHelpEntry"].tap()
         XCTAssertFalse(app.buttons["offlineEntry"].exists); XCTAssertFalse(app.buttons["accountEntry"].exists)
         app.buttons["helpEntry"].tap(); app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.7 (20)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["单曲和专辑可生成分享卡片，展示作品介绍并提供 App Store 下载入口。"].waitForExistence(timeout: 5))
-        capture(app, "My-1.0.7-Build20-Notes")
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.8 (21)"].waitForExistence(timeout: 5))
+        let changes = [
+            "全新暖纸质界面、衬线排版与猫耳唱片图标，提供日间及深夜外观。",
+            "新增电台调频选歌与唱片架布局，笔记升级为独立一级入口。",
+            "可主动选取一句已发布歌词摘入笔记，确认保存后仅留在本机。",
+            "支持跟随系统、日间纸与深夜电台；保留既有收听、收藏及本机资料管理。"
+        ]
+        for change in changes {
+            let entry = app.staticTexts[change]; reveal(entry, app: app); XCTAssertTrue(entry.exists)
+        }
+        capture(app, "My-1.0.8-Build21-Notes")
+        let previousChange = app.staticTexts["单曲和专辑可生成分享卡片，展示作品介绍并提供 App Store 下载入口。"]
+        reveal(previousChange, app: app); XCTAssertTrue(previousChange.exists, "Prior release notes must remain available")
         app.terminate(); app.launch()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10)); app.tabBars.buttons.element(boundBy: 2).tap()
-        XCTAssertTrue(app.staticTexts["Spotify"].exists)
-        XCTAssertTrue(app.staticTexts["浏览记录已关闭。"].exists)
-        app.buttons["favoritesEntry"].tap()
+        XCTAssertTrue(app.buttons["tab.radio"].waitForExistence(timeout: 10)); app.buttons["tab.me"].tap()
+        let historyOff = app.staticTexts["浏览记录已关闭。"]
+        reveal(historyOff, app: app); XCTAssertTrue(historyOff.exists)
+        let restoredPreference = app.buttons["platformPreference.spotify"]; reveal(restoredPreference, app: app)
+        XCTAssertEqual(restoredPreference.value as? String, "开启", "The selected platform must survive relaunch")
+        reveal(app.buttons["favoritesEntry"], app: app, towardTop: true); app.buttons["favoritesEntry"].tap()
         XCTAssertTrue(app.buttons["library.track." + ids[0]].exists)
     }
     func testBrowsingRelaunchOfflineStillShowsEntriesWithoutListeningLinks() {
         let app = launch(); seed(app); app.terminate()
         app.launchEnvironment["STATION_STARTUP_PREVIEW"] = "failure"
         app.launch(); XCTAssertTrue(app.buttons["startupContinue"].waitForExistence(timeout: 10)); app.buttons["startupContinue"].tap()
-        app.tabBars.buttons.element(boundBy: 2).tap()
-        XCTAssertTrue(app.buttons["viewed.track." + ids[0]].exists)
+        app.buttons["tab.me"].tap()
+        let retained = app.buttons["viewed.track." + ids[0]]; reveal(retained, app: app)
+        XCTAssertTrue(retained.exists)
         capture(app, "My-Offline")
-        app.buttons["viewed.track." + ids[0]].tap()
+        retained.tap()
         XCTAssertTrue(app.buttons["platformDetailRetry"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["platformLink.netease"].exists); XCTAssertFalse(app.buttons["miniPlayer"].exists)
     }
     func testHubFourLanguagesAndAccessibilityText() {
         for locale in ["zh-Hans", "zh-Hant", "en", "ja"] {
             let app = launch(locale: locale, large: true)
-            app.tabBars.buttons.element(boundBy: 2).tap()
+            app.buttons["tab.me"].tap()
             XCTAssertTrue(app.buttons["favoritesEntry"].waitForExistence(timeout: 5))
+            reveal(app.buttons["favoritesEntry"], app: app)
             capture(app, "My-Empty-" + locale + "-AXXXL")
             app.buttons["favoritesEntry"].tap()
             XCTAssertTrue(app.descendants(matching: .any)["favoritesPage"].firstMatch.waitForExistence(timeout: 5))
             app.navigationBars.buttons.firstMatch.tap()
-            reveal(app.buttons["platformPreferenceEntry"], app: app); app.buttons["platformPreferenceEntry"].tap()
-            reveal(app.buttons["platformPreference.spotify"], app: app)
-            capture(app, "My-Preference-" + locale + "-AXXXL")
-            XCTAssertTrue(app.tabBars.buttons.element(boundBy: 2).isHittable)
+            let preferred = app.buttons["platformPreference.spotify"]; reveal(preferred, app: app)
+            XCTAssertTrue(preferred.isHittable); preferred.tap()
+            let selected = ["zh-Hans": "开启", "zh-Hant": "開啟", "en": "On", "ja": "オン"][locale]!
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", selected), object: preferred)], timeout: 5), .completed)
+            capture(app, "My-Inline-Preference-" + locale + "-AXXXL")
+            XCTAssertTrue(app.buttons["tab.me"].isHittable)
             app.terminate()
         }
     }

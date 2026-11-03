@@ -1,0 +1,181 @@
+{
+  "version": "1.0.8 (21)",
+  "device": "iPhone 16e / iOS 26.4 simulator",
+  "viewportPoints": [
+    390,
+    844
+  ],
+  "scale": 3,
+  "rawScreenshotFiles": [
+    {
+      "file": "Catalog-Singles-zh-Hans.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "3e60e1987c6565c9cabf39e46521c1a2efc7c53fb42f488da9cbc366888791a4",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Content-Clips-Empty.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "61728761396799cfa53b0c30da77e667f9b2c3c62d054a07d55fa940093b1c1a",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Content-Lyrics-zh-Hans.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "5176b8b15c2489ed3e1f87e5b1801108edad4907cadcbf4ae394dab84dd769b2",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Content-Story.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "a7c7143fdd1dbdd82058a2ea9d9ca22dabc292642e26fd1ea858c26ceb2a2af2",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Album-Top.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "1a40f7167d09dfdbd49a23df0d13a1dc07523094cb49c0338f628ba052456415",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Detail-night.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "11750bde07b95eccf8502e8d146c87ded96195a4ef74256a38add863e04ad772",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Editor-paper.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "df60c881d4eec7195db4cad6022b87ea45fdc742fd1cf3baf41d9c80f8d600eb",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Home-night.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "70f41946371239c827ea9f7a33f6d4bfb9df57074bf292627968f41d8029a98c",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Home-paper.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "3401099f8bbffde661622b6cef8ed0fa32304a48b72a5e6a22cee49ef5d50f84",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Listening-paper.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "b3244d7cd52290c88fef44f302abddc0151f6b90ba25bfc16b811f9fdd6eb6e4",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Me-paper.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "223aa5d45c59b972539dd9e7d8d8b5eda7e514b44eb9719f6aaedbb69c3d92a8",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Notebook-paper.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "5ad023b0fb6c64346288274b22625fe7e95cc62275271ef6bffa7634319f8498",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Program.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "5fcc543eef968dd46ee1d01de89bda240a5784f075e6ef74d9e678dc4157eeda",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Records.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "650e14159c9a0e6381f66db48d7d8ca6703bbc8a21864ce45a075605290dafa2",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Shelf-paper.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "037d40fbaeaf0550c3cdddabaf76b7fbb55ab52b9c3764ca7f1f56c55b503cb1",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Startup.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "5b8a361c459a844608118ab3a3a8445edd34659f79dcbd51cfcf80653be57f3d",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-Story-night.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "3a876587902fc5053409106f5166e948a9eb805ea814eae1e1e04379301bdb04",
+      "nativeScreenshot": true
+    },
+    {
+      "file": "Radio-User-Selected-Quote.png",
+      "pixels": [
+        1170,
+        2532
+      ],
+      "sha256": "f29e65c50254513732047b3239b06de5346feae08b3c791e9501f1f58b05cd06",
+      "nativeScreenshot": true
+    }
+  ],
+  "navigationSourceResult": "evidence/radio-redesign/ui-navigation-complete.xcresult",
+  "notice": "Fixture data only; not device or production HTTPS acceptance.",
+  "contentSourceResults": [
+    "evidence/radio-redesign/final-regression.xcresult",
+    "evidence/radio-redesign/ui-final-followup.xcresult",
+    "evidence/radio-redesign/ui-notebook-final.xcresult",
+    "evidence/radio-redesign/ui-home-lower.xcresult"
+  ]
+}

@@ -11,8 +11,8 @@ import XCTest
             large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launchEnvironment["STATION_PLATFORM_FIXTURE"] = fixture
         app.launch()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
-        app.tabBars.buttons.element(boundBy: 1).tap()
+        XCTAssertTrue(app.buttons["tab.shelf"].waitForExistence(timeout: 10))
+        app.buttons["tab.shelf"].tap()
         XCTAssertTrue(app.buttons[large ? "catalogCategoryMenu" : "catalogCategory.albums"].waitForExistence(timeout: 5))
         return app
     }
@@ -34,6 +34,7 @@ import XCTest
         first.tap()
         let firstSong = app.buttons["track." + firstTrack], secondSong = app.buttons["track." + secondTrack]
         XCTAssertTrue(firstSong.waitForExistence(timeout: 5))
+        capture(app, "Radio-Album-Top")
         reveal(secondSong, app: app)
         XCTAssertLessThan(firstSong.frame.minY, secondSong.frame.minY)
         capture(app, "Catalog-Album-Detail")
@@ -54,6 +55,22 @@ import XCTest
         XCTAssertFalse(first.exists)
         app.buttons["catalogClearSearch"].tap()
         XCTAssertTrue(first.waitForExistence(timeout: 5))
+    }
+    func testAllShelfContainsAlbumsAndSearchMatchesTheirMemberSongs() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["album." + firstAlbum].exists)
+        let search = app.textFields["catalogSearch"]
+        search.tap(); search.typeText("夜窗来信\n")
+        XCTAssertTrue(app.buttons["album." + firstAlbum].waitForExistence(timeout: 5))
+        let firstSong = app.buttons["track." + firstTrack]
+        reveal(firstSong, app: app)
+        XCTAssertTrue(firstSong.exists)
+        XCTAssertFalse(app.buttons["track.11111111-1111-4111-8111-111111111111"].exists)
+        let favorite = app.buttons["catalogFavorite." + firstTrack]
+        reveal(favorite, app: app)
+        XCTAssertGreaterThanOrEqual(favorite.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(favorite.frame.height, 44)
+        capture(app, "Radio-Shelf-Album-Search")
     }
     func testEmptyAlbumCategoryReturnsToAllWorks() {
         let app = launch(locale: "en", fixture: "normal")
@@ -97,12 +114,12 @@ import XCTest
             let first = app.buttons["album." + firstAlbum]
             reveal(first, app: app)
             XCTAssertTrue(first.isHittable)
-            XCTAssertTrue(app.tabBars.buttons.element(boundBy: 2).isHittable)
+            XCTAssertTrue(app.buttons["tab.me"].isHittable)
             capture(app, "Catalog-Albums-" + locale + "-AXXXL")
             first.tap()
             let track = app.buttons["track." + firstTrack]
             reveal(track, app: app); track.tap()
-            XCTAssertTrue(app.scrollViews["platformDetailScreen"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.descendants(matching: .any)["platformDetailScreen"].firstMatch.waitForExistence(timeout: 5))
             XCTAssertFalse(app.buttons["miniPlayer"].exists)
             app.terminate()
         }

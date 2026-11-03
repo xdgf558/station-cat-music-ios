@@ -1,8 +1,8 @@
 import SwiftUI
 import WebKit
 
-/// System-style browser sheet for the opt-in test package. The document remains
-/// NetEase's own page; a loaded document is not evidence that a song is playing.
+/// User-initiated official webpage session. A loaded document is not evidence
+/// that a song is playing; the app owns only the surrounding browser controls.
 struct NetEaseListeningView: View {
     let request: NetEaseListeningRequest
     let track: Track
@@ -23,7 +23,7 @@ struct NetEaseListeningView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(track.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    Text(track.title).radioSerif(20).fixedSize(horizontal: false, vertical: true)
                     Text(text("neteaseBrowserNotice")).font(.caption).foregroundStyle(Palette.muted)
                         .fixedSize(horizontal: false, vertical: true)
                     status
@@ -64,7 +64,7 @@ struct NetEaseListeningView: View {
                             .accessibilityIdentifier("neteaseBrowserClose")
                     }
                 }
-        }.preferredColorScheme(.dark)
+        }.foregroundStyle(Palette.ink).tint(Palette.accent)
             .task { active = true; start() }
             .onChange(of: scenePhase) { _, value in
                 if value != .active { externalOperation = UUID(); session.pause() }

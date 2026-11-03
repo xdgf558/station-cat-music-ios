@@ -13,6 +13,22 @@ private actor AlbumTestTransport: HTTPTransport {
 }
 
 @MainActor final class PlatformAlbumTests: XCTestCase {
+    func testShelfSearchMatchesAlbumNamesWithoutChangingUnknownClassification() {
+        var song = Track(id: "11111111-1111-4111-8111-111111111111", title: "A song", artist: "Station Cat",
+                         durationSeconds: 0, audioVersion: 1, access: .unavailable)
+        song.release = PlatformTrackRelease(slug: "a-song", summary: "", webURL: PlatformMusicAPI.productionOrigin,
+            platforms: [], availability: "available", previewAvailable: false, albums: [
+                .init(id: "album", slug: "after-the-rain", title: "After the Rain", summary: "", version: 1, position: 0)])
+        XCTAssertTrue(PlatformShelfSearch.matches(song, query: "  after the rain  "))
+        XCTAssertTrue(PlatformShelfSearch.matches(song, query: "station cat"))
+        XCTAssertTrue(PlatformShelfSearch.matches(song, query: "a song"))
+        XCTAssertFalse(PlatformShelfSearch.matches(song, query: "another album"))
+        song.release?.albums = nil
+        XCTAssertFalse(PlatformShelfSearch.matches(song, query: "After the Rain"))
+        XCTAssertNil(song.release?.albums, "A search must not turn unknown membership into a single")
+        XCTAssertTrue(PlatformShelfSearch.matches(song, query: "\n  "))
+    }
+
     func testCategorySearchOrderRefreshAndDetailKeepThePlatformBoundary() async throws {
         let url = try XCTUnwrap(Bundle.main.url(forResource: "platform-albums", withExtension: "json"))
         let transport = AlbumTestTransport(data: try Data(contentsOf: url))

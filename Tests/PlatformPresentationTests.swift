@@ -55,6 +55,41 @@ private actor PresentationCatalog: PlatformMusicProviding {
         for _ in 0..<200 { if predicate() { return }; try await Task.sleep(for: .milliseconds(10)) }
         XCTFail("Platform presentation did not settle")
     }
+    func testSkippingRadioStartupDoesNotCancelInitializationOrInventLoadedContent() async throws {
+        let folder = directory(); defer { try? FileManager.default.removeItem(at: folder) }
+        let source = PresentationCatalog(); await source.setFailure(true)
+        let model = AppModel(client: source, library: ScopedLibrary(directory: folder), platformMode: true)
+        model.skipRadioStartup()
+        await model.initialize()
+        XCTAssertEqual(model.startupPhase, .ready)
+        XCTAssertEqual(model.phase, .unavailable)
+        XCTAssertTrue(model.tracks.isEmpty)
+        XCTAssertEqual(model.catalogFailure, .offline)
+        XCTAssertFalse(model.playback.hasAudioSource)
+        await source.setFailure(false); await model.load()
+        XCTAssertEqual(model.phase, .loaded)
+        XCTAssertEqual(model.tracks.count, 2)
+        XCTAssertEqual(model.startupPhase, .ready)
+    }
+    func testListeningIntentNeedsARealTrackAndCannotCarryIntoAnotherSelection() async throws {
+        let folder = directory(); defer { try? FileManager.default.removeItem(at: folder) }
+        let model = AppModel(client: PresentationCatalog(), library: ScopedLibrary(directory: folder), platformMode: true)
+        await model.initialize()
+        model.selectPlatformTrack(model.tracks[0], showPlatforms: true)
+        XCTAssertTrue(model.radioWantsPlatformPicker)
+        model.selectPlatformTrack(model.tracks[1])
+        XCTAssertFalse(model.radioWantsPlatformPicker)
+        XCTAssertFalse(model.playback.hasAudioSource)
+    }
+    func testRadioUsesDistinctPublishedTracksWhenOnlyOneWorkIsFeatured() async throws {
+        let folder = directory(); defer { try? FileManager.default.removeItem(at: folder) }
+        let model = AppModel(client: PresentationCatalog(), library: ScopedLibrary(directory: folder), platformMode: true)
+        await model.initialize()
+        XCTAssertEqual(model.discoveryTracks.count, 1)
+        XCTAssertEqual(model.radioTracks.map(\.id), [PresentationCatalog.firstID, PresentationCatalog.secondID])
+        XCTAssertEqual(model.radioFrequency(for: model.tracks[1]), "FM 91.2")
+        XCTAssertFalse(model.playback.hasAudioSource)
+    }
     func testNewDetailLinkIsQueuedAtColdLaunchWithoutAudioOrGrant() async throws {
         let folder = directory(); defer { try? FileManager.default.removeItem(at: folder) }
         let source = PresentationCatalog()

@@ -77,6 +77,30 @@ private actor YouTubeTransport: HTTPTransport {
             do { _ = try await other.clips(track, locale: "en"); XCTFail("Invalid source accepted") } catch {}
         }
     }
+    func testExternalOnlyPolicyOverridesEmbedRequestAfterPublicationCheck() async throws {
+        let (track, clip) = try await fixture(), provider = YouTubeProvider([clip])
+        let session = YouTubeClipSession(embeddingAllowed: false, document: { _, _ in
+            XCTFail("An external-only session cannot create an embed document"); return ""
+        })
+        var opened: URL?
+        session.start(clip, track: track, locale: "en", provider: provider, externalOnly: false) { opened = $0 }
+        try await wait { opened != nil }
+        let started = await provider.started
+        XCTAssertTrue(started)
+        XCTAssertEqual(opened, clip.youtube?.watchURL)
+        XCTAssertNil(session.webView)
+        XCTAssertEqual(session.phase, .idle)
+    }
+
+    func testExternalOnlyPolicyStillRejectsRevokedClip() async throws {
+        let (track, clip) = try await fixture(), provider = YouTubeProvider([])
+        let session = YouTubeClipSession(embeddingAllowed: false)
+        session.start(clip, track: track, locale: "en", provider: provider) { _ in XCTFail("Revoked clip cannot open") }
+        try await wait { session.phase == .failed }
+        XCTAssertEqual(session.failureKey, "youtubeUnavailable")
+        XCTAssertNil(session.webView)
+    }
+
     func testRevokedClipNeverCreatesWebViewOrOpensExternalURL() async throws {
         let (track, clip) = try await fixture(), provider = YouTubeProvider([])
         var opens = 0

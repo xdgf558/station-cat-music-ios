@@ -158,6 +158,30 @@ private actor DouyinVerificationGate {
             do { _ = try await other.clips(track, locale: "en"); XCTFail("Invalid source accepted") } catch {}
         }
     }
+    func testExternalOnlyPolicySkipsEmbedAPIAndDocument() async throws {
+        let (track, clip) = try await fixture(), provider = DouyinProvider([clip])
+        let session = DouyinClipSession(embeddingAllowed: false, document: { _, _ in
+            XCTFail("An external-only session cannot create an embed document"); return ""
+        }, verifyEmbed: { _ in XCTFail("An external-only session cannot call the third-party embed API") })
+        var opened: URL?
+        session.start(clip, track: track, locale: "en", provider: provider, externalOnly: false) { opened = $0 }
+        try await wait { opened != nil }
+        let started = await provider.started
+        XCTAssertTrue(started)
+        XCTAssertEqual(opened, clip.douyin?.watchURL)
+        XCTAssertNil(session.webView)
+        XCTAssertEqual(session.phase, .idle)
+    }
+
+    func testExternalOnlyPolicyStillRejectsRevokedClip() async throws {
+        let (track, clip) = try await fixture(), provider = DouyinProvider([])
+        let session = DouyinClipSession(embeddingAllowed: false)
+        session.start(clip, track: track, locale: "en", provider: provider) { _ in XCTFail("Revoked clip cannot open") }
+        try await wait { session.phase == .failed }
+        XCTAssertEqual(session.failureKey, "douyinUnavailable")
+        XCTAssertNil(session.webView)
+    }
+
     func testRevokedClipNeverCreatesWebViewOrOpensExternalURL() async throws {
         let (track, clip) = try await fixture(), provider = DouyinProvider([])
         var opens = 0

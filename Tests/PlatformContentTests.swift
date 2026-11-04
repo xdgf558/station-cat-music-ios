@@ -218,6 +218,18 @@ private actor MovieProvider: PlatformMusicProviding {
         do { _ = try await bad.read(start: 0, length: 100); XCTFail("Changed object accepted") } catch {}
         do { _ = try await channel.read(start: 0, length: NativeMediaLimits.rangeBytes + 1); XCTFail("Unbounded range accepted") } catch {}
     }
+    func testExternalOnlyPolicyNeverStartsAFileClipOrRequestsItsMedia() async throws {
+        let value = try await detail()
+        let clip = PlatformClip(id: UUID().uuidString, trackID: value.track.id, revision: 1,
+                                title: "Synthetic", summary: "", duration: 2, posterURL: asset, mediaURL: asset)
+        let provider = MovieProvider(clip), transport = MovieTransport(data: Data())
+        let player = PlatformClipPlayer(embeddingAllowed: false, transport: transport)
+        player.play(clip, track: value.track, locale: "en", provider: provider)
+        XCTAssertNil(player.player); XCTAssertNil(player.selectedID); XCTAssertFalse(player.loading)
+        let verified = await provider.started, requests = await transport.requests
+        XCTAssertFalse(verified); XCTAssertTrue(requests.isEmpty)
+    }
+
     func testNoVideoIsCreatedWithoutAnExplicitValidatedClipAndStopClearsState() async throws {
         let value = try await detail(), player = PlatformClipPlayer()
         XCTAssertNil(player.player); XCTAssertNil(player.selectedID); XCTAssertTrue(player.muted)

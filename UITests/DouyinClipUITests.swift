@@ -8,19 +8,20 @@ import XCTest
         if close.waitForExistence(timeout: 2) { close.tap() }
     }
 
-    private func launch(locale: String = "zh-Hans", failure: Bool = false, large: Bool = false) -> XCUIApplication {
+    private func launch(locale: String = "zh-Hans", failure: Bool = false, large: Bool = false, externalOnly: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--platform-music-fixture", "-AppleLanguages", "(\(locale))", "-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launchEnvironment["STATION_PLATFORM_FIXTURE"] = failure ? "douyin-error" : "douyin-clips"
         app.launchEnvironment["STATION_PERSONAL_TEST_NAMESPACE"] = UUID().uuidString
         app.launchEnvironment["STATION_PLATFORM_OPEN_FAIL"] = "1" // Never leaves the local fixture.
+        if externalOnly { app.launchEnvironment["STATION_EXTERNAL_ONLY_FIXTURE"] = "YES" }
         app.launch()
         let open = app.buttons["platformFeaturedOpen"]
         XCTAssertTrue(open.waitForExistence(timeout: 10)); reveal(open, app); open.tap(); closeListeningChooser(app)
         let tab = app.buttons["contentTab.clips"]
         XCTAssertTrue(tab.waitForExistence(timeout: 10)); reveal(tab, app); tab.tap()
         capture(app, "Douyin-Initial-" + locale)
-        let found = app.buttons["douyinLoad." + clip].waitForExistence(timeout: 5)
+        let found = app.buttons[(externalOnly ? "douyinOpen." : "douyinLoad.") + clip].waitForExistence(timeout: 5)
         if !found { print(app.debugDescription) }
         XCTAssertTrue(found)
         return app
@@ -109,6 +110,18 @@ import XCTest
     private func capture(_ app: XCUIApplication, _ name: String) {
         let item = XCTAttachment(screenshot: app.screenshot()); item.name = name; item.lifetime = .keepAlways; add(item)
     }
+    func testExternalOnlyCardHandsOffWithoutShowingAnEmbedLoadButton() {
+        let app = launch(externalOnly: true)
+        XCTAssertFalse(app.buttons["douyinLoad." + clip].exists)
+        XCTAssertFalse(app.buttons["douyinPrivacyInfo"].exists)
+        XCTAssertFalse(app.webViews.firstMatch.exists)
+        let external = app.buttons["douyinOpen." + clip]
+        reveal(external, app); external.tap()
+        XCTAssertTrue(app.buttons["platformCopyLink"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.webViews.firstMatch.exists)
+        XCTAssertTrue(app.buttons["contentTab.lyrics"].exists)
+    }
+
     func testSelectedLayoutClickToLoadAndTabBackgroundDismissTeardown() {
         let app = launch()
         XCTAssertFalse(app.webViews.firstMatch.exists)

@@ -16,6 +16,7 @@ class PlatformReleaseChecks(unittest.TestCase):
             "StationMusicWebOrigin": "", "StationProductionActivationProfile": "",
             "StationPublicAppLinksEnabled": "NO", "StationPublicReleasesEnabled": "YES", "StationPublicReleaseOrigin": "https://wwwstationcat.org",
             "StationNetEaseBrowserExperimentEnabled": "NO",
+            "StationThirdPartyPlaybackPolicy": "EXTERNAL_ONLY",
             "CFBundleShortVersionString": "1.0.6", "CFBundleVersion": "19",
             "ITSAppUsesNonExemptEncryption": False,
         }
@@ -40,72 +41,25 @@ class PlatformReleaseChecks(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate(info, self.privacy, self.notes, True)
 
-    def test_explicit_testflight_listening_candidate_is_separate_from_default_release(self):
-        info = dict(self.info, StationNetEaseBrowserExperimentEnabled="TESTFLIGHT")
-        result = validate(info, self.privacy, self.notes, True, testflight_listening=True)
-        self.assertTrue(result["testflightListeningEnabled"])
-        self.assertFalse(result["appStoreListeningEnabled"])
-        self.assertFalse(result["nativeServicesEnabled"])
-        self.assertFalse(result["signedDistributionValidated"])
-        self.assertFalse(validate(self.info, self.privacy, self.notes, True)["testflightListeningEnabled"])
-        with self.assertRaises(ValueError):
-            validate(info, self.privacy, self.notes, True)
+    def test_historical_distribution_opt_ins_cannot_restore_embedded_playback(self):
+        for marker in ["NO", "TESTFLIGHT", "APPSTORE", "YES"]:
+            for options in [{"testflight_listening": True}, {"app_store_listening": True},
+                            {"testflight_listening": True, "app_store_listening": True}]:
+                with self.subTest(marker=marker, options=options), self.assertRaises(ValueError):
+                    validate(dict(self.info, StationNetEaseBrowserExperimentEnabled=marker),
+                             self.privacy, self.notes, True, **options)
 
-    def test_testflight_listening_keeps_public_identity_and_native_boundaries(self):
-        base = dict(self.info, StationNetEaseBrowserExperimentEnabled="TESTFLIGHT")
-        invalid = [("StationEnvironment", "staging"), ("CFBundleIdentifier", "org.stationcat.music.staging"),
-                   ("StationPublicReleaseOrigin", "https://wwwstationcat.org/"),
-                   ("StationPublicReleasesEnabled", "NO")]
-        invalid += [("StationNetEaseBrowserExperimentEnabled", value)
-                    for value in ["YES", "NO", "APPSTORE", "testflight", "TESTFLIGHT ", True, None]]
-        invalid += [(key, value) for key in NATIVE_FLAGS for value in ["YES", "no", "NO ", False, None]]
-        for key, value in invalid:
-            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
-                validate(dict(base, **{key: value}), self.privacy, self.notes, True, testflight_listening=True)
-        closed = dict(base, StationPublicReleasesEnabled="NO", StationPublicReleaseOrigin="")
+    def test_external_only_policy_is_explicit_and_cannot_be_relabelled(self):
+        for value in ["EMBEDDED", "YES", "APPSTORE", "external_only", "EXTERNAL_ONLY ", True, None]:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                validate(dict(self.info, StationThirdPartyPlaybackPolicy=value), self.privacy, self.notes, True)
+        missing = dict(self.info); missing.pop("StationThirdPartyPlaybackPolicy")
         with self.assertRaises(ValueError):
-            validate(closed, self.privacy, self.notes, False, testflight_listening=True)
-        for key in ["StationNetEaseBrowserExperimentEnabled", "CFBundleIdentifier", "StationEnvironment",
-                    "StationPublicReleasesEnabled", "StationPublicReleaseOrigin", *NATIVE_FLAGS]:
-            info = dict(base); info.pop(key)
-            with self.subTest(missing=key), self.assertRaises(ValueError):
-                validate(info, self.privacy, self.notes, True, testflight_listening=True)
+            validate(missing, self.privacy, self.notes, True)
+        self.assertEqual(validate(self.info, self.privacy, self.notes, True)["thirdPartyPlaybackPolicy"], "EXTERNAL_ONLY")
 
-    def test_explicit_app_store_listening_candidate_requires_its_own_opt_in(self):
-        info = dict(self.info, StationNetEaseBrowserExperimentEnabled="APPSTORE")
-        result = validate(info, self.privacy, self.notes, True, app_store_listening=True)
-        self.assertTrue(result["appStoreListeningEnabled"])
-        self.assertFalse(result["testflightListeningEnabled"])
-        self.assertFalse(result["nativeServicesEnabled"])
-        self.assertFalse(result["signedDistributionValidated"])
-        self.assertEqual((result["version"], result["build"]), ("1.0.6", "19"))
-        self.assertFalse(validate(self.info, self.privacy, self.notes, True)["appStoreListeningEnabled"])
-        for options in [{}, {"testflight_listening": True},
-                        {"testflight_listening": True, "app_store_listening": True}]:
-            with self.subTest(options=options), self.assertRaises(ValueError):
-                validate(info, self.privacy, self.notes, True, **options)
 
-    def test_app_store_listening_keeps_public_identity_and_native_boundaries(self):
-        base = dict(self.info, StationNetEaseBrowserExperimentEnabled="APPSTORE")
-        invalid = [("StationEnvironment", "staging"), ("StationEnvironment", "mock"),
-                   ("CFBundleIdentifier", "org.stationcat.music.staging"),
-                   ("StationPublicReleaseOrigin", "https://wwwstationcat.org/"),
-                   ("StationPublicReleaseOrigin", "https://unrelated.invalid"),
-                   ("StationPublicReleasesEnabled", "NO"), ("StationPublicReleasesEnabled", True)]
-        invalid += [("StationNetEaseBrowserExperimentEnabled", value)
-                    for value in ["YES", "NO", "TESTFLIGHT", "appstore", "APPSTORE ", "APP_STORE", True, None]]
-        invalid += [(key, value) for key in NATIVE_FLAGS for value in ["YES", "no", "NO ", False, None]]
-        for key, value in invalid:
-            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
-                validate(dict(base, **{key: value}), self.privacy, self.notes, True, app_store_listening=True)
-        closed = dict(base, StationPublicReleasesEnabled="NO", StationPublicReleaseOrigin="")
-        with self.assertRaises(ValueError):
-            validate(closed, self.privacy, self.notes, False, app_store_listening=True)
-        for key in ["StationNetEaseBrowserExperimentEnabled", "CFBundleIdentifier", "StationEnvironment",
-                    "StationPublicReleasesEnabled", "StationPublicReleaseOrigin", *NATIVE_FLAGS]:
-            info = dict(base); info.pop(key)
-            with self.subTest(missing=key), self.assertRaises(ValueError):
-                validate(info, self.privacy, self.notes, True, app_store_listening=True)
+
 
     def test_cli_rejects_mixed_distribution_modes_before_reading_package(self):
         result = subprocess.run([

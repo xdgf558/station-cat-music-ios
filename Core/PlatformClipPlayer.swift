@@ -108,10 +108,15 @@ actor PlatformClipChannel {
     @ObservationIgnored private var observation: NSKeyValueObservation?
     private var generation = 0
     @ObservationIgnored private let transport: any MediaHTTPTransport
-    init(transport: any MediaHTTPTransport = NativeMediaTransport()) { self.transport = transport }
+    @ObservationIgnored private let embeddingAllowed: Bool
+    init(embeddingAllowed: Bool = ThirdPartyPlaybackPolicy.embeddingAllowed,
+         transport: any MediaHTTPTransport = NativeMediaTransport()) {
+        self.embeddingAllowed = embeddingAllowed && ThirdPartyPlaybackPolicy.embeddingAllowed
+        self.transport = transport
+    }
 
     func play(_ clip: PlatformClip, track: Track, locale: String, provider: any PlatformMusicProviding) {
-        stop(); guard let mediaURL = clip.mediaURL else { return }; selectedID = clip.id; loading = true
+        stop(); guard embeddingAllowed, let mediaURL = clip.mediaURL else { return }; selectedID = clip.id; loading = true
         let ticket = generation
         task = Task { [weak self] in
             do {

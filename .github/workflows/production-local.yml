@@ -86,6 +86,7 @@ jobs:
           import plistlib,sys
           with open(sys.argv[1],'rb') as source: info=plistlib.load(source)
           assert info['StationEnvironment']=='production'
+          assert info.get('StationThirdPartyPlaybackPolicy')=='EXTERNAL_ONLY'
           for key in ('StationNativeAuthEnabled','StationNativeMusicEnabled','StationPersonalSyncEnabled',
                       'StationProductionActivationEnabled','StationPublicReleasesEnabled',
                       'StationPublicAppLinksEnabled','StationNetEaseBrowserExperimentEnabled'):

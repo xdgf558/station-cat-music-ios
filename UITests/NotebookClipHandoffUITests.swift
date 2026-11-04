@@ -8,6 +8,11 @@ import XCTest
 
     override func setUp() { continueAfterFailure = false }
 
+    private func officialPlayer(_ app: XCUIApplication, provider: String) -> XCUIElement {
+        // Verify this exact selector while loaded before checking its absence.
+        app.descendants(matching: .any).matching(identifier: provider + "OfficialPlayer").firstMatch
+    }
+
     private func closeListeningChooser(_ app: XCUIApplication) {
         let close = app.buttons["platformPickerClose"]
         if close.waitForExistence(timeout: 2) { close.tap() }
@@ -27,9 +32,9 @@ import XCTest
         XCTAssertTrue(clips.waitForExistence(timeout: 10)); reveal(clips, app); clips.tap()
         let load = app.buttons[provider + "Load." + clipID]
         XCTAssertTrue(load.waitForExistence(timeout: 10)); reveal(load, app); load.tap()
-        XCTAssertTrue(app.webViews.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(officialPlayer(app, provider: provider).waitForExistence(timeout: 10))
         let fixtureProvider = provider == "youtube" ? "YouTube" : "Douyin"
-        XCTAssertTrue(app.webViews.staticTexts["未连接 " + fixtureProvider + " · 无真实视频"].waitForExistence(timeout: 10))
+        XCTAssertTrue(officialPlayer(app, provider: provider).staticTexts["未连接 " + fixtureProvider + " · 无真实视频"].waitForExistence(timeout: 10))
         return app
     }
 
@@ -61,19 +66,19 @@ import XCTest
     private func assertStoppedAfterReturning(_ app: XCUIApplication, provider: String) {
         XCTAssertTrue(app.buttons["notebookEditorClose"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.buttons["platformDetailClose"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.webViews.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(officialPlayer(app, provider: provider).waitForNonExistence(timeout: 5))
         XCTAssertFalse(app.buttons["miniPlayer"].exists)
         let load = app.buttons[provider + "Load." + clipID]
         XCTAssertTrue(load.waitForExistence(timeout: 5))
         reveal(load, app)
         XCTAssertTrue(load.isHittable, "Returning to the clip requires another explicit load action")
-        XCTAssertFalse(app.webViews.firstMatch.exists, "Revealing the clip again must not recreate its player")
+        XCTAssertFalse(officialPlayer(app, provider: provider).exists, "Revealing the clip again must not recreate its player")
     }
 
     private func exerciseHandoff(_ provider: String) {
         let app = launch(provider)
         openEditor(app)
-        XCTAssertTrue(app.webViews.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(officialPlayer(app, provider: provider).waitForNonExistence(timeout: 5))
         capture(app, "Notebook-" + provider + "-Linked-Editor")
         app.buttons["notebookEditorClose"].tap()
         assertStoppedAfterReturning(app, provider: provider)
@@ -89,7 +94,7 @@ import XCTest
         app.buttons["notebookSave"].tap()
         XCTAssertTrue(app.buttons["notebookEditorClose"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.buttons["platformDetailClose"].waitForNonExistence(timeout: 5))
-        XCTAssertFalse(app.webViews.firstMatch.exists)
+        XCTAssertFalse(officialPlayer(app, provider: provider).exists)
         XCTAssertTrue(app.buttons["tab.notes"].waitForExistence(timeout: 5))
 
         let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "notebook.note."))
@@ -100,7 +105,7 @@ import XCTest
         XCTAssertTrue(app.textViews["notebookBodyField"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.textViews["notebookBodyField"].value as? String, body)
         XCTAssertTrue(app.buttons["notebookChooseWork"].label.contains(fixtureSong))
-        XCTAssertFalse(app.webViews.firstMatch.exists)
+        XCTAssertFalse(officialPlayer(app, provider: provider).exists)
     }
 
     func testYouTubeStopsBeforeWritingAndOwnNoteAppearsInNotebook() { exerciseHandoff("youtube") }

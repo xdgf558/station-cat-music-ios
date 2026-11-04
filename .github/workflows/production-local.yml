@@ -61,6 +61,55 @@ jobs:
         env:
           PRODUCTION_BACKEND_PATH: ${{ github.workspace }}/.backend-production
         run: python3 scripts/verify_native_production.py
+      - name: Production optimized Me navigation with all remote services closed
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          smoke_data="$RUNNER_TEMP/station-cat-production-me"
+          build=(xcodebuild -project StationCatMusic.xcodeproj -scheme StationCatMusicProductionNavigation
+            -configuration Production -destination "platform=iOS Simulator,id=$M1_SIMULATOR_ID"
+            -derivedDataPath "$smoke_data" -parallel-testing-enabled NO
+            -only-testing:StationCatMusicUITests/ProductionNavigationUITests
+            CODE_SIGNING_ALLOWED=NO SWIFT_OPTIMIZATION_LEVEL=-O ENABLE_TESTABILITY=NO
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS= STATION_ENVIRONMENT=production
+            STATION_NATIVE_AUTH_ENABLED=NO STATION_NATIVE_AUTH_ORIGIN=
+            STATION_NATIVE_MUSIC_ENABLED=NO STATION_PERSONAL_SYNC_ENABLED=NO
+            STATION_PRODUCTION_ACTIVATION_ENABLED=NO STATION_PRODUCTION_ACTIVATION_PROFILE=
+            STATION_PUBLIC_RELEASES_ENABLED=NO STATION_PUBLIC_RELEASE_ORIGIN=
+            STATION_PUBLIC_APP_LINKS_ENABLED=NO STATION_MUSIC_WEB_ORIGIN=
+            STATION_NETEASE_BROWSER_EXPERIMENT_ENABLED=NO STATION_APP_ENTITLEMENTS=)
+          "${build[@]}" build-for-testing > evidence/production-me-build.log 2>&1 || {
+            tail -n 100 evidence/production-me-build.log
+            exit 1
+          }
+          python3 - "$smoke_data/Build/Products/Production-iphonesimulator/StationCatMusic.app/Info.plist" <<'PY'
+          import plistlib,sys
+          with open(sys.argv[1],'rb') as source: info=plistlib.load(source)
+          assert info['StationEnvironment']=='production'
+          for key in ('StationNativeAuthEnabled','StationNativeMusicEnabled','StationPersonalSyncEnabled',
+                      'StationProductionActivationEnabled','StationPublicReleasesEnabled',
+                      'StationPublicAppLinksEnabled','StationNetEaseBrowserExperimentEnabled'):
+              assert info.get(key)=='NO', key
+          for key in ('StationNativeAuthOrigin','StationProductionActivationProfile',
+                      'StationPublicReleaseOrigin','StationMusicWebOrigin'):
+              assert info.get(key)=='', key
+          assert 'UIBackgroundModes' not in info
+          print('Production optimized UI smoke: remote service flags and origins are closed')
+          PY
+          "${build[@]}" -resultBundlePath evidence/production-me-smoke.xcresult test-without-building \
+            > evidence/production-me-test.log 2>&1 || {
+            tail -n 100 evidence/production-me-test.log
+            exit 1
+          }
+          xcrun xcresulttool get test-results summary --path evidence/production-me-smoke.xcresult \
+            > evidence/production-me-summary.json
+          python3 - <<'PY'
+          import json
+          with open('evidence/production-me-summary.json') as source: result=json.load(source)
+          assert result['totalTestCount']==1 and result['passedTests']==1, result
+          assert result['failedTests']==0 and result['skippedTests']==0, result
+          print('Production Me navigation smoke passed: 1 test, 0 failures, 0 skips')
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -75,3 +124,7 @@ jobs:
             evidence/production-local-readiness.log
             evidence/production-local-runtime.jsonl
             evidence/production-local-summary.json
+            evidence/production-me-build.log
+            evidence/production-me-test.log
+            evidence/production-me-summary.json
+            evidence/production-me-smoke.xcresult

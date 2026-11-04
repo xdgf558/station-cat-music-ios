@@ -51,7 +51,7 @@ for name,refs,productType in [('StationCatMusic',sources,'com.apple.product-type
  isapp=name=='StationCatMusic';isui=name.endswith('UITests')
  product=obj(name+'product','PBXFileReference',explicitFileType='wrapper.application' if isapp else 'wrapper.cfbundle',path=name+('.app' if isapp else '.xctest'),sourceTree='BUILT_PRODUCTS_DIR');products.append(product)
  settings={'PRODUCT_NAME':name,'PRODUCT_BUNDLE_IDENTIFIER':'org.stationcat.music.dev'+('' if isapp else ('.uitests' if isui else '.tests')),'GENERATE_INFOPLIST_FILE':'YES','SWIFT_VERSION':'6.0','SWIFT_STRICT_CONCURRENCY':'complete','SWIFT_DEFAULT_ACTOR_ISOLATION':'nonisolated','ENABLE_TESTABILITY':'YES','CODE_SIGN_STYLE':'Automatic','TARGETED_DEVICE_FAMILY':'1','IPHONEOS_DEPLOYMENT_TARGET':'18.0','SDKROOT':'iphoneos','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO','LD_RUNPATH_SEARCH_PATHS':'$(inherited) @executable_path/Frameworks @loader_path/Frameworks'}
- if isapp:settings.update({'GENERATE_INFOPLIST_FILE':'NO','INFOPLIST_FILE':'Config/Info.plist','INFOPLIST_KEY_CFBundleDisplayName':'Station Cat Music','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_StationEnvironment':'$(STATION_ENVIRONMENT)','INFOPLIST_KEY_UISupportedInterfaceOrientations':'UIInterfaceOrientationPortrait','INFOPLIST_KEY_LSApplicationCategoryType':'public.app-category.music','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','MARKETING_VERSION':'1.0.8','CURRENT_PROJECT_VERSION':'21'})
+ if isapp:settings.update({'GENERATE_INFOPLIST_FILE':'NO','INFOPLIST_FILE':'Config/Info.plist','INFOPLIST_KEY_CFBundleDisplayName':'Station Cat Music','INFOPLIST_KEY_UILaunchScreen_Generation':'YES','INFOPLIST_KEY_UIApplicationSceneManifest_Generation':'YES','INFOPLIST_KEY_StationEnvironment':'$(STATION_ENVIRONMENT)','INFOPLIST_KEY_UISupportedInterfaceOrientations':'UIInterfaceOrientationPortrait','INFOPLIST_KEY_LSApplicationCategoryType':'public.app-category.music','ASSETCATALOG_COMPILER_APPICON_NAME':'AppIcon','MARKETING_VERSION':'1.0.9','CURRENT_PROJECT_VERSION':'22'})
  elif isui:settings['TEST_TARGET_NAME']='StationCatMusic'
  else:settings.update({'TEST_HOST':'$(BUILT_PRODUCTS_DIR)/StationCatMusic.app/StationCatMusic','BUNDLE_LOADER':'$(TEST_HOST)'})
  dependencies=[]
@@ -91,3 +91,16 @@ selected=ET.SubElement(testable,'SelectedTests')
 ET.SubElement(selected,'Test',{'Identifier':'PublicUniversalLinkUITests'})
 ET.indent(public)
 ET.ElementTree(public).write(scheme/'StationCatMusicPublicLinks.xcscheme',encoding='UTF-8',xml_declaration=True)
+
+# Keep the all-services-closed optimization smoke independent of opt-in,
+# enabled HTTPS/device Universal Links acceptance.
+navigation=ET.fromstring(ET.tostring(public))
+selected=navigation.find('TestAction/Testables/TestableReference/SelectedTests')
+selected.clear()
+ET.SubElement(selected,'Test',{'Identifier':'ProductionNavigationUITests'})
+action=navigation.find('TestAction')
+action.set('shouldUseLaunchSchemeArgsEnv','NO')
+environment=ET.SubElement(action,'EnvironmentVariables')
+ET.SubElement(environment,'EnvironmentVariable',{'key':'STATION_PRODUCTION_ME_SMOKE','value':'YES','isEnabled':'YES'})
+ET.indent(navigation)
+ET.ElementTree(navigation).write(scheme/'StationCatMusicProductionNavigation.xcscheme',encoding='UTF-8',xml_declaration=True)

@@ -654,6 +654,12 @@
 			"path" = "UITests/PlatformPersonalUITests.swift";
 			"sourceTree" = "<group>";
 		};
+		"B9A9B5EDF13785E889E7161D" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/ProductionNavigationUITests.swift";
+			"sourceTree" = "<group>";
+		};
 		"E2C7837828CEB003AF7B9B32" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -837,8 +843,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "1.0.8";
-				"CURRENT_PROJECT_VERSION" = "21";
+				"MARKETING_VERSION" = "1.0.9";
+				"CURRENT_PROJECT_VERSION" = "22";
 			};
 		};
 		"FBFB519E017124AD6A05AD21" = {
@@ -868,8 +874,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "1.0.8";
-				"CURRENT_PROJECT_VERSION" = "21";
+				"MARKETING_VERSION" = "1.0.9";
+				"CURRENT_PROJECT_VERSION" = "22";
 			};
 		};
 		"0E4CA93122EFD27B46D9D173" = {
@@ -899,8 +905,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "1.0.8";
-				"CURRENT_PROJECT_VERSION" = "21";
+				"MARKETING_VERSION" = "1.0.9";
+				"CURRENT_PROJECT_VERSION" = "22";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 			};
@@ -932,8 +938,8 @@
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
-				"MARKETING_VERSION" = "1.0.8";
-				"CURRENT_PROJECT_VERSION" = "21";
+				"MARKETING_VERSION" = "1.0.9";
+				"CURRENT_PROJECT_VERSION" = "22";
 				"DEVELOPMENT_TEAM" = "2AM5S7BM2N";
 				"CODE_SIGN_ENTITLEMENTS" = "$(STATION_APP_ENTITLEMENTS)";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
@@ -1881,6 +1887,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "D83AD4548963A5AA5E91EF2E";
 		};
+		"6EC8D3DB67369BC5BEE46F7F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "B9A9B5EDF13785E889E7161D";
+		};
 		"00F6D8CB630454B22F48FF0F" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "E2C7837828CEB003AF7B9B32";
@@ -1918,6 +1928,7 @@
 				"4AE6932373B90A511546F04A",
 				"25258E8726767CD00FDE7E1D",
 				"37CC414B47A7039F3EBEC822",
+				"6EC8D3DB67369BC5BEE46F7F",
 				"00F6D8CB630454B22F48FF0F",
 				"C398033C9ED2AC57D776D4C3",
 				"5FC20BA41AD368BFFF8B8D3F",
@@ -2083,6 +2094,7 @@
 				"A8C10FD3801F7CD94B1A30B1",
 				"6963F1DF7EFA5DD1811696FB",
 				"D83AD4548963A5AA5E91EF2E",
+				"B9A9B5EDF13785E889E7161D",
 				"E2C7837828CEB003AF7B9B32",
 				"29F4B9F9E997A6078032077A",
 				"7DB33EFE4E031BB44D5BA9B1",

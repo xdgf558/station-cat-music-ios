@@ -299,10 +299,10 @@ struct RootView: View {
         if model.platformMode {
             PlatformLibraryHome(model: model, favorites: { favoritesPage }) { destination in
                 switch destination {
-                case .privacy: privacyPage
-                case .preferences: preferencesPage
-                case .help: helpPage
-                case .legacy: legacyDataPage
+                case .privacy: AnyView(privacyPage)
+                case .preferences: AnyView(preferencesPage)
+                case .help: AnyView(helpPage)
+                case .legacy: AnyView(legacyDataPage)
                 }
             }
         } else { legacyLibrary }
@@ -619,9 +619,12 @@ struct RootView: View {
         libraryPage("releaseNotes", id: "releaseNotesPage") {
             Section {
                 Text("Station Cat Music · " + appVersion).font(.headline)
-                Text("2026-11-03").font(.caption).foregroundStyle(Palette.muted)
+                Text("2026-11-04").font(.caption).foregroundStyle(Palette.muted)
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
+                Label(model.t("radio.releaseMeCrashFix"), systemImage: "person.crop.circle")
+            }.listRowBackground(Palette.panel)
+            Section(model.t("previousUpdates") + " · 1.0.8 (21) · 2026-11-03") {
                 Label(model.t("radio.releaseDesign"), systemImage: "circle.lefthalf.filled")
                 Label(model.t("radio.releaseNavigation"), systemImage: "square.grid.2x2")
                 Label(model.t("radio.releaseQuotes"), systemImage: "text.quote")

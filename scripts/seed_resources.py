@@ -483,6 +483,7 @@ radio.quoteToNote|Save to note|摘进笔记|摘進筆記|ノートに摘む
 radio.quoteTooLong|This line is longer than the 200-character quote limit.|此句超过 200 字摘录上限。|此句超過 200 字摘錄上限。|この行は引用の上限200文字を超えています。
 radio.quoteInvalidCharacters|This line contains unsupported invisible characters and cannot be quoted.|此句含不支持的不可见字符，无法摘录。|此句含不支援的不可見字元，無法摘錄。|この行には対応していない不可視文字があり、引用できません。
 radio.recentReceipt|Recently viewed|最近查看小票|最近查看小票|最近見た作品
+radio.releaseMeCrashFix|Fixes a crash when opening You on some iPhones. Favorites, notes and preferences are kept.|修复部分 iPhone 打开“我的”时闪退的问题，保留收藏、笔记与设置。|修復部分 iPhone 開啟「我的」時閃退的問題，保留收藏、筆記與設定。|一部のiPhoneで「マイページ」を開くと終了する問題を修正。お気に入り、ノート、設定は保持されます。
 radio.releaseAppearance|Follow system appearance or choose paper and night modes. Listening, favorites and earlier local data keep their existing rules.|支持跟随系统、日间纸与深夜电台；保留既有收听、收藏及本机资料管理。|支援跟隨系統、日間紙與深夜電台；保留既有收聽、收藏及本機資料管理。|システム・昼の紙・夜のラジオ表示を選べます。配信先、お気に入り、既存データの管理を維持します。
 radio.releaseDesign|A warm paper interface with serif typography and new light and dark cat-record icons.|全新暖纸质界面、衬线排版与猫耳唱片图标，提供日间及深夜外观。|全新暖紙質介面、襯線排版與貓耳唱片圖示，提供日間及深夜外觀。|温かい紙の質感とセリフ体、新しい猫レコードのライト・ダークアイコンに刷新。
 radio.releaseNavigation|Browse with the Radio dial and record shelf. Notes now have their own main tab.|新增电台调频选歌与唱片架布局，笔记升级为独立一级入口。|新增電台調頻選歌與唱片架版面，筆記升級為獨立一級入口。|ラジオ風ダイヤルとレコード棚で作品を探せます。ノートが独立したタブになりました。

@@ -3,10 +3,11 @@ import SwiftUI
 enum PlatformLibraryDestination { case privacy, preferences, help, legacy }
 
 /// Local personal data remains separate from disposable artwork and remote works.
-struct PlatformLibraryHome<Favorites: View, Settings: View>: View {
+struct PlatformLibraryHome<Favorites: View>: View {
     @Bindable var model: AppModel
     @ViewBuilder var favorites: () -> Favorites
-    @ViewBuilder var settings: (PlatformLibraryDestination) -> Settings
+    // Keep the four complex destination types out of one nested generic type.
+    var settings: (PlatformLibraryDestination) -> AnyView
     @Environment(\.dynamicTypeSize) private var typeSize
     @AppStorage("radioAppearance") private var appearance = "system"
     private let providers: [PlatformProvider] = [.netease, .qishui, .appleMusic, .spotify, .youtube]

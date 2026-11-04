@@ -623,6 +623,7 @@ struct RootView: View {
             }.listRowBackground(Palette.panel)
             Section(model.t("thisUpdate")) {
                 Label(model.t("radio.releaseMeCrashFix"), systemImage: "person.crop.circle")
+                Label(model.t("radio.releaseExternalListening"), systemImage: "arrow.up.right.square")
             }.listRowBackground(Palette.panel)
             Section(model.t("previousUpdates") + " · 1.0.8 (21) · 2026-11-03") {
                 Label(model.t("radio.releaseDesign"), systemImage: "circle.lefthalf.filled")

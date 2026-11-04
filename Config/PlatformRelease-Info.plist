@@ -24,6 +24,8 @@
 	<true/>
 	<key>StationNetEaseBrowserExperimentEnabled</key>
 	<string>$(STATION_NETEASE_BROWSER_EXPERIMENT_ENABLED)</string>
+	<key>StationThirdPartyPlaybackPolicy</key>
+	<string>EXTERNAL_ONLY</string>
 	<key>StationEnvironment</key>
 	<string>$(STATION_ENVIRONMENT)</string>
 	<key>StationLegalOrigin</key>

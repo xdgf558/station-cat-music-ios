@@ -420,24 +420,31 @@ struct PlatformMusicDetailView: View {
         case .empty: empty("clipsEmpty", icon: "film")
         case .failed: retry(content.clipsFailureKey, id: "clipsRetry") { content.retryClips() }
         case .loaded:
+            let visibleClips = content.clips.filter { ThirdPartyPlaybackPolicy.embeddingAllowed || $0.youtube != nil || $0.douyin != nil }
+            if visibleClips.isEmpty { empty("clipsEmpty", icon: "film") }
+            else {
             VStack(alignment: .leading, spacing: 14) {
                 (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout())) {
                     Text(model.t("selectedClips")).font(.headline)
                     if !typeSize.isAccessibilitySize { Spacer() }
-                    if content.clips.contains(where: { $0.douyin != nil }) {
+                    if ThirdPartyPlaybackPolicy.embeddingAllowed, visibleClips.contains(where: { $0.douyin != nil }) {
                         Button { stopClips(); showDouyinInfo = true } label: {
                             Label(model.t("douyinName"), systemImage: "info.circle").font(.caption.weight(.semibold))
                         }.frame(minHeight: 44).accessibilityLabel(model.t("douyinPrivacyInfo"))
                             .accessibilityIdentifier("douyinPrivacyInfo")
                     }
-                    if content.clips.contains(where: { $0.youtube != nil }) {
+                    if ThirdPartyPlaybackPolicy.embeddingAllowed, visibleClips.contains(where: { $0.youtube != nil }) {
                         Button { stopClips(); showYouTubeInfo = true } label: {
                             Label("YouTube", systemImage: "info.circle").font(.caption.weight(.semibold))
                         }.frame(minHeight: 44).accessibilityLabel(model.t("youtubePrivacyInfo"))
                             .accessibilityIdentifier("youtubePrivacyInfo")
                     }
                 }
-                ForEach(content.clips) { clip in
+                if !ThirdPartyPlaybackPolicy.embeddingAllowed {
+                    Text(model.t("thirdPartyExternalOnly")).font(.subheadline).foregroundStyle(Palette.muted)
+                        .accessibilityIdentifier("thirdPartyExternalOnly")
+                }
+                ForEach(visibleClips) { clip in
                     VStack(alignment: .leading, spacing: 12) {
                         if clip.douyin != nil {
                             douyinCard(clip, detail: detail)
@@ -468,9 +475,10 @@ struct PlatformMusicDetailView: View {
                         }
                     }
                 }
-                if content.clips.contains(where: { $0.mediaURL != nil }) {
+                if ThirdPartyPlaybackPolicy.embeddingAllowed, visibleClips.contains(where: { $0.mediaURL != nil }) {
                     Text(model.t("clipMutedHint")).font(.caption).foregroundStyle(Palette.muted)
                 }
+            }
             }
         }
     }
@@ -478,11 +486,16 @@ struct PlatformMusicDetailView: View {
     private func startYouTube(_ clip: PlatformClip, detail: PlatformTrackDetail, externalOnly: Bool = false) {
         guard scenePhase == .active, model.showPlayer, let provider = model.platformCatalog else { return }
         video.stop(); douyin.stop()
-        youtube.start(clip, track: detail.track, locale: model.locale, provider: provider, externalOnly: externalOnly) { url in open(url) }
+        youtube.start(clip, track: detail.track, locale: model.locale, provider: provider,
+                      externalOnly: externalOnly || !ThirdPartyPlaybackPolicy.embeddingAllowed) { url in open(url) }
     }
     @ViewBuilder private func youtubeCard(_ clip: PlatformClip, detail: PlatformTrackDetail) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            if youtube.selectedID == clip.id, let view = youtube.webView {
+            if !ThirdPartyPlaybackPolicy.embeddingAllowed {
+                clipPreview(clip, track: detail.track, provider: "YOUTUBE", loadKey: "youtubeOpen", externalOnly: true) {
+                    startYouTube(clip, detail: detail, externalOnly: true)
+                }
+            } else if youtube.selectedID == clip.id, let view = youtube.webView {
                 // Preserve the complete official portrait viewport without overlays on controls or ads.
                 OfficialClipWebView(view: view).frame(width: 220, height: 330).frame(maxWidth: .infinity)
             } else {
@@ -495,7 +508,7 @@ struct PlatformMusicDetailView: View {
             if youtube.selectedID == clip.id, youtube.phase == .failed {
                 retry(youtube.failureKey, id: "youtubeRetry") { startYouTube(clip, detail: detail) }
             }
-            HStack {
+            if ThirdPartyPlaybackPolicy.embeddingAllowed { HStack {
                 Button { startYouTube(clip, detail: detail, externalOnly: true) } label: {
                     Label(model.t("youtubeOpen"), systemImage: "arrow.up.right").fixedSize(horizontal: false, vertical: true)
                 }.frame(minHeight: 44).accessibilityIdentifier("youtubeOpen." + clip.id)
@@ -503,17 +516,22 @@ struct PlatformMusicDetailView: View {
                 if youtube.selectedID == clip.id, youtube.phase != .failed {
                     Button(model.t("clipStop")) { youtube.stop() }.frame(minHeight: 44).accessibilityIdentifier("youtubeStop")
                 }
-            }.font(.subheadline)
+            }.font(.subheadline) }
         }
     }
     private func startDouyin(_ clip: PlatformClip, detail: PlatformTrackDetail, externalOnly: Bool = false) {
         guard scenePhase == .active, model.showPlayer, let provider = model.platformCatalog else { return }
         video.stop(); youtube.stop()
-        douyin.start(clip, track: detail.track, locale: model.locale, provider: provider, externalOnly: externalOnly) { url in open(url) }
+        douyin.start(clip, track: detail.track, locale: model.locale, provider: provider,
+                     externalOnly: externalOnly || !ThirdPartyPlaybackPolicy.embeddingAllowed) { url in open(url) }
     }
     @ViewBuilder private func douyinCard(_ clip: PlatformClip, detail: PlatformTrackDetail) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            if douyin.selectedID == clip.id, let view = douyin.webView {
+            if !ThirdPartyPlaybackPolicy.embeddingAllowed {
+                clipPreview(clip, track: detail.track, provider: model.t("douyinName"), loadKey: "douyinOpen", externalOnly: true) {
+                    startDouyin(clip, detail: detail, externalOnly: true)
+                }
+            } else if douyin.selectedID == clip.id, let view = douyin.webView {
                 // Preserve the complete official portrait viewport without overlays on controls or ads.
                 OfficialClipWebView(view: view).frame(width: 220, height: 330).frame(maxWidth: .infinity)
             } else {
@@ -530,7 +548,7 @@ struct PlatformMusicDetailView: View {
                 Text(model.t("douyinPlayerHint")).font(.caption).foregroundStyle(Palette.muted)
                     .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("douyinPlayerHint")
             }
-            HStack {
+            if ThirdPartyPlaybackPolicy.embeddingAllowed { HStack {
                 Button { startDouyin(clip, detail: detail, externalOnly: true) } label: {
                     Label(model.t("douyinOpen"), systemImage: "arrow.up.right").fixedSize(horizontal: false, vertical: true)
                 }.frame(minHeight: 44).accessibilityIdentifier("douyinOpen." + clip.id)
@@ -538,15 +556,16 @@ struct PlatformMusicDetailView: View {
                 if douyin.selectedID == clip.id, douyin.phase != .failed {
                     Button(model.t("clipStop")) { douyin.stop() }.frame(minHeight: 44).accessibilityIdentifier("douyinStop")
                 }
-            }.font(.subheadline)
+            }.font(.subheadline) }
         }
     }
-    private func clipPreview(_ clip: PlatformClip, track: Track, provider: String, loadKey: String, load: @escaping () -> Void) -> some View {
+    private func clipPreview(_ clip: PlatformClip, track: Track, provider: String, loadKey: String,
+                             externalOnly: Bool = false, load: @escaping () -> Void) -> some View {
         Button(action: load) {
             ZStack {
                 OrbitArtwork(track: track, model: model).blur(radius: 6)
                 Color.black.opacity(0.45)
-                Image(systemName: "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white)
+                Image(systemName: externalOnly ? "arrow.up.right.square" : "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white)
                 VStack {
                     HStack {
                         Text(provider).radioMono(10, weight: .semibold).padding(.horizontal, 9).padding(.vertical, 5)
@@ -554,7 +573,7 @@ struct PlatformMusicDetailView: View {
                         Spacer()
                     }
                     Spacer()
-                    HStack { Spacer(); Text(model.t("radio.tapToLoad")).font(.caption.weight(.semibold)) }
+                    HStack { Spacer(); Text(model.t(externalOnly ? loadKey : "radio.tapToLoad")).font(.caption.weight(.semibold)) }
                 }.foregroundStyle(.white).padding(12)
             }.aspectRatio(16.0 / 9, contentMode: .fit).clipped().clipShape(RoundedRectangle(cornerRadius: 10))
                 .contentShape(Rectangle())
@@ -574,7 +593,8 @@ struct PlatformMusicDetailView: View {
         Button(model.t("youtubePrivacy")) { open(URL(string: "https://policies.google.com/privacy")!) }.frame(minHeight: 44).accessibilityIdentifier("youtubePrivacy")
     }
     private func start(_ clip: PlatformClip, detail: PlatformTrackDetail) {
-        guard scenePhase == .active, model.showPlayer, let provider = model.platformCatalog else { return }
+        guard ThirdPartyPlaybackPolicy.embeddingAllowed, scenePhase == .active,
+              model.showPlayer, let provider = model.platformCatalog else { return }
         youtube.stop(); douyin.stop()
         video.play(clip, track: detail.track, locale: model.locale, provider: provider)
     }

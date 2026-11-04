@@ -10,25 +10,21 @@ NATIVE_FLAGS = ["StationNativeAuthEnabled", "StationNativeMusicEnabled",
                 "StationPersonalSyncEnabled", "StationProductionActivationEnabled"]
 REASONS = {"NSPrivacyAccessedAPICategoryFileTimestamp": ["C617.1"],
            "NSPrivacyAccessedAPICategoryUserDefaults": ["CA92.1"]}
-NOTES = ["releaseShareCards", "releaseAlbumArtwork", "releaseListeningNavigation", "releaseNetEaseBrowserRelease", "releaseNetEaseNavigationFix", "releaseNetEaseBrowserExperiment", "releaseNetEaseBrowserControl", "releaseNotebook", "releaseNotebookOrganization", "releaseNotebookLocal", "releaseBundledClips", "releaseDouyinClips", "releaseDouyinControl", "releaseYouTubeClips", "releaseYouTubeControl", "releaseV1Catalog", "releaseV1Reading", "releaseV1Personal", "releaseV1Listening", "releaseSongContent", "releaseLyricsReader", "releaseContentStates", "releasePersonalHub", "releaseRecentlyViewed", "releasePlatformPreference", "releaseCatalogCategories", "releaseUniversalLinks", "releaseSongLinks", "releaseFavoriteReliability", "releaseDetailErrors", "releasePrivacyLinks", "releaseCoverCache", "releaseImageLoading", "releaseImageRetries"]
+NOTES = ["radio.releaseMeCrashFix", "radio.releaseExternalListening", "releaseShareCards", "releaseAlbumArtwork", "releaseListeningNavigation", "releaseNetEaseBrowserRelease", "releaseNetEaseNavigationFix", "releaseNetEaseBrowserExperiment", "releaseNetEaseBrowserControl", "releaseNotebook", "releaseNotebookOrganization", "releaseNotebookLocal", "releaseBundledClips", "releaseDouyinClips", "releaseDouyinControl", "releaseYouTubeClips", "releaseYouTubeControl", "releaseV1Catalog", "releaseV1Reading", "releaseV1Personal", "releaseV1Listening", "releaseSongContent", "releaseLyricsReader", "releaseContentStates", "releasePersonalHub", "releaseRecentlyViewed", "releasePlatformPreference", "releaseCatalogCategories", "releaseUniversalLinks", "releaseSongLinks", "releaseFavoriteReliability", "releaseDetailErrors", "releasePrivacyLinks", "releaseCoverCache", "releaseImageLoading", "releaseImageRetries"]
 
 
 def validate(info, privacy, localizations, public_enabled, links_enabled=False,
              testflight_listening=False, app_store_listening=False):
     errors = []
-    if testflight_listening and app_store_listening:
-        errors.append("Listening candidate modes are mutually exclusive")
+    if testflight_listening or app_store_listening:
+        errors.append("Embedded listening is unavailable in shipping candidates; use external platform links")
     if links_enabled and not public_enabled:
         errors.append("Public links need public metadata")
-    if testflight_listening and not public_enabled:
-        errors.append("TestFlight listening candidate needs public metadata")
-    if app_store_listening and not public_enabled:
-        errors.append("App Store listening candidate needs public metadata")
-    listening_marker = "APPSTORE" if app_store_listening else "TESTFLIGHT" if testflight_listening else "NO"
     for key, expected in {
         "CFBundleIdentifier": "org.stationcat.music", "StationEnvironment": "production",
         **{key: "NO" for key in NATIVE_FLAGS},
-        "StationNetEaseBrowserExperimentEnabled": listening_marker,
+        "StationNetEaseBrowserExperimentEnabled": "NO",
+        "StationThirdPartyPlaybackPolicy": "EXTERNAL_ONLY",
         "StationNativeAuthOrigin": "", "StationMusicWebOrigin": "",
         "StationProductionActivationProfile": "",
         "StationPublicAppLinksEnabled": "YES" if links_enabled else "NO",
@@ -60,8 +56,9 @@ def validate(info, privacy, localizations, public_enabled, links_enabled=False,
         "bundle": info["CFBundleIdentifier"],
         "version": info.get("CFBundleShortVersionString"), "build": info.get("CFBundleVersion"),
         "publicMetadataEnabled": public_enabled, "nativeServicesEnabled": False,
-        "testflightListeningEnabled": testflight_listening,
-        "appStoreListeningEnabled": app_store_listening,
+        "testflightListeningEnabled": False,
+        "appStoreListeningEnabled": False,
+        "thirdPartyPlaybackPolicy": "EXTERNAL_ONLY",
         "backgroundAudio": False, "requiredReasonManifest": "present",
         "usesNonExemptEncryption": False,
         "releaseNoteLocales": sorted(localizations),

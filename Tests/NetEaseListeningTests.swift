@@ -28,6 +28,20 @@ private actor NetEaseListeningProvider: PlatformMusicProviding {
 
 @MainActor final class NetEaseListeningTests: XCTestCase {
     private let songURL = URL(string: "https://music.163.com/song?id=3446748064")!
+
+    func testExternalOnlyPolicyBlocksDirectSessionStartBeforeAnyRequest() async throws {
+        let pair = fixture()
+        let provider = NetEaseListeningProvider(pair.0)
+        let session = NetEaseListeningSession(embeddingAllowed: false, loadDocument: { _, _ in
+            XCTFail("An external-only session cannot load a third-party document")
+        })
+        session.start(try request(pair), track: pair.0, locale: "en", provider: provider)
+        XCTAssertEqual(session.phase, .failed)
+        XCTAssertEqual(session.failureKey, "thirdPartyExternalOnly")
+        XCTAssertNil(session.webView)
+        let calls = await provider.calls
+        XCTAssertEqual(calls, 0)
+    }
     private func fixture(url: URL? = nil, provider: PlatformProvider = .netease) -> (Track, PlatformLink) {
         let link = PlatformLink(id: "b30dd884-84ef-432b-8ac5-7820db67aa0e", provider: provider, url: url ?? songURL)
         let release = PlatformTrackRelease(slug: "track-883d3be1-2f28-4d81-b590-c3be6d80e8cd", summary: "", webURL: URL(string: "https://wwwstationcat.org/music/tracks/track-883d3be1-2f28-4d81-b590-c3be6d80e8cd/")!, platforms: [link], availability: "live", previewAvailable: false)

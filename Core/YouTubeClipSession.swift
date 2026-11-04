@@ -15,9 +15,14 @@ import WebKit
     @ObservationIgnored private var bridge: Bridge?
     @ObservationIgnored private var external: ((URL) -> Void)?
     @ObservationIgnored private let document: (YouTubeClip, String) -> String
+    @ObservationIgnored private let embeddingAllowed: Bool
     private var token = UUID().uuidString
 
-    init(document: @escaping (YouTubeClip, String) -> String = YouTubeEmbedDocument.html) { self.document = document }
+    init(embeddingAllowed: Bool = ThirdPartyPlaybackPolicy.embeddingAllowed,
+         document: @escaping (YouTubeClip, String) -> String = YouTubeEmbedDocument.html) {
+        self.embeddingAllowed = embeddingAllowed && ThirdPartyPlaybackPolicy.embeddingAllowed
+        self.document = document
+    }
 
     func start(_ clip: PlatformClip, track: Track, locale: String, provider: any PlatformMusicProviding,
                externalOnly: Bool = false, openExternal: @escaping (URL) -> Void) {
@@ -31,7 +36,7 @@ import WebKit
                 try Task.checkCancellation()
                 guard let self, self.token == ticket else { return }
                 guard current.contains(clip) else { self.fail("youtubeUnavailable"); return }
-                if externalOnly { self.stop(); openExternal(youtube.watchURL); return }
+                if externalOnly || !self.embeddingAllowed { self.stop(); openExternal(youtube.watchURL); return }
                 self.load(youtube, ticket: ticket)
             } catch {
                 guard let self, self.token == ticket, !Task.isCancelled else { return }
@@ -41,6 +46,7 @@ import WebKit
     }
 
     private func load(_ clip: YouTubeClip, ticket: String) {
+        guard embeddingAllowed else { fail("thirdPartyExternalOnly"); return }
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.allowsInlineMediaPlayback = true

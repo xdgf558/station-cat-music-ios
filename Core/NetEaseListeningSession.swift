@@ -19,9 +19,12 @@ import WebKit
     @ObservationIgnored private let loadDocument: (WKWebView, URL) -> Void
     @ObservationIgnored private let syntheticDocument: Bool
     @ObservationIgnored private let timeout: Duration
+    @ObservationIgnored private let embeddingAllowed: Bool
     private var generation = UUID()
 
-    init(loadDocument: ((WKWebView, URL) -> Void)? = nil, timeout: Duration = .seconds(20)) {
+    init(embeddingAllowed: Bool = ThirdPartyPlaybackPolicy.embeddingAllowed,
+         loadDocument: ((WKWebView, URL) -> Void)? = nil, timeout: Duration = .seconds(20)) {
+        self.embeddingAllowed = embeddingAllowed && ThirdPartyPlaybackPolicy.embeddingAllowed
         self.syntheticDocument = loadDocument != nil
         self.loadDocument = loadDocument ?? { view, url in
             view.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20))
@@ -31,6 +34,7 @@ import WebKit
 
     func start(_ request: NetEaseListeningRequest, track: Track, locale: String,
                provider: any PlatformMusicProviding) {
+        guard embeddingAllowed else { stop(); fail("thirdPartyExternalOnly"); return }
         verify(request, track: track, locale: locale, provider: provider) { [weak self] in
             self?.load(request)
         }
@@ -71,6 +75,7 @@ import WebKit
     }
 
     private func load(_ request: NetEaseListeningRequest) {
+        guard embeddingAllowed else { fail("thirdPartyExternalOnly"); return }
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.allowsInlineMediaPlayback = true

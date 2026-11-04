@@ -7,22 +7,31 @@ import XCTest
         if close.waitForExistence(timeout: 2) { close.tap() }
     }
 
-    private func launch(mode: String = "ready", locale: String = "zh-Hans", large: Bool = false) -> XCUIApplication {
+    private func launch(mode: String = "ready", locale: String = "zh-Hans", large: Bool = false, externalOnly: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--platform-music-fixture", "-AppleLanguages", "(\(locale))",
                                "-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launchEnvironment["STATION_PLATFORM_FIXTURE"] = "song-content"
         app.launchEnvironment["STATION_NETEASE_BROWSER_FIXTURE"] = mode
         app.launchEnvironment["STATION_PLATFORM_OPEN_FAIL"] = "1"
+        if externalOnly { app.launchEnvironment["STATION_EXTERNAL_ONLY_FIXTURE"] = "YES" }
         app.launchEnvironment["STATION_PERSONAL_TEST_NAMESPACE"] = UUID().uuidString
         app.launch()
         let featured = app.buttons["platformFeaturedOpen"]
         XCTAssertTrue(featured.waitForExistence(timeout: 10)); reveal(featured, app); featured.tap(); closeListeningChooser(app)
         let listen = app.buttons["platformLink.netease"]
         XCTAssertTrue(listen.waitForExistence(timeout: 10)); reveal(listen, app); listen.tap()
-        XCTAssertTrue(app.buttons["neteaseBrowserClose"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons[externalOnly ? "platformCopyLink" : "neteaseBrowserClose"].waitForExistence(timeout: 10))
         return app
     }
+    func testExternalOnlyListeningDoesNotPresentTheBrowserEvenWithAnOldFixtureMarker() {
+        let app = launch(externalOnly: true)
+        XCTAssertFalse(app.buttons["neteaseBrowserClose"].exists)
+        XCTAssertFalse(app.webViews.firstMatch.exists)
+        XCTAssertTrue(app.buttons["platformCopyLink"].exists)
+        XCTAssertTrue(app.buttons["contentTab.lyrics"].exists)
+    }
+
     private func reveal(_ element: XCUIElement, _ app: XCUIApplication) {
         for _ in 0..<8 { if element.isHittable { return }; app.swipeUp() }
         XCTAssertTrue(element.isHittable)

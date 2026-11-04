@@ -16,10 +16,13 @@ import WebKit
     @ObservationIgnored private var external: ((URL) -> Void)?
     @ObservationIgnored private let document: (DouyinClip, String) -> String
     @ObservationIgnored private let verifyEmbed: @Sendable (DouyinClip) async throws -> Void
+    @ObservationIgnored private let embeddingAllowed: Bool
     private var token = UUID().uuidString
 
-    init(document: @escaping (DouyinClip, String) -> String = DouyinEmbedDocument.html,
+    init(embeddingAllowed: Bool = ThirdPartyPlaybackPolicy.embeddingAllowed,
+         document: @escaping (DouyinClip, String) -> String = DouyinEmbedDocument.html,
          verifyEmbed: (@Sendable (DouyinClip) async throws -> Void)? = nil) {
+        self.embeddingAllowed = embeddingAllowed && ThirdPartyPlaybackPolicy.embeddingAllowed
         self.document = document
         self.verifyEmbed = verifyEmbed ?? { try await DouyinEmbedAPI(transport: URLSessionTransport()).verify($0) }
     }
@@ -36,7 +39,7 @@ import WebKit
                 try Task.checkCancellation()
                 guard let self, self.token == ticket else { return }
                 guard current.contains(clip) else { self.fail("douyinUnavailable"); return }
-                if externalOnly { self.stop(); openExternal(douyin.watchURL); return }
+                if externalOnly || !self.embeddingAllowed { self.stop(); openExternal(douyin.watchURL); return }
                 try await self.verifyEmbed(douyin)
                 try Task.checkCancellation()
                 guard self.token == ticket else { return }
@@ -49,6 +52,7 @@ import WebKit
     }
 
     private func load(_ clip: DouyinClip, ticket: String) {
+        guard embeddingAllowed else { fail("thirdPartyExternalOnly"); return }
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.allowsInlineMediaPlayback = true

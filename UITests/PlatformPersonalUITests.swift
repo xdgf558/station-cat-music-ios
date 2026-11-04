@@ -68,7 +68,7 @@ import XCTest
         XCTAssertFalse(app.buttons["offlineEntry"].exists); XCTAssertFalse(app.buttons["accountEntry"].exists)
         reveal(app.buttons["helpEntry"], app: app); app.buttons["helpEntry"].tap(); app.buttons["releaseNotesEntry"].tap()
         XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.9 (22)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["修复部分 iPhone 打开“我的”时闪退的问题，保留收藏、笔记与设置。"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["修复部分设备打开“我的”时闪退的问题，保留收藏、笔记与设置。"].waitForExistence(timeout: 5))
         let changes = [
             "全新暖纸质界面、衬线排版与猫耳唱片图标，提供日间及深夜外观。",
             "新增电台调频选歌与唱片架布局，笔记升级为独立一级入口。",

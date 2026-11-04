@@ -81,7 +81,7 @@ import XCTest
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.9 (22)")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["releaseNotesEntry"].tap()
         XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.9 (22)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["修复部分 iPhone 打开“我的”时闪退的问题，保留收藏、笔记与设置。"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["修复部分设备打开“我的”时闪退的问题，保留收藏、笔记与设置。"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["全新暖纸质界面、衬线排版与猫耳唱片图标，提供日间及深夜外观。"].waitForExistence(timeout: 5))
         let previous = app.staticTexts["改善网易云官方页面跳转兼容；额外跳转被拦截时保留已显示的网页，并显示脱敏诊断便于排查。"]
         for _ in 0..<4 { if previous.exists { break }; app.swipeUp() }

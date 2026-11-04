@@ -123,6 +123,16 @@ private actor MovieProvider: PlatformMusicProviding {
             XCTAssertThrowsError(try PlatformLyrics(data: data, kind: "txt"))
         }
     }
+    func testParsedLyricsUseTheSameQuotePolicyAsNotebookStorage() throws {
+        // Reading keeps the published text; quote eligibility does not silently
+        // strip format characters or use UTF-16 units as the character limit.
+        let lines = [String(repeating: "𠮷", count: 200), String(repeating: "👩🏽‍💻", count: 200),
+                     "a\u{200B}b", "a\u{202E}b", "a\u{2066}b"]
+        let lyrics = try PlatformLyrics(data: Data(lines.joined(separator: "\n").utf8), kind: "txt")
+        let parsed = lyrics.stanzas.joined(separator: "\n").components(separatedBy: "\n")
+        XCTAssertEqual(parsed, lines)
+        XCTAssertEqual(parsed.map(NotebookQuoteInput.validation), [.valid, .valid, .invalidCharacters, .invalidCharacters, .invalidCharacters])
+    }
     func testLyricsUsesOnlyControlledPublicAssetWithoutCookiesOrCredentials() async throws {
         let value = try await detail()
         let network = ContentTransport([HTTPResult(status: 200, data: Data("One\nTwo".utf8), headers: ["content-type":"text/plain; charset=utf-8"])])

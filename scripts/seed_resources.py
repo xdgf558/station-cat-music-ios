@@ -33,7 +33,7 @@ releaseNotebook|Write your own notes from a song page or the notebook, with an o
 releaseNotebookOrganization|Organize notes into your own topics and search titles or text to find them again.|按自建主题整理手记，通过标题或正文搜索，找回写下的内容。|依自建主題整理手記，透過標題或內文搜尋，找回寫下的內容。|自分で作ったテーマでノートを整理し、タイトルや本文から検索できます。
 releaseNotebookLocal|Read, edit and delete saved notes offline. Notes stay on this device and are not uploaded or synced across devices.|已保存的手记可离线查看、编辑和删除，仅保存在本机，不上传或跨设备同步。|已儲存的手記可離線查看、編輯及刪除，僅儲存在本機，不上傳或跨裝置同步。|保存したノートはオフラインでも閲覧・編集・削除できます。この端末のみに保存され、アップロードや端末間同期は行いません。
 releaseBundledClips|This update also includes YouTube and Douyin players. Tap to connect when a clip is published; no videos are downloaded. Listening still opens your music platform.|本次同时包含 YouTube 与抖音短片播放器，有已发布内容时点击后才连接，不提供视频下载；歌曲仍前往音乐平台收听。|本次同時包含 YouTube 與抖音短片播放器，有已發佈內容時點擊後才連線，不提供影片下載；歌曲仍前往音樂平台收聽。|YouTube と Douyin のプレーヤーも含みます。公開動画がある場合にタップして接続し、動画はダウンロードしません。楽曲は引き続き外部の音楽サービスで聴けます。
-notebookTitle|My notebook|我的手记|我的手記|マイノート
+notebookTitle|Notebook|笔记本|筆記本|ノート
 notebookIntro|Keep your thoughts about music for yourself.|把听歌时的想法，留给自己。|把聽歌時的想法，留給自己。|音楽から生まれた思いを、自分のために。
 notebookSearch|Search notes|搜索手记|搜尋手記|ノートを検索
 notebookAll|All|全部|全部|すべて
@@ -214,7 +214,6 @@ favorite|Favorite|收藏|收藏|お気に入り
 guest|Listening as a guest|以游客身份浏览|以訪客身分瀏覽|ゲストとして表示
 authNotReady|Sign-in will be connected in the authentication milestone.|账号登录将在认证阶段接入。|帳號登入將在認證階段接入。|ログイン機能は認証段階で実装します。
 favorites|Your favorites|我的收藏|我的收藏|お気に入り
-noFavorites|Save a sample track to find it here.|收藏一首示例歌曲，就能在这里找到。|收藏一首示例歌曲，就能在這裡找到。|サンプル曲を保存すると、ここに表示されます。
 localSession|Preview favorites last for this session only. Cloud sync is not connected.|预览收藏只保留在本次会话，尚未连接云同步。|預覽收藏只保留在本次工作階段，尚未連接雲端同步。|お気に入りは今回のセッションのみ保存されます。クラウド同期は未接続です。
 settings|Settings|设置|設定|設定
 language|Language|语言|語言|言語
@@ -428,12 +427,100 @@ releaseWebsiteCatalog|Works and featured picks follow the website's public relea
 releaseLocalData|Favorites and existing local files are kept. Full playback and new offline saves are no longer main-screen actions.|保留收藏与已有本机文件，主界面不再提供完整播放与新增离线缓存入口。|保留收藏與既有本機檔案，主介面不再提供完整播放與新增離線快取入口。|お気に入りと既存の端末内ファイルを保持。全曲再生と新しいオフライン保存の入口はメイン画面から外しました。
 '''
 
+# Radio UI handoff · 2026-11-03.
+rows += r'''
+radio.aboutStationCat|About Station Cat|关于 Station Cat|關於 Station Cat|Station Catについて
+radio.albumChooseTrack|Choose a track to listen|选择曲目收听|選擇曲目收聽|聴く曲を選ぶ
+radio.albumTrackDetail|View song content|查看歌曲内容|查看歌曲內容|曲の内容を表示
+radio.allNotes|All notes →|全部笔记 →|全部筆記 →|すべてのノート →
+radio.appearance|Appearance|外观模式|外觀模式|外観
+radio.appearanceNight|Night radio|深夜电台|深夜電台|深夜ラジオ
+radio.appearancePaper|Day paper|日间纸张|日間紙張|昼の紙
+radio.appearanceSystem|System|跟随系统|跟隨系統|システム
+radio.brand|Station Cat Radio|Station Cat 电台|Station Cat 電台|Station Cat ラジオ
+radio.chooseListening|Choose where to listen|选择平台收听|選擇平台收聽|聴くサービスを選ぶ
+radio.choosePlatform|Choose a service|选择收听平台|選擇收聽平台|配信サービスを選ぶ
+radio.clipPrivacy|YouTube and Douyin clips connect to those services only when you tap to load. Browsing this page does not load their players.|短片来自 YouTube／抖音。点开时才会连接对方服务，浏览本页不会加载播放器。|短片來自 YouTube／抖音。點開時才會連接對方服務，瀏覽本頁不會載入播放器。|YouTube・抖音の動画はタップしたときだけ各サービスに接続します。このページの閲覧だけではプレーヤーを読み込みません。
+radio.comingSoon|Coming soon|即将上架|即將上架|配信予定
+radio.creativeNotes|CREATIVE NOTES|创作手记|創作手記|制作ノート
+radio.dial|Tune between works|调频选歌|調頻選歌|ダイヤルで曲を選ぶ
+radio.dragHint|Drag the dial to find another song|← 拖动刻度换台 →|← 拖動刻度換台 →|← ダイヤルを動かして選曲 →
+radio.favoriteEmpty|Tap the heart on a song to keep it here.|在歌曲页点爱心，就能收藏在这里。|在歌曲頁點愛心，就能收藏在這裡。|曲ページのハートを押すと、ここに保存できます。
+radio.headline|Tonight,\ntune into a song.|今夜，\n先调到这一台。|今夜，\n先調到這一台。|今夜は、\nこの一曲から。
+radio.inNotebook|In your notebook|笔记本里|筆記本裡|ノートから
+radio.listenDefaultHint|Website order · use the arrow to switch|按网站排序 · 点右侧箭头可切换|依網站排序 · 點右側箭頭可切換|サイトの順序 · 右の矢印で変更
+radio.listenPending|No listening link yet|收听入口待公开|收聽入口待公開|配信リンクは準備中
+radio.listenPreferredHint|Your preferred service · use the arrow to switch|你的常用平台 · 点右侧箭头可切换|你的常用平台 · 點右側箭頭可切換|いつものサービス · 右の矢印で変更
+radio.listenVerification|Listening links are verified online.|收听入口需要联网核验。|收聽入口需要連線核驗。|配信リンクはオンラインで確認します。
+radio.listenerCard|Your listener card|电台听众证|電台聽眾證|リスナーカード
+radio.listenerLocal|ON THIS IPHONE|本机资料|本機資料|このiPhoneのデータ
+radio.listenerPrivacy|Your favorites and notes stay on this iPhone.|收藏与笔记都保存在本机。|收藏與筆記都儲存在本機。|お気に入りとノートはこのiPhoneに保存されます。
+radio.listeningHint|Choose a published platform after the work is verified.|核验作品后，选择你常用的平台。|核驗作品後，選擇你常用的平台。|作品を確認してから、配信先を選べます。
+radio.localOnly|On this iPhone only|仅存本机|僅存本機|この端末のみ
+radio.lyricsEmptyHint|They will appear when published. You can read the story meanwhile.|发布后会出现在这里，先看看「故事」吧。|發布後會出現在這裡，先看看「故事」吧。|公開後ここに表示されます。それまではストーリーをどうぞ。
+radio.lyricsOnTheWay|Lyrics are on the way|歌词还在路上|歌詞還在路上|歌詞は準備中です
+radio.newPage|A NEW PAGE|新的一页|新的一頁|新しいページ
+radio.newRecords|New records|新到唱片|新到唱片|新しいレコード
+radio.next|Next station|下一台|下一台|次のステーション
+radio.noteBodyPlaceholder|Write what is on your mind…|写下此刻想到的……|寫下此刻想到的……|いま思っていることを……
+radio.noteEmpty|Write something first|先写点什么吧|先寫點什麼吧|まず何か書いてみましょう
+radio.noteLinked|Linked|关联|關聯|関連
+radio.noteSaved|Saved on this iPhone|已保存在这台手机上|已儲存在這台手機上|このiPhoneに保存しました
+radio.noteTitlePlaceholder|Give this page a title|给这一页起个标题|給這一頁起個標題|このページにタイトルを
+radio.notebookEmpty|This page is still blank.|这一栏还是空白页。|這一欄還是空白頁。|このページはまだ白紙です。
+radio.notebookIntro|Write to a song, or to yourself. Only on this iPhone.|写给歌，也写给自己。只保存在这台手机上。|寫給歌，也寫給自己。只儲存在這台手機上。|歌へ、そして自分へ。このiPhoneだけに保存されます。
+radio.notesCount|Notes|笔记|筆記|ノート
+radio.platformAvailable|Available|可收听|可收聽|配信あり
+radio.platformAvailablePreferred|Available · preferred|可收听 · 常用|可收聽 · 常用|配信あり · いつものサービス
+radio.platformNotListed|No available link for this work|此作品暂无可用入口|此作品暫無可用入口|この作品のリンクはありません
+radio.platformPreferenceIntro|Listening buttons prefer this service when the work is available there.|作品已上架时，收听按钮会优先使用它。|作品已上架時，收聽按鈕會優先使用它。|作品が公開されている場合、このサービスを優先します。
+radio.platformPreferenceSaved|Preferred service saved|常用平台已更新|常用平台已更新|よく使うサービスを保存しました
+radio.previous|Previous station|上一台|上一台|前のステーション
+radio.privacyLocalData|Privacy & local data|隐私与本机数据|隱私與本機資料|プライバシーと端末データ
+radio.program|Tonight’s selection|今晚节目单|今晚節目單|今夜の選曲
+radio.quotePrivacy|A lyric line is saved only when you choose it. Your notes and selected quotes stay on this iPhone and are not uploaded or synced. Quotes are limited to 200 characters.|只有你主动选择的歌词句子才会存入笔记。笔记和摘录只保存在此手机，不上传或同步；每句摘录最多200字。|只有你主動選擇的歌詞句子才會存入筆記。筆記與摘錄只儲存在此手機，不上傳或同步；每句摘錄最多200字。|歌詞は自分で選んだ一行だけを保存します。ノートと引用はこのiPhoneのみに保存され、アップロードや同期はされません。引用は200文字までです。
+radio.quoteToNote|Save to note|摘进笔记|摘進筆記|ノートに摘む
+radio.quoteTooLong|This line is longer than the 200-character quote limit.|此句超过 200 字摘录上限。|此句超過 200 字摘錄上限。|この行は引用の上限200文字を超えています。
+radio.quoteInvalidCharacters|This line contains unsupported invisible characters and cannot be quoted.|此句含不支持的不可见字符，无法摘录。|此句含不支援的不可見字元，無法摘錄。|この行には対応していない不可視文字があり、引用できません。
+radio.recentReceipt|Recently viewed|最近查看小票|最近查看小票|最近見た作品
+radio.releaseAppearance|Follow system appearance or choose paper and night modes. Listening, favorites and earlier local data keep their existing rules.|支持跟随系统、日间纸与深夜电台；保留既有收听、收藏及本机资料管理。|支援跟隨系統、日間紙與深夜電台；保留既有收聽、收藏及本機資料管理。|システム・昼の紙・夜のラジオ表示を選べます。配信先、お気に入り、既存データの管理を維持します。
+radio.releaseDesign|A warm paper interface with serif typography and new light and dark cat-record icons.|全新暖纸质界面、衬线排版与猫耳唱片图标，提供日间及深夜外观。|全新暖紙質介面、襯線排版與貓耳唱片圖示，提供日間及深夜外觀。|温かい紙の質感とセリフ体、新しい猫レコードのライト・ダークアイコンに刷新。
+radio.releaseNavigation|Browse with the Radio dial and record shelf. Notes now have their own main tab.|新增电台调频选歌与唱片架布局，笔记升级为独立一级入口。|新增電台調頻選歌與唱片架版面，筆記升級為獨立一級入口。|ラジオ風ダイヤルとレコード棚で作品を探せます。ノートが独立したタブになりました。
+radio.releaseQuotes|Select a published lyric line and save it to a local note. Nothing is saved until you choose Save.|可主动选取一句已发布歌词摘入笔记，确认保存后仅留在本机。|可主動選取一句已發佈歌詞摘入筆記，確認儲存後僅留在本機。|公開歌詞の一行を選んでノートに引用できます。保存を押すまで記録せず、この端末だけに保存します。
+radio.rememberPlatform|Remember as my preferred service|记住为常用平台|記住為常用平台|いつものサービスとして記憶
+radio.removeQuote|Remove quote|移除摘录|移除摘錄|引用を削除
+radio.saveViewingReceipt|Keep viewing receipts|记录查看小票|記錄查看小票|閲覧履歴を保存
+radio.selectedWork|Selected work|已选作品|已選作品|選んだ作品
+radio.shelfAlbumCount|%d albums|%d 张|%d 張|%d 枚
+radio.shelfNoResults|No matching records|唱片架上没有找到|唱片架上沒有找到|レコードが見つかりません
+radio.shelfNoResultsDetail|Try another song or album name.|换个歌名或专辑名试试。|換個歌名或專輯名試試。|別の曲名やアルバム名で検索してください。
+radio.shelfSearch|Search songs or albums|搜索歌名、专辑|搜尋歌名、專輯|曲名・アルバムを検索
+radio.shelfTitle|Record shelf|唱片架|唱片架|レコード棚
+radio.shelfTracks|Tracks|曲目|曲目|曲目
+radio.skip|Tap to skip|轻点跳过|輕點跳過|タップしてスキップ
+radio.startupTuning|Tuning|正在调频|正在調頻|チューニング中
+radio.tabNotes|Notes|笔记|筆記|ノート
+radio.tabRadio|Radio|电台|電台|ラジオ
+radio.tabShelf|Shelf|唱片架|唱片架|レコード棚
+radio.tapLyric|Tap a line to save a quote to your note|点一句，摘进笔记|點一句，摘進筆記|一行をタップしてノートに摘む
+radio.tapToLoad|Tap to load|点击加载|點擊載入|タップして読み込む
+radio.toShelf|To the shelf →|去唱片架 →|去唱片架 →|レコード棚へ →
+radio.tuning|Tuning…|调频中…|調頻中…|選曲中…
+radio.visualFrequency|A dial for discovering songs. Listening happens on your chosen platform.|调频遇见下一首，前往喜欢的平台收听。|調頻遇見下一首，前往喜歡的平台收聽。|ダイヤルで次の一曲へ。再生は選んだ配信サービスで。
+radio.whereListen|Where to listen|在哪里收听|在哪裡收聽|どこで聴きますか
+radio.writePage|Write a page|写一页|寫一頁|一ページ書く
+radio.writingHelp|Writing & storage|写作与保存说明|寫作與儲存說明|記入と保存について
+'''
+
 # Embedded hero newlines are restored from escaped markers after splitting rows.
 rows=rows.replace('A little music.\nA slower day.','A little music.\\nA slower day.').replace('听一点音乐，\n让日常慢下来。','听一点音乐，\\n让日常慢下来。').replace('聽一點音樂，\n讓日常慢下來。','聽一點音樂，\\n讓日常慢下來。').replace('音楽とともに、\nゆっくり過ごす。','音楽とともに、\\nゆっくり過ごす。')
 translations={x:{} for x in ['en','zh-Hans','zh-Hant','ja']}
+seen_keys=set()
 for row in rows.splitlines():
  if not row: continue
  key,*values=row.split('|');assert len(values)==4,key
+ if key in seen_keys: raise ValueError('Duplicate localization key: '+key)
+ seen_keys.add(key)
  for lang,value in zip(translations,values):translations[lang][key]=value.replace('\\n','\n')
 (root/'Resources/Localizations.json').write_text(json.dumps(translations,ensure_ascii=False,indent=2)+'\n')
 fixture={'data':{'items':[{'id':'sample-night-window','title':'夜窗 · Night Window','artist':'Station Cat · Sample','durationSeconds':180,'audioVersion':1,'access':'free'},{'id':'sample-slow-morning','title':'慢一点的清晨 · Slow Morning','artist':'Station Cat · Sample','durationSeconds':210,'audioVersion':1,'access':'vip'},{'id':'sample-paper-moon','title':'纸月亮 · Paper Moon','artist':'Station Cat · Sample','durationSeconds':200,'audioVersion':1,'access':'preview'}],'nextCursor':None},'requestId':'fixture-catalog','serverNow':'2026-09-16T00:00:00Z'}

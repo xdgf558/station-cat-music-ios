@@ -2,6 +2,11 @@ import XCTest
 
 @MainActor final class NetEaseListeningUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
+    private func closeListeningChooser(_ app: XCUIApplication) {
+        let close = app.buttons["platformPickerClose"]
+        if close.waitForExistence(timeout: 2) { close.tap() }
+    }
+
     private func launch(mode: String = "ready", locale: String = "zh-Hans", large: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--platform-music-fixture", "-AppleLanguages", "(\(locale))",
@@ -12,7 +17,7 @@ import XCTest
         app.launchEnvironment["STATION_PERSONAL_TEST_NAMESPACE"] = UUID().uuidString
         app.launch()
         let featured = app.buttons["platformFeaturedOpen"]
-        XCTAssertTrue(featured.waitForExistence(timeout: 10)); reveal(featured, app); featured.tap()
+        XCTAssertTrue(featured.waitForExistence(timeout: 10)); reveal(featured, app); featured.tap(); closeListeningChooser(app)
         let listen = app.buttons["platformLink.netease"]
         XCTAssertTrue(listen.waitForExistence(timeout: 10)); reveal(listen, app); listen.tap()
         XCTAssertTrue(app.buttons["neteaseBrowserClose"].waitForExistence(timeout: 10))
@@ -58,7 +63,8 @@ import XCTest
     func testApprovedMobileDocumentLoadsFromLocalFixture() {
         let app = launch(mode: "mobile")
         XCTAssertTrue(app.staticTexts["neteaseBrowserLoaded"].waitForExistence(timeout: 15))
-        XCTAssertTrue(app.webViews.staticTexts["官方分享域名本机夹具"].exists)
+        // Document completion can precede WebKit's accessibility tree.
+        XCTAssertTrue(app.webViews.staticTexts["官方分享域名本机夹具"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["neteaseBrowserFailure"].exists)
         app.buttons["neteaseBrowserClose"].tap()
     }

@@ -8,18 +8,61 @@ import UIKit
         app.launchArguments = ["--platform-music-fixture", "-AppleLanguages", "(\(locale))", "-UIPreferredContentSizeCategoryName", large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launchEnvironment["STATION_PLATFORM_FIXTURE"] = "song-content"
         app.launchEnvironment["STATION_PERSONAL_TEST_NAMESPACE"] = UUID().uuidString
-        app.launch(); XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 15))
+        app.launch(); XCTAssertTrue(app.buttons["tab.radio"].waitForExistence(timeout: 15))
         return app
     }
     private func enter(_ app: XCUIApplication) {
-        app.tabBars.buttons.element(boundBy: 2).tap()
-        let entry = app.buttons["notebookEntry"]
+        let entry = app.buttons["tab.notes"]
         XCTAssertTrue(entry.waitForExistence(timeout: 5)); entry.tap()
         XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
     }
     private func reveal(_ element: XCUIElement, app: XCUIApplication) {
-        for _ in 0..<10 { if element.isHittable { return }; app.swipeUp() }
-        XCTAssertTrue(element.isHittable)
+        let identifier = element.exists ? element.identifier : "missing-control"
+        for attempt in 0...10 {
+            if !element.exists { _ = element.waitForExistence(timeout: 2) }
+            let editorScroll = app.scrollViews.containing(.any, identifier: "notebookWritingHelp").firstMatch
+            guard editorScroll.exists else {
+                if element.isHittable { return }
+                guard attempt < 10 else { break }
+                app.swipeUp(); continue
+            }
+            // The full-screen swipe starts on the keyboard after Next/Paste.
+            // Pan the editor's outer scroll view, along the paper's left margin,
+            // without tapping the body or sending a key that could edit the draft.
+            var viewport = editorScroll.frame.intersection(app.frame)
+            let header = app.buttons["notebookEditorClose"]
+            if header.exists {
+                let top = max(viewport.minY, header.frame.maxY)
+                viewport.size.height = max(0, viewport.maxY - top)
+                viewport.origin.y = top
+            }
+            let keyboard = app.keyboards.firstMatch
+            if keyboard.exists {
+                let bottom = min(viewport.maxY, keyboard.frame.minY)
+                viewport.size.height = max(0, bottom - viewport.minY)
+            }
+            guard !viewport.isNull, viewport.height > 80, viewport.width > 24 else {
+                XCTFail("The notebook editor must have a visible scroll viewport above the keyboard")
+                return
+            }
+            // Stable Xcode can report controls behind the keyboard as hittable.
+            let frame = element.exists ? element.frame : .zero
+            if element.exists && element.isHittable && frame.minY >= viewport.minY && frame.maxY <= viewport.maxY { return }
+            guard attempt < 10 else { break }
+            // Recompute after each pan: interactive keyboard dismissal changes
+            // the viewport, and a target above it needs the opposite direction.
+            let towardTop = element.exists && frame.midY < viewport.midY
+            let startY = viewport.minY + viewport.height * (towardTop ? 0.25 : 0.80)
+            let endY = viewport.minY + viewport.height * (towardTop ? 0.80 : 0.25)
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let x = viewport.minX + 10
+            let start = origin.withOffset(CGVector(dx: x - app.frame.minX, dy: startY - app.frame.minY))
+            let end = origin.withOffset(CGVector(dx: x - app.frame.minX, dy: endY - app.frame.minY))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        capture(app, "Notebook-Reveal-Failure-" + identifier)
+        print("NOTEBOOK_REVEAL_FAILED id=\(identifier) target=\(element.exists ? element.frame : .zero) keyboard=\(app.keyboards.firstMatch.exists ? app.keyboards.firstMatch.frame : .zero)")
+        XCTFail("Control must be fully visible above the keyboard and below the editor header: " + identifier)
     }
     private func field(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
@@ -31,13 +74,21 @@ import UIKit
     private func addNote(_ app: XCUIApplication, title: String, body: String) {
         reveal(app.buttons["notebookNew"], app: app); app.buttons["notebookNew"].tap()
         let heading = field(app, "notebookTitleField")
-        XCTAssertTrue(heading.waitForExistence(timeout: 5)); heading.tap(); heading.typeText(title)
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        if !title.isEmpty { heading.tap(); heading.typeText(title) }
         let text = app.textViews["notebookBodyField"]; text.tap(); text.typeText(body)
         app.buttons["notebookSave"].tap()
         XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
     }
     private func rows(_ app: XCUIApplication) -> XCUIElementQuery {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "notebook.note."))
+    }
+    private func showWritingHelp(_ app: XCUIApplication) {
+        let help = field(app, "notebookWritingHelp")
+        reveal(help, app: app); help.tap()
+        let limits = app.staticTexts["notebookTextLimits"]
+        reveal(limits, app: app)
+        XCTAssertTrue(limits.waitForExistence(timeout: 3), "Expanded writing help must retain the full title and body rules")
     }
     private func paste(_ value: String, into element: XCUIElement, app: XCUIApplication) {
         // The simulator test runner and tested app share this pasteboard. Use
@@ -51,6 +102,54 @@ import UIKit
             XCTAssertTrue(button.waitForExistence(timeout: 3)); button.tap()
         }
     }
+    func testEmptyPageSaveShowsMessageAndKeepsEditor() {
+        let app = launch(); enter(app); app.buttons["notebookNew"].tap()
+        let heading = field(app, "notebookTitleField")
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        app.buttons["notebookSave"].tap()
+        XCTAssertTrue(app.staticTexts["notebookToast"].waitForExistence(timeout: 3))
+        XCTAssertTrue(heading.exists, "An empty save must keep the editor open")
+        XCTAssertTrue(app.buttons["notebookEditorClose"].isHittable)
+        app.buttons["notebookEditorClose"].tap()
+        XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
+        XCTAssertEqual(rows(app).count, 0)
+    }
+    func testUntitledWritingStaysEditableAndLocalizesWithoutChangingSavedText() {
+        let app = launch(); enter(app)
+        let original = "My original untitled writing."
+        addNote(app, title: "", body: original)
+        XCTAssertEqual(rows(app).count, 1)
+        XCTAssertTrue(rows(app).firstMatch.label.contains("Untitled note"))
+        rows(app).firstMatch.tap()
+        let heading = app.textFields["notebookTitleField"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        XCTAssertTrue((heading.value as? String)?.isEmpty == true || heading.value as? String == heading.placeholderValue,
+                      "A display-only untitled label must not fill the editor's title")
+        let body = app.textViews["notebookBodyField"]
+        XCTAssertEqual(body.value as? String, original)
+        body.tap(); body.typeText(" A later thought.")
+        app.buttons["notebookSave"].tap()
+        XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
+        app.terminate()
+        let languageArgument = app.launchArguments.firstIndex(of: "-AppleLanguages")!
+        app.launchArguments[languageArgument + 1] = "(zh-Hans)"
+        app.launch(); XCTAssertTrue(app.buttons["tab.radio"].waitForExistence(timeout: 15)); enter(app)
+        XCTAssertEqual(rows(app).count, 1)
+        XCTAssertTrue(rows(app).firstMatch.label.contains("未命名手记"))
+        XCTAssertFalse(rows(app).firstMatch.label.contains("Untitled note"))
+        rows(app).firstMatch.tap()
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        XCTAssertTrue((heading.value as? String)?.isEmpty == true || heading.value as? String == heading.placeholderValue)
+        let savedBody = body.value as? String ?? ""
+        XCTAssertTrue(savedBody.contains(original)); XCTAssertTrue(savedBody.contains("A later thought."))
+        app.buttons["notebookEditorClose"].tap()
+        let search = app.textFields["notebookSearch"]
+        search.tap(); search.typeText("original untitled writing")
+        XCTAssertEqual(rows(app).count, 1, "The note must remain searchable by the user's own words")
+        search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "original untitled writing".count))
+        search.typeText("Untitled note")
+        XCTAssertEqual(rows(app).count, 0, "A localized fallback must not be persisted as searchable user text")
+    }
     func testTitleNextMovesTypingToBodyAndSavesSingleLineTitle() {
         let app = launch(); enter(app); app.buttons["notebookNew"].tap()
         let heading = app.textFields["notebookTitleField"]
@@ -62,7 +161,7 @@ import UIKit
         app.typeText("My own words belong in the body.")
         XCTAssertEqual(heading.value as? String, "A title")
         XCTAssertEqual(app.textViews["notebookBodyField"].value as? String, "My own words belong in the body.")
-        XCTAssertTrue(app.staticTexts["notebookTextLimits"].exists)
+        showWritingHelp(app)
         app.buttons["notebookSave"].tap()
         XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5)); XCTAssertEqual(rows(app).count, 1)
         rows(app).firstMatch.tap()
@@ -80,9 +179,9 @@ import UIKit
             XCTAssertTrue(heading.waitForExistence(timeout: 5)); paste(example.0, into: heading, app: app)
             XCTAssertEqual(heading.value as? String, example.1)
             // UIKit may already replace line breaks before the Binding setter.
-            // The permanent rule is visible either way; the persisted text is
+            // The rules remain available in writing help; persisted text is
             // the contract, rather than requiring a transient conversion hint.
-            XCTAssertTrue(app.staticTexts["notebookTextLimits"].exists)
+            showWritingHelp(app)
             app.buttons["notebookSave"].tap()
             XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5)); XCTAssertEqual(rows(app).count, index + 1)
             let saved = rows(app).matching(NSPredicate(format: "label CONTAINS %@", example.1)).firstMatch
@@ -179,9 +278,8 @@ import UIKit
         reveal(app.buttons["notebookChooseWork"], app: app); app.buttons["notebookChooseWork"].tap()
         let work = app.buttons["notebook.song.883d3be1-2f28-4d81-b590-c3be6d80e8cd"]
         XCTAssertTrue(work.waitForExistence(timeout: 5)); work.tap()
-        let picker = app.buttons["notebookTopicPicker"]; reveal(picker, app: app); picker.tap()
-        let option = app.buttons.matching(identifier: "关系").allElementsBoundByIndex.first { $0.isHittable }
-        XCTAssertNotNil(option); option?.tap()
+        let option = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label == %@", "notebook.editorTopic.", "关系")).firstMatch
+        XCTAssertTrue(option.waitForExistence(timeout: 5)); reveal(option, app: app); option.tap()
         app.buttons["notebookSave"].tap()
         XCTAssertTrue(app.buttons["notebookNew"].waitForExistence(timeout: 5))
         XCTAssertEqual(rows(app).count, 3)

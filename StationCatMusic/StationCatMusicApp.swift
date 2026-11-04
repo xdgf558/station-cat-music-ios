@@ -79,9 +79,9 @@ import SwiftUI
     var body: some Scene {
         WindowGroup {
             if discardPlatformOpen {
-                RootView(model: model).preferredColorScheme(.dark)
+                RootView(model: model)
                     .environment(\.openURL, OpenURLAction { _ in .discarded })
-            } else { RootView(model: model).preferredColorScheme(.dark) }
+            } else { RootView(model: model) }
         }
     }
 }

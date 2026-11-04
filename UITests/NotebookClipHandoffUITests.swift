@@ -8,6 +8,11 @@ import XCTest
 
     override func setUp() { continueAfterFailure = false }
 
+    private func closeListeningChooser(_ app: XCUIApplication) {
+        let close = app.buttons["platformPickerClose"]
+        if close.waitForExistence(timeout: 2) { close.tap() }
+    }
+
     private func launch(_ provider: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--platform-music-fixture", "-AppleLanguages", "(en)",
@@ -17,7 +22,7 @@ import XCTest
         app.launchEnvironment["STATION_PLATFORM_OPEN_FAIL"] = "1"
         app.launch()
         let featured = app.buttons["platformFeaturedOpen"]
-        XCTAssertTrue(featured.waitForExistence(timeout: 15)); reveal(featured, app); featured.tap()
+        XCTAssertTrue(featured.waitForExistence(timeout: 15)); reveal(featured, app); featured.tap(); closeListeningChooser(app)
         let clips = app.buttons["contentTab.clips"]
         XCTAssertTrue(clips.waitForExistence(timeout: 10)); reveal(clips, app); clips.tap()
         let load = app.buttons[provider + "Load." + clipID]
@@ -46,7 +51,7 @@ import XCTest
 
     private func openEditor(_ app: XCUIApplication) {
         let write = app.buttons["notebookWriteForSong"]
-        XCTAssertTrue(write.waitForExistence(timeout: 5)); reveal(write, app); write.tap()
+        XCTAssertTrue(write.waitForExistence(timeout: 5)); XCTAssertTrue(write.isHittable); write.tap()
         XCTAssertTrue(app.buttons["notebookEditorClose"].waitForExistence(timeout: 5))
         let linkedWork = app.buttons["notebookChooseWork"]
         XCTAssertTrue(linkedWork.waitForExistence(timeout: 5))
@@ -82,12 +87,10 @@ import XCTest
         let text = app.textViews["notebookBodyField"]
         XCTAssertTrue(text.exists); text.tap(); text.typeText(body)
         app.buttons["notebookSave"].tap()
-        assertStoppedAfterReturning(app, provider: provider)
-        app.buttons["platformDetailClose"].tap()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 5))
-        app.tabBars.buttons.element(boundBy: 2).tap()
-        let entry = app.buttons["notebookEntry"]
-        XCTAssertTrue(entry.waitForExistence(timeout: 5)); reveal(entry, app); entry.tap()
+        XCTAssertTrue(app.buttons["notebookEditorClose"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["platformDetailClose"].waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.webViews.firstMatch.exists)
+        XCTAssertTrue(app.buttons["tab.notes"].waitForExistence(timeout: 5))
 
         let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "notebook.note."))
         XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5)); XCTAssertEqual(rows.count, 1)

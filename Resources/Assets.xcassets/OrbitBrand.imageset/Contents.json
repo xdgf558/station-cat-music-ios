@@ -1,8 +1,18 @@
 {
   "images": [
     {
-      "filename": "orbit-brand.png",
+      "filename": "brand.png",
       "idiom": "universal"
+    },
+    {
+      "filename": "brand-dark.png",
+      "idiom": "universal",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
     }
   ],
   "info": {

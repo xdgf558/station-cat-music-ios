@@ -93,3 +93,7 @@ UI 测试初期点击了 SwiftUI 外层 switch 行的文字区域；改为点击
 定位到测试把重新授权中的展示元数据当成了实际 grant：自然循环调用 selectItem，会先显示曲库时长；此时状态是 authorizing、没有音源，授权完成后才安装试听 grant 和时长。补充真实 Worker/AVPlayer 实验，确定性暂停第二次授权，确认等待期间 duration 为完整曲时长，而请求仍为 preview；释放后返回 preview grant、实际恢复试听且时长小于两秒。该实验支持此次媒体断言的时序原因，不用于解释旧 A11 失败。
 
 测试现改为检查第二次请求的 variant，确认等待时没有音源，等待真实播放恢复，再校验至少两次成功 grant 均为 preview 且实际播放时长小于两秒。保留等待时元数据作为诊断，不将其数值固化为产品要求。新增快速独立探针与原 315 秒真实认证轮换均使用此检查；没有放宽播放资格、删掉试听断言、重试失败操作或修改产品 Core。
+
+### 2026-11-04 平台版验证范围
+
+上文实播结果属于当时的历史验收。当前平台版不自建音源；默认 verify_native_library.py 使用受控事件验证存储与历史隔离，并以 M5_LIBRARY_EVENT_SOURCE:fixture 标记，不代表真实播放。完整实播只在 M5_REQUIRE_AUDIBLE_PLAYBACK=YES 的手动旧音乐验收中执行，CI 的 include_legacy_native_media=true 会同步选择此模式。原测试及真实历史失败保留。

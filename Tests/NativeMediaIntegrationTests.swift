@@ -1,5 +1,16 @@
 import XCTest
+import AVFAudio
 @testable import StationCatMusic
+#if DEBUG
+
+nonisolated struct MediaAudioSessionProbeSnapshot: Encodable {
+    let at: Double
+    let category: String
+    let mode: String
+    let sampleRate: Double?
+    let outputCount: Int
+}
+#endif
 
 // Test-only loopback mapping. No HTTP origin or ATS exception is added to the App.
 struct MusicProbeBridge: HTTPTransport, MediaHTTPTransport {
@@ -56,10 +67,58 @@ struct ProbeAuthorizer: PlaybackAuthorizing {
         let bridge = MusicProbeBridge(port: port, key: key), identity = try await bridge.fixture("bootstrap", as: ProbeIdentity.self)
         let track = Track(id: identity.trackId, title: "Synthetic sine", artist: "Local fixture", durationSeconds: 4.049, audioVersion: 1, access: .vip)
         let player = PlaybackService(transport: bridge)
+        // Match the native App entry; activation stays inside this requestPlay.
+        let session = AVAudioSession.sharedInstance()
+        let priorSession = (session.category, session.mode, session.categoryOptions)
+        let system = SystemPlayback(playback: player, artworkHost: "native.local.test")
+        player.attachSystem(system)
+        defer {
+            player.shutdown()
+            do { try session.setCategory(priorSession.0, mode: priorSession.1, options: priorSession.2) }
+            catch { XCTFail("Could not restore the test audio-session configuration") }
+        }
         player.configure(authorizer: ProbeAuthorizer(identity: identity, bridge: bridge, shortDeadline: false))
+#if DEBUG
+        NativeMediaProbeTrace.reset()
+#endif
         player.select(track); player.requestPlay()
-        for _ in 0..<50 { if player.position > 0.15 { break }; try await Task.sleep(for: .milliseconds(100)) }
-        XCTAssertTrue(player.hasAudioSource); XCTAssertTrue(player.isPlaying); XCTAssertGreaterThan(player.position, 0.15)
+#if DEBUG
+        var initialSamples = [PlaybackProbeSnapshot]()
+#endif
+        for _ in 0..<50 {
+#if DEBUG
+            initialSamples.append(player.nativeMediaProbeSnapshot)
+#endif
+            if player.position > 0.15 { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        // Freeze the original wait-boundary values before diagnostic output.
+        let initialAudioSource = player.hasAudioSource
+        let initialPlaying = player.isPlaying
+        let initialPosition = player.position
+#if DEBUG
+        initialSamples.append(player.nativeMediaProbeSnapshot)
+        let diagnosticEncoder = JSONEncoder(); diagnosticEncoder.outputFormatting = [.sortedKeys]
+        print("M3_INITIAL_AVPLAYER_DIAGNOSTICS:" + String(decoding: try diagnosticEncoder.encode(initialSamples), as: UTF8.self))
+        for event in NativeMediaProbeTrace.events() {
+            print("M3_INITIAL_LOADER_EVENT:" + String(decoding: try diagnosticEncoder.encode(event), as: UTF8.self))
+        }
+        // Read the session only after the original advancement wait. Do not
+        // activate it or prewarm audio before the cold-start assertion.
+        let audioSession = AVAudioSession.sharedInstance()
+        let categories = ["AVAudioSessionCategoryAmbient", "AVAudioSessionCategorySoloAmbient", "AVAudioSessionCategoryPlayback", "AVAudioSessionCategoryRecord", "AVAudioSessionCategoryPlayAndRecord", "AVAudioSessionCategoryMultiRoute"]
+        let modes = ["AVAudioSessionModeDefault", "AVAudioSessionModeMoviePlayback", "AVAudioSessionModeSpokenAudio", "AVAudioSessionModeVoiceChat", "AVAudioSessionModeVideoChat", "AVAudioSessionModeGameChat", "AVAudioSessionModeMeasurement", "AVAudioSessionModeVideoRecording", "AVAudioSessionModeVoicePrompt"]
+        let sessionSnapshot = MediaAudioSessionProbeSnapshot(at: Date().timeIntervalSince1970,
+            category: categories.contains(audioSession.category.rawValue) ? audioSession.category.rawValue : "other",
+            mode: modes.contains(audioSession.mode.rawValue) ? audioSession.mode.rawValue : "other",
+            sampleRate: audioSession.sampleRate.isFinite ? audioSession.sampleRate : nil,
+            outputCount: audioSession.currentRoute.outputs.count)
+        print("M3_INITIAL_AUDIO_SESSION:" + String(decoding: try diagnosticEncoder.encode(sessionSnapshot), as: UTF8.self))
+#endif
+        XCTAssertTrue(initialAudioSource); XCTAssertTrue(initialPlaying); XCTAssertGreaterThan(initialPosition, 0.15)
+        XCTAssertEqual(session.category, .playback)
+        XCTAssertEqual(session.mode, .default)
+        XCTAssertEqual(session.categoryOptions, [])
         player.seek(to: 2)
         try await Task.sleep(for: .milliseconds(400)); XCTAssertGreaterThan(player.position, 1.5)
         player.pause(); XCTAssertFalse(player.hasAudioSource); XCTAssertFalse(player.isPlaying)

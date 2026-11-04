@@ -5,7 +5,7 @@ private struct LibraryBrowser: AuthenticationBrowser {
     @MainActor func authorize(url: URL, callback: URL) throws -> URL { throw APIError.networkDisabled }
 }
 @MainActor final class PersonalLibraryIntegrationTests: XCTestCase {
-    func testRealWorkerTwoDevicesConflictHistoryEpochAndAudiblePlayback() async throws {
+    func testRealWorkerTwoDevicesConflictHistoryEpoch() async throws {
         let env = ProcessInfo.processInfo.environment
         guard let raw = env["M5_PROBE_PORT"], let port = Int(raw), let key = env["M5_PROBE_KEY"] else { throw XCTSkip("Dedicated M5 isolated library probe") }
         let bridge = MusicProbeBridge(port: port, key: key)
@@ -45,18 +45,29 @@ private struct LibraryBrowser: AuthenticationBrowser {
         let merged = try await first.snapshot(scope: scope)
         XCTAssertEqual(merged.recent.first?.positionSeconds, 40)
         XCTAssertEqual(try XCTUnwrap(merged.recent.first?.lastPlayedAt).timeIntervalSince1970, occurred.timeIntervalSince1970, accuracy: 0.002)
-        let music = try NativeMusicAPI(configuration: config, explicitlyEnabled: true, transport: bridge, auth: auth)
-        let player = PlaybackService(transport: bridge); defer { player.shutdown() }
-        var heard: (Double, Double, String)?
-        player.onListen = { _, _, audible, position, id in heard = (audible, position, id) }
-        player.configure(authorizer: music); player.select(track); player.requestPlay()
-        for _ in 0..<120 { if heard != nil { break }; try await Task.sleep(for: .milliseconds(100)) }
-        player.pause(); let event = try XCTUnwrap(heard)
-        XCTAssertGreaterThanOrEqual(event.0, 5)
+        let requiresAudible = env["M5_REQUIRE_AUDIBLE_PLAYBACK"] == "YES"
+        let event: (Double, Double, String)
+        if requiresAudible {
+            let music = try NativeMusicAPI(configuration: config, explicitlyEnabled: true, transport: bridge, auth: auth)
+            let player = PlaybackService(transport: bridge); defer { player.shutdown() }
+            var heard: (Double, Double, String)?
+            player.onListen = { _, _, audible, position, id in heard = (audible, position, id) }
+            player.configure(authorizer: music); player.select(track); player.requestPlay()
+            for _ in 0..<120 { if heard != nil { break }; try await Task.sleep(for: .milliseconds(100)) }
+            player.pause(); event = try XCTUnwrap(heard)
+            XCTAssertGreaterThanOrEqual(event.0, 5)
+        } else {
+            // The platform release checks storage/epochs with a controlled input.
+            // Actual AVPlayer qualification belongs to the manual music suite.
+            event = (5, 5, UUID().uuidString)
+        }
         try await one.record(track, variant: "full", audible: event.0, position: event.1, eventID: event.2, scope: scope)
         try await one.synchronize(scope: scope, remote: first)
         try await two.synchronize(scope: scope, remote: second)
         let recent = try await two.view(in: scope); XCTAssertEqual(recent.recent.map(\.trackId), [track.id])
+        XCTAssertEqual(try XCTUnwrap(recent.recent.first).positionSeconds, event.1, accuracy: 0.002)
+        let sent = try await one.view(in: scope); XCTAssertEqual(sent.pending, 0)
+        XCTAssertEqual(recent.pending, 0)
         // Device two is offline with an old epoch while device one clears history.
         try await two.record(track, variant: "full", audible: 5, position: 5, eventID: UUID().uuidString, scope: scope)
         try await one.clearHistory(scope: scope); try await one.synchronize(scope: scope, remote: first)
@@ -67,7 +78,10 @@ private struct LibraryBrowser: AuthenticationBrowser {
         let disabled = try await two.view(in: scope); XCTAssertFalse(disabled.historyEnabled)
         try await auth.signOut()
         do { _ = try await first.snapshot(scope: scope); XCTFail("Signed-out account sent personal request") } catch {}
-        print("M5_LIBRARY_PASSED: two native sessions, shared favorites, independent concurrent favorites, late offline ordering, conflict, real audible threshold, history epoch, disabled history, logout isolation")
+        if testRun?.totalFailureCount == 0 {
+            print("M5_LIBRARY_EVENT_SOURCE:" + (requiresAudible ? "audible" : "fixture"))
+            print("M5_LIBRARY_PASSED: two sessions, shared favorites, concurrent favorites, late offline ordering, conflict, history epoch, disabled history, logout isolation")
+        }
     }
     private struct RestartMarker: Codable {
         let runID: String; let pid: Int32; let scope: AccountScope; let epochAfterClear: Int

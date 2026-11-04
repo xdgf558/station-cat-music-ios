@@ -2,6 +2,26 @@ import Foundation
 import AVFoundation
 import Observation
 
+#if DEBUG
+// Read-only test diagnostics. Deliberately excludes URLs, credentials, user
+// identifiers, error descriptions and error userInfo. Not compiled in Production.
+nonisolated struct PlaybackProbeSnapshot: Encodable {
+    let at: Double
+    let state: String
+    let position: Double
+    let mediaTime: Double?
+    let rate: Float
+    let timeControlStatus: Int
+    let playerStatus: Int
+    let itemStatus: Int?
+    let timebaseRate: Double?
+    let seeking: Bool
+    let progressTaskActive: Bool
+    let errorDomain: String?
+    let errorCode: Int?
+}
+#endif
+
 nonisolated struct PlaybackBoundary: Sendable {
     private(set) var deadline: Double?
     private(set) var sequence = 0
@@ -81,6 +101,21 @@ nonisolated struct PlaybackBoundary: Sendable {
     init(clock: any PlaybackClock = ContinuousPlaybackClock(), loader: any MediaLoading = UnavailableMediaLoader(), transport: any MediaHTTPTransport = NativeMediaTransport()) { self.clock = clock; self.loader = loader; self.transport = transport }
     var hasAudioSource: Bool { player.currentItem != nil }
     var isPlaying: Bool { player.rate > 0 }
+#if DEBUG
+    var nativeMediaProbeSnapshot: PlaybackProbeSnapshot {
+        let rawTime = player.currentTime().seconds
+        let effectiveRate = player.currentItem?.timebase.map { CMTimebaseGetEffectiveRate($0) }
+        let error = (player.currentItem?.error ?? player.error) as NSError?
+        let domains = ["AVFoundationErrorDomain", "CoreMediaErrorDomain", "NSOSStatusErrorDomain", "NSURLErrorDomain", "NSPOSIXErrorDomain"]
+        return PlaybackProbeSnapshot(at: Date().timeIntervalSince1970, state: String(describing: state),
+            position: position, mediaTime: rawTime.isFinite ? rawTime : nil, rate: player.rate,
+            timeControlStatus: player.timeControlStatus.rawValue, playerStatus: player.status.rawValue,
+            itemStatus: player.currentItem?.status.rawValue,
+            timebaseRate: effectiveRate.flatMap { $0.isFinite ? $0 : nil }, seeking: isSeeking,
+            progressTaskActive: progressTask.map { !$0.isCancelled } ?? false,
+            errorDomain: error.map { domains.contains($0.domain) ? $0.domain : "other" }, errorCode: error?.code)
+    }
+#endif
     func attachSystem(_ value: any PlaybackSystem) { system?.shutdown(); system = value; publish() }
     private func publish() {
         guard let track = selectedTrack else { system?.publish(nil); return }

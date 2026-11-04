@@ -11,8 +11,8 @@ import XCTest
             large ? "UICTContentSizeCategoryAccessibilityXXXL" : "UICTContentSizeCategoryL"]
         app.launchEnvironment["STATION_PLATFORM_FIXTURE"] = fixture
         app.launch()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
-        app.tabBars.buttons.element(boundBy: 1).tap()
+        XCTAssertTrue(app.buttons["tab.shelf"].waitForExistence(timeout: 10))
+        app.buttons["tab.shelf"].tap()
         XCTAssertTrue(app.buttons[large ? "catalogCategoryMenu" : "catalogCategory.albums"].waitForExistence(timeout: 5))
         return app
     }
@@ -21,8 +21,34 @@ import XCTest
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
     private func reveal(_ element: XCUIElement, app: XCUIApplication) {
-        for _ in 0..<10 { if element.isHittable { return }; app.swipeUp() }
-        XCTAssertTrue(element.isHittable)
+        let identifier = element.exists ? element.identifier : "missing-control"
+        for attempt in 0...12 {
+            if !element.exists { _ = element.waitForExistence(timeout: 2) }
+            let top = max(app.frame.minY + 60, app.navigationBars.allElementsBoundByIndex.map { $0.frame.maxY }.max() ?? 0) + 8
+            var bottom = app.frame.maxY - 24
+            for control in [app.descendants(matching: .any)["radioTabBar"].firstMatch,
+                            app.buttons.matching(NSPredicate(format: "identifier IN %@", ["radioAlbumChooseTrack", "platformAlbumDetail"])).firstMatch,
+                            app.keyboards.firstMatch] where control.exists {
+                bottom = min(bottom, control.frame.minY - 8)
+            }
+            guard bottom - top > 80 else { XCTFail("No visible catalog scroll area"); return }
+            let frame = element.exists ? element.frame : nil
+            if let frame, element.isHittable && frame.minY >= top && frame.maxY <= bottom { return }
+            guard attempt < 12 else { break }
+            // A hittable row can still sit behind the fixed album action or tab bar.
+            let down = frame.map { $0.minY < top } ?? false
+            let distance = min(180, max(36, frame.map { down ? top + 12 - $0.minY : $0.maxY - bottom + 12 } ?? 180))
+            let y = top + (bottom - top) * (down ? 0.3 : 0.7)
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            origin.withOffset(CGVector(dx: app.frame.width / 2, dy: y - app.frame.minY))
+                .press(forDuration: 0.1,
+                       thenDragTo: origin.withOffset(CGVector(dx: app.frame.width / 2, dy: y + (down ? distance : -distance) - app.frame.minY)),
+                       withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
+        capture(app, "Catalog-Reveal-Failure-" + identifier)
+        print("CATALOG_REVEAL_FAILED id=\(identifier) target=\(element.exists ? element.frame : .zero)")
+        print(app.debugDescription)
+        XCTFail("Catalog control must be fully visible between fixed controls: " + identifier)
     }
     func testAlbumsSinglesSearchAndOrderedDetail() {
         let app = launch()
@@ -34,9 +60,11 @@ import XCTest
         first.tap()
         let firstSong = app.buttons["track." + firstTrack], secondSong = app.buttons["track." + secondTrack]
         XCTAssertTrue(firstSong.waitForExistence(timeout: 5))
+        capture(app, "Radio-Album-Top")
         reveal(secondSong, app: app)
         XCTAssertLessThan(firstSong.frame.minY, secondSong.frame.minY)
         capture(app, "Catalog-Album-Detail")
+        reveal(firstSong, app: app)
         firstSong.tap()
         XCTAssertTrue(app.buttons["platformLink.netease"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["miniPlayer"].exists)
@@ -54,6 +82,22 @@ import XCTest
         XCTAssertFalse(first.exists)
         app.buttons["catalogClearSearch"].tap()
         XCTAssertTrue(first.waitForExistence(timeout: 5))
+    }
+    func testAllShelfContainsAlbumsAndSearchMatchesTheirMemberSongs() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["album." + firstAlbum].exists)
+        let search = app.textFields["catalogSearch"]
+        search.tap(); search.typeText("夜窗来信\n")
+        XCTAssertTrue(app.buttons["album." + firstAlbum].waitForExistence(timeout: 5))
+        let firstSong = app.buttons["track." + firstTrack]
+        reveal(firstSong, app: app)
+        XCTAssertTrue(firstSong.exists)
+        XCTAssertFalse(app.buttons["track.11111111-1111-4111-8111-111111111111"].exists)
+        let favorite = app.buttons["catalogFavorite." + firstTrack]
+        reveal(favorite, app: app)
+        XCTAssertGreaterThanOrEqual(favorite.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(favorite.frame.height, 44)
+        capture(app, "Radio-Shelf-Album-Search")
     }
     func testEmptyAlbumCategoryReturnsToAllWorks() {
         let app = launch(locale: "en", fixture: "normal")
@@ -97,12 +141,18 @@ import XCTest
             let first = app.buttons["album." + firstAlbum]
             reveal(first, app: app)
             XCTAssertTrue(first.isHittable)
-            XCTAssertTrue(app.tabBars.buttons.element(boundBy: 2).isHittable)
+            XCTAssertTrue(app.buttons["tab.me"].isHittable)
             capture(app, "Catalog-Albums-" + locale + "-AXXXL")
             first.tap()
+            XCTAssertTrue(app.scrollViews["platformAlbumDetail"].waitForExistence(timeout: 5))
             let track = app.buttons["track." + firstTrack]
-            reveal(track, app: app); track.tap()
-            XCTAssertTrue(app.scrollViews["platformDetailScreen"].waitForExistence(timeout: 5))
+            reveal(track, app: app)
+            capture(app, "Catalog-Before-Track-" + locale + "-AXXXL")
+            print("CATALOG_TRACK_TAP locale=\(locale) target=\(track.frame)")
+            track.tap()
+            let opened = app.descendants(matching: .any)["platformDetailScreen"].firstMatch.waitForExistence(timeout: 5)
+            if !opened { capture(app, "Catalog-Track-Open-Failure-" + locale); print(app.debugDescription) }
+            XCTAssertTrue(opened)
             XCTAssertFalse(app.buttons["miniPlayer"].exists)
             app.terminate()
         }

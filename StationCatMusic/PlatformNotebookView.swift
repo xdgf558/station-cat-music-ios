@@ -1,66 +1,72 @@
 import SwiftUI
 
-/// Presentation snapshots retain the epoch and scope that the user actually opened.
-/// An editor can never silently save into a new notebook after clearing or switching accounts.
+/// The editor retains the epoch and scope that the user actually opened.
 struct PlatformNotebookEditorContext: Identifiable {
     let id = UUID()
     let note: NotebookNote?
     let work: NotebookWork?
+    let quote: String?
+    let topicID: UUID?
     let epoch: UUID
     let scope: AccountScope
 
-    init(note: NotebookNote? = nil, work: NotebookWork? = nil, state: NotebookState, scope: AccountScope) {
-        self.note = note; self.work = note?.work ?? work
-        self.epoch = state.epoch; self.scope = scope
+    init(note: NotebookNote? = nil, work: NotebookWork? = nil, quote: String? = nil,
+         state: NotebookState, scope: AccountScope, topicID: UUID? = nil) {
+        self.note = note; self.work = note?.work ?? work; self.quote = note?.quote ?? quote
+        self.topicID = note?.topicID ?? topicID; self.epoch = state.epoch; self.scope = scope
     }
 }
 
+enum NotebookFilter: Equatable { case all, uncategorized, topic(UUID) }
+
 struct PlatformNotebookPage: View {
     @Bindable var model: AppModel
-    @State private var query = ""
-    @State private var filter: Filter = .all
     @State private var editor: PlatformNotebookEditorContext?
     @State private var topics: PlatformNotebookEditorContext?
     @State private var pendingWork: NotebookWork?
-    private enum Filter: Equatable { case all, uncategorized, topic(UUID) }
 
     private var notes: [NotebookNote] {
-        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = model.notebookQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         return (model.notebookState?.notes ?? []).filter { note in
-            let category: Bool
-            switch filter {
-            case .all: category = true
-            case .uncategorized: category = note.topicID == nil
-            case .topic(let id): category = note.topicID == id
-            }
-            guard category else { return false }
+            guard belongs(note, to: model.notebookFilter) else { return false }
             guard !text.isEmpty else { return true }
             let workTitle = model.notebookTrack(for: note.work)?.title ?? model.notebookBookmark(for: note.work)?.title ?? ""
             let topic = model.notebookState?.topics.first(where: { $0.id == note.topicID })?.name ?? ""
-            return [note.title, note.body, topic, workTitle].contains { $0.localizedStandardContains(text) }
+            return [note.title, note.body, note.quote ?? "", topic, workTitle].contains { $0.localizedStandardContains(text) }
         }.sorted { $0.updatedAt == $1.updatedAt ? $0.id.uuidString < $1.id.uuidString : $0.updatedAt > $1.updatedAt }
+    }
+    private func belongs(_ note: NotebookNote, to category: NotebookFilter) -> Bool {
+        switch category {
+        case .all: true
+        case .uncategorized: note.topicID == nil
+        case .topic(let id): note.topicID == id
+        }
+    }
+    private func count(_ category: NotebookFilter) -> Int {
+        (model.notebookState?.notes ?? []).filter { belongs($0, to: category) }.count
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Keep the page marker on one semantic element. An identifier
-                // on the inset's outer container can overwrite its button IDs.
-                Text(model.t("notebookTitle")).font(.largeTitle.weight(.bold)).accessibilityAddTraits(.isHeader)
-                    .accessibilityIdentifier("notebookPage")
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 9) {
+                    Text("NOTEBOOK").radioMono(10, weight: .semibold).tracking(2).foregroundStyle(Palette.muted)
+                    Text(model.t("notebookTitle")).radioSerif(34, weight: .black, relativeTo: .largeTitle)
+                        .padding(.vertical, -5)
+                        .accessibilityAddTraits(.isHeader).accessibilityIdentifier("notebookPage")
+                    Text(model.t("radio.notebookIntro")).font(.subheadline).foregroundStyle(Palette.muted)
+                        .fixedSize(horizontal: false, vertical: true).lineSpacing(5)
+                }
                 search
                 filters
                 if let state = model.notebookState {
-                    if notes.isEmpty {
-                        empty(state.notes.isEmpty)
-                    } else {
-                        LazyVStack(spacing: 0) {
+                    if notes.isEmpty { empty(state.notes.isEmpty) }
+                    else {
+                        LazyVStack(spacing: 14) {
                             ForEach(notes, id: \.id) { note in
-                                Button {
-                                    editor = .init(note: note, state: state, scope: model.scope)
-                                } label: { PlatformNotebookRow(model: model, note: note) }
-                                    .buttonStyle(.plain).accessibilityIdentifier("notebook.note." + note.id.uuidString)
-                                Divider().overlay(Palette.line)
+                                Button { editor = .init(note: note, state: state, scope: model.scope) } label: {
+                                    PlatformNotebookRow(model: model, note: note)
+                                }.buttonStyle(.plain).accessibilityIdentifier("notebook.note." + note.id.uuidString)
                             }
                         }
                     }
@@ -68,90 +74,99 @@ struct PlatformNotebookPage: View {
                     ProgressView(model.t("notebookLoading")).frame(maxWidth: .infinity, minHeight: 160)
                 }
                 if model.notebookErrorKey != nil { NotebookFailure(model: model, retry: { Task { await model.refreshNotebook() } }) }
-                Text(model.t("notebookLocalOnly")).font(.footnote).foregroundStyle(Palette.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }.padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 18)
+            }.padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 24)
                 .frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity)
-        }.background { OrbitBackground().accessibilityHidden(true) }.navigationTitle("").navigationBarTitleDisplayMode(.inline)
-            .scrollDismissesKeyboard(.interactively)
-            .safeAreaInset(edge: .bottom, spacing: 0) { notebookActions }
-            .toolbar(.visible, for: .navigationBar)
-            .task { await model.refreshNotebook() }
-            .sheet(item: $editor, onDismiss: openPendingWork) { context in
-                PlatformNotebookEditor(model: model, context: context) { pendingWork = $0 }
+        }.background(Palette.background).foregroundStyle(Palette.ink)
+            .navigationTitle("").toolbar(.hidden, for: .navigationBar).scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if model.selectedTab == 2 { notebookActions }
+            }
+            .task { await model.refreshNotebook(); openRequestedNote() }
+            .fullScreenCover(item: $editor, onDismiss: openPendingWork) { context in
+                PlatformNotebookEditor(model: model, context: context, onSaved: {
+                    model.selectedTab = 2; model.showRadioToast(model.t("radio.noteSaved"))
+                }) { pendingWork = $0 }
             }
             .sheet(item: $topics) { context in PlatformNotebookTopics(model: model, context: context) }
             .onChange(of: model.notebookState?.topics.map(\.id)) { _, ids in
-                if case .topic(let id) = filter, !(ids ?? []).contains(id) { filter = .all }
+                if case .topic(let id) = model.notebookFilter, !(ids ?? []).contains(id) { model.notebookFilter = .all }
             }
+            .onChange(of: model.radioNoteID) { _, _ in openRequestedNote() }
+            .onChange(of: model.selectedTab) { _, _ in openRequestedNote() }
+            .onChange(of: model.notebookState?.revision) { _, _ in openRequestedNote() }
     }
-
-    /// Reserve space above the system tab bar; the list can scroll without
-    /// placing its primary actions beneath the floating tab presentation.
     private var notebookActions: some View {
-        VStack(spacing: 4) {
+        HStack {
+            Spacer()
             Button {
                 guard let state = model.notebookState else { return }
-                editor = .init(state: state, scope: model.scope)
+                let selectedTopic: UUID?
+                if case .topic(let id) = model.notebookFilter { selectedTopic = id } else { selectedTopic = nil }
+                editor = .init(state: state, scope: model.scope, topicID: selectedTopic)
             } label: {
-                Label(model.t("notebookNew"), systemImage: "square.and.pencil")
-                    .font(.headline).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 16).padding(.vertical, 12).frame(maxWidth: .infinity, minHeight: 56)
-                    .foregroundStyle(Palette.background).background(Palette.accent, in: RoundedRectangle(cornerRadius: 22))
+                Label(model.t("radio.writePage"), systemImage: "plus")
+                    .font(.body.weight(.bold)).padding(.horizontal, 21).frame(minHeight: 50)
+                    .foregroundStyle(.white).background(Palette.accent, in: Capsule())
+                    .shadow(color: Palette.accent.opacity(0.2), radius: 10, y: 6)
             }.buttonStyle(.plain).accessibilityIdentifier("notebookNew")
                 .disabled(model.notebookState == nil || model.notebookBusy)
+        }.padding(.horizontal, 20).padding(.top, 6).padding(.bottom, 10)
+    }
+    private var search: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Palette.muted).accessibilityHidden(true)
+            TextField(model.t("notebookSearch"), text: $model.notebookQuery).textInputAutocapitalization(.never)
+                .autocorrectionDisabled().accessibilityIdentifier("notebookSearch")
+        }.padding(.horizontal, 15).frame(minHeight: 46)
+            .background(Palette.panel, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.line, lineWidth: 1))
+    }
+    private var filters: some View {
+        HStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    chip(model.t("notebookAll"), filter: .all, id: "all")
+                    ForEach(model.notebookState?.topics ?? [], id: \.id) { topic in
+                        chip(topic.name, filter: .topic(topic.id), id: topic.id.uuidString)
+                    }
+                    chip(model.t("notebookUncategorized"), filter: .uncategorized, id: "uncategorized")
+                }
+            }
             Button {
                 guard let state = model.notebookState else { return }
                 topics = .init(state: state, scope: model.scope)
-            } label: {
-                HStack(spacing: 10) {
-                    Text(model.t("notebookManageTopics")).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
-                    Image(systemName: "chevron.right").font(.caption).accessibilityHidden(true)
-                }.font(.subheadline).padding(.vertical, 8).frame(maxWidth: .infinity, minHeight: 44)
-                    .contentShape(Rectangle())
-            }.buttonStyle(.plain).disabled(model.notebookState == nil || model.notebookBusy)
+            } label: { Image(systemName: "plus").frame(width: 44, height: 44) }
+                .buttonStyle(.plain).accessibilityLabel(model.t("notebookManageTopics"))
                 .accessibilityIdentifier("notebookManageTopics")
-        }.padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 8)
-            .frame(maxWidth: 720).frame(maxWidth: .infinity)
-            .background(Palette.background)
+                .disabled(model.notebookState == nil || model.notebookBusy)
+        }.overlay(alignment: .bottom) { Rectangle().fill(Palette.ink).frame(height: 1) }
     }
-
-    private var search: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass").font(.title3).foregroundStyle(Palette.muted).accessibilityHidden(true)
-            TextField(model.t("notebookSearch"), text: $query).textInputAutocapitalization(.never)
-                .autocorrectionDisabled().accessibilityIdentifier("notebookSearch")
-        }.padding(.horizontal, 17).frame(minHeight: 54)
-            .background(Palette.panel.opacity(0.85), in: Capsule())
-            .overlay(Capsule().stroke(Palette.accent.opacity(0.24), lineWidth: 1))
-    }
-    private var filters: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                chip(model.t("notebookAll"), filter: .all, id: "all")
-                ForEach(model.notebookState?.topics ?? [], id: \.id) { topic in
-                    chip(topic.name, filter: .topic(topic.id), id: topic.id.uuidString)
-                }
-                chip(model.t("notebookUncategorized"), filter: .uncategorized, id: "uncategorized")
-            }.padding(.vertical, 2)
-        }
-    }
-    private func chip(_ title: String, filter value: Filter, id: String) -> some View {
-        Button { filter = value } label: {
-            Text(title).font(.subheadline.weight(.medium)).fixedSize().padding(.horizontal, 20).frame(minHeight: 44)
-                .foregroundStyle(filter == value ? Palette.background : Palette.muted)
-                .background(filter == value ? Palette.accent : Palette.panel, in: Capsule())
-                .overlay(Capsule().stroke(Palette.line, lineWidth: filter == value ? 0 : 1))
-        }.buttonStyle(.plain).accessibilityIdentifier("notebook.filter." + id)
-            .accessibilityAddTraits(filter == value ? .isSelected : [])
+    private func chip(_ title: String, filter value: NotebookFilter, id: String) -> some View {
+        Button { model.notebookFilter = value } label: {
+            HStack(spacing: 6) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(count(value).formatted()).radioMono(11).opacity(0.7)
+            }.fixedSize().padding(.horizontal, 15).frame(minHeight: 44)
+                .foregroundStyle(model.notebookFilter == value ? Palette.background : Palette.muted)
+                .background(model.notebookFilter == value ? Palette.ink : .clear,
+                            in: UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
+        }.buttonStyle(.plain).accessibilityIdentifier("notebook.filter." + id).accessibilityLabel(title)
+            .accessibilityValue(count(value).formatted())
+            .accessibilityAddTraits(model.notebookFilter == value ? .isSelected : [])
     }
     private func empty(_ noNotes: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: noNotes ? "text.book.closed" : "magnifyingglass").font(.largeTitle).foregroundStyle(Palette.accent).accessibilityHidden(true)
-            Text(model.t(noNotes ? "notebookEmpty" : "notebookNoResults")).font(.title3.weight(.semibold))
-            Text(model.t(noNotes ? "notebookEmptyDetail" : "notebookNoResultsDetail")).foregroundStyle(Palette.muted)
-        }.padding(.vertical, 28).frame(maxWidth: .infinity, minHeight: 190, alignment: .leading)
+            Text(model.t("radio.notebookEmpty")).radioSerif(22)
+            Text(model.t(noNotes ? "notebookEmptyDetail" : "notebookNoResultsDetail"))
+                .font(.subheadline).foregroundStyle(Palette.muted).lineSpacing(5)
+        }.padding(.vertical, 28).frame(maxWidth: .infinity, minHeight: 160, alignment: .leading)
             .accessibilityIdentifier("notebookEmpty")
+    }
+    private func openRequestedNote() {
+        guard model.selectedTab == 2, let id = model.radioNoteID, let state = model.notebookState else { return }
+        model.radioNoteID = nil
+        guard let note = state.notes.first(where: { $0.id == id }) else { return }
+        editor = .init(note: note, state: state, scope: model.scope)
     }
     private func openPendingWork() {
         guard let work = pendingWork else { return }
@@ -159,46 +174,57 @@ struct PlatformNotebookPage: View {
     }
 }
 
-private struct PlatformNotebookRow: View {
+struct PlatformNotebookRow: View {
     let model: AppModel
     let note: NotebookNote
     @Environment(\.dynamicTypeSize) private var typeSize
     private var track: Track? { model.notebookTrack(for: note.work) }
-    private var title: String {
-        note.title.isEmpty ? (track?.title ?? model.notebookBookmark(for: note.work)?.title ?? model.t("notebookUntitled")) : note.title
-    }
+    private var workTitle: String { track?.title ?? model.notebookBookmark(for: note.work)?.title ?? model.t("notebookWorkUnavailable") }
+    private var title: String { note.title.isEmpty ? model.t("notebookUntitled") : note.title }
     private var topic: String { model.notebookState?.topics.first(where: { $0.id == note.topicID })?.name ?? model.t("notebookUncategorized") }
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            if !typeSize.isAccessibilitySize {
-                if let track {
-                    OrbitArtwork(track: track, model: model, thumbnail: true).frame(width: 76, height: 76)
-                        .clipShape(RoundedRectangle(cornerRadius: 15))
-                } else {
-                    Image(systemName: "text.book.closed").font(.title2).foregroundStyle(Palette.accent)
-                        .frame(width: 76, height: 76).background(Palette.panel, in: RoundedRectangle(cornerRadius: 15)).accessibilityHidden(true)
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            Text(note.updatedAt.formatted(.dateTime.month(.twoDigits).day(.twoDigits).locale(Locale(identifier: model.locale))) + " · " + topic)
+                .radioMono(11).foregroundStyle(Palette.muted)
+            Text(title).radioSerif(18).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+            if let quote = note.quote {
+                Text("「" + quote + "」").radioSerif(15, weight: .medium).foregroundStyle(Palette.accent)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
             }
-            VStack(alignment: .leading, spacing: 7) {
-                Text(title).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
-                if !note.body.isEmpty { Text(note.body).font(.subheadline).foregroundStyle(Palette.muted).lineLimit(typeSize.isAccessibilitySize ? 3 : 2) }
-                Text(topic + " · " + note.updatedAt.formatted(.dateTime.month().day().locale(Locale(identifier: model.locale))))
-                    .font(.caption).foregroundStyle(Palette.accent).fixedSize(horizontal: false, vertical: true)
-            }.frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Palette.muted).padding(.top, 9).accessibilityHidden(true)
-        }.padding(.vertical, 20).contentShape(Rectangle()).accessibilityElement(children: .combine)
+            if !note.body.isEmpty {
+                Text(note.body).font(.subheadline).foregroundStyle(Palette.muted).lineSpacing(5)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
+            }
+            if note.work != nil {
+                HStack(spacing: 9) {
+                    if let track {
+                        OrbitArtwork(track: track, model: model, thumbnail: true).frame(width: 24, height: 24)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    } else {
+                        Image(systemName: "music.note").frame(width: 24, height: 24).foregroundStyle(Palette.muted)
+                    }
+                    Text(model.t("radio.noteLinked") + " · " + workTitle).font(.caption).foregroundStyle(Palette.muted)
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                }.padding(.top, 3)
+            }
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.panel, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Palette.line, lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 14)).accessibilityElement(children: .combine)
     }
 }
 
 struct PlatformNotebookEditor: View {
     @Bindable var model: AppModel
     let context: PlatformNotebookEditorContext
+    var onSaved: (() -> Void)?
     var openWork: (NotebookWork) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var title: String
     @State private var bodyText: String
     @State private var topicID: UUID?
     @State private var work: NotebookWork?
+    @State private var quote: String?
     @State private var showSongs = false
     @State private var confirmDiscard = false
     @State private var confirmDelete = false
@@ -206,19 +232,28 @@ struct PlatformNotebookEditor: View {
     @State private var failed = false
     @State private var draftID: UUID
     @State private var titleLineBreaksReplaced = false
+    @State private var writingHelpExpanded = false
     @FocusState private var focusedField: EditorField?
+    @ScaledMetric(relativeTo: .body) private var lineHeight = 32.0
     private enum EditorField: Hashable { case title, body }
 
-    init(model: AppModel, context: PlatformNotebookEditorContext, openWork: @escaping (NotebookWork) -> Void) {
-        self.model = model; self.context = context; self.openWork = openWork
+    init(model: AppModel, context: PlatformNotebookEditorContext, onSaved: (() -> Void)? = nil,
+         openWork: @escaping (NotebookWork) -> Void) {
+        self.model = model; self.context = context; self.onSaved = onSaved; self.openWork = openWork
         _title = State(initialValue: context.note?.title ?? ""); _bodyText = State(initialValue: context.note?.body ?? "")
-        _topicID = State(initialValue: context.note?.topicID); _work = State(initialValue: context.work)
-        _draftID = State(initialValue: context.note?.id ?? UUID())
+        _topicID = State(initialValue: context.topicID); _work = State(initialValue: context.work)
+        _quote = State(initialValue: context.quote); _draftID = State(initialValue: context.note?.id ?? UUID())
     }
-    private var dirty: Bool { title != (context.note?.title ?? "") || bodyText != (context.note?.body ?? "") || topicID != context.note?.topicID || work != context.work }
+    private var dirty: Bool {
+        title != (context.note?.title ?? "") || bodyText != (context.note?.body ?? "") ||
+        topicID != context.topicID || work != context.work || quote != context.note?.quote
+    }
     private var stale: Bool { model.scope != context.scope || model.notebookState?.epoch != context.epoch }
     private var busy: Bool { working || model.notebookBusy }
-    private var hasText: Bool { !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var hasText: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || quote != nil
+    }
     private var workTitle: String { model.notebookTrack(for: work)?.title ?? model.notebookBookmark(for: work)?.title ?? model.t(work == nil ? "notebookNoWork" : "notebookWorkUnavailable") }
     private var singleLineTitle: Binding<String> {
         Binding(get: { title }, set: { value in
@@ -230,73 +265,72 @@ struct PlatformNotebookEditor: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField(model.t("notebookNoteTitle"), text: singleLineTitle)
-                        .font(.title3.weight(.semibold)).disabled(busy).accessibilityIdentifier("notebookTitleField")
-                        .focused($focusedField, equals: .title).submitLabel(.next)
-                        .onSubmit { focusedField = .body }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 19) {
+                    editorTopics
+                    TextField(model.t("radio.noteTitlePlaceholder"), text: singleLineTitle)
+                        .radioSerif(26, weight: .black, relativeTo: .title).disabled(busy)
+                        .accessibilityIdentifier("notebookTitleField").focused($focusedField, equals: .title)
+                        .submitLabel(.next).onSubmit { focusedField = .body }
                     if titleLineBreaksReplaced {
                         Text(model.t("notebookTitleLineBreaksReplaced")).font(.footnote).foregroundStyle(Palette.muted)
                             .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("notebookTitleLineBreaksReplaced")
                     }
-                    ZStack(alignment: .topLeading) {
-                        if bodyText.isEmpty { Text(model.t("notebookBodyPlaceholder")).foregroundStyle(Palette.muted).padding(.top, 8).padding(.leading, 5).allowsHitTesting(false).accessibilityHidden(true) }
-                        TextEditor(text: $bodyText).frame(minHeight: 210).scrollContentBackground(.hidden)
-                            .disabled(busy).accessibilityLabel(model.t("notebookBody")).accessibilityIdentifier("notebookBodyField")
-                            .focused($focusedField, equals: .body)
+                    associatedWork
+                    if let quote {
+                        HStack(alignment: .top, spacing: 14) {
+                            Rectangle().fill(Palette.accent).frame(width: 2)
+                            Text(quote).radioSerif(17, weight: .medium).foregroundStyle(Palette.accent)
+                                .lineSpacing(8).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
+                            Button { self.quote = nil } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                                .buttonStyle(.plain).foregroundStyle(Palette.muted)
+                                .accessibilityLabel(model.t("radio.removeQuote")).disabled(busy || stale)
+                        }.fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("notebookQuote")
                     }
-                } footer: { Text(model.t("notebookTextLimits")).accessibilityIdentifier("notebookTextLimits") }.listRowBackground(Palette.panel)
-                Section(model.t("notebookWork")) {
-                    Button { showSongs = true } label: {
-                        HStack(spacing: 12) {
-                            if let track = model.notebookTrack(for: work) {
-                                OrbitArtwork(track: track, model: model, thumbnail: true).frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 9))
-                            }
-                            Text(workTitle).foregroundStyle(.primary).frame(maxWidth: .infinity, alignment: .leading)
-                            Image(systemName: "chevron.right").foregroundStyle(Palette.muted)
-                        }.frame(minHeight: 44)
-                    }.accessibilityIdentifier("notebookChooseWork").disabled(busy || stale)
+                    ZStack(alignment: .topLeading) {
+                        NotebookPaperLines(spacing: lineHeight)
+                        if bodyText.isEmpty {
+                            Text(model.t("radio.noteBodyPlaceholder")).font(.body).foregroundStyle(Palette.muted)
+                                .padding(.top, 8).padding(.leading, 5).allowsHitTesting(false).accessibilityHidden(true)
+                        }
+                        TextEditor(text: $bodyText).font(.body).lineSpacing(12).frame(minHeight: 440)
+                            .scrollContentBackground(.hidden).disabled(busy).focused($focusedField, equals: .body)
+                            .accessibilityLabel(model.t("notebookBody")).accessibilityIdentifier("notebookBodyField")
+                    }
+                    HStack {
+                        Spacer()
+                        Text("\(bodyText.count) / 8000 · " + model.t("radio.localOnly"))
+                            .radioMono(11).foregroundStyle(bodyText.count > PlatformNotebookStore.maximumBodyLength ? Palette.accent : Palette.muted)
+                    }
+                    DisclosureGroup(isExpanded: $writingHelpExpanded) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(model.t("notebookTextLimits")).font(.caption).foregroundStyle(Palette.muted)
+                                .fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("notebookTextLimits")
+                            Text(model.t("radio.quotePrivacy")).font(.caption).foregroundStyle(Palette.muted).lineSpacing(4)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }.padding(.top, 6)
+                    } label: {
+                        Text(model.t("radio.writingHelp")).font(.caption.weight(.medium)).foregroundStyle(Palette.muted)
+                            .frame(minHeight: 44)
+                            .accessibilityIdentifier("notebookWritingHelp")
+                    }.tint(Palette.muted).accessibilityElement(children: .contain)
                     if let work {
                         Button(model.t("notebookOpenWork")) { openWork(work); dismiss() }
-                            .disabled(dirty || busy || stale).accessibilityIdentifier("notebookOpenWork")
+                            .frame(minHeight: 44).disabled(dirty || busy || stale).accessibilityIdentifier("notebookOpenWork")
                     }
-                }.listRowBackground(Palette.panel)
-                Section {
-                    Picker(model.t("notebookTopic"), selection: $topicID) {
-                        Text(model.t("notebookUncategorized")).tag(Optional<UUID>.none)
-                        ForEach(model.notebookState?.topics ?? [], id: \.id) { topic in Text(topic.name).tag(Optional(topic.id)) }
-                    }.accessibilityIdentifier("notebookTopicPicker").disabled(busy || stale)
-                } footer: { Text(model.t("notebookLocalOnly")) }.listRowBackground(Palette.panel)
-                if stale {
-                    Section { Label(model.t("notebookStaleDetail"), systemImage: "exclamationmark.circle").foregroundStyle(Palette.muted) }.listRowBackground(Palette.panel)
-                } else if failed {
-                    Section { NotebookFailure(model: model) }.listRowBackground(Palette.panel)
-                }
-                if context.note != nil {
-                    Section { Button(model.t("notebookDelete"), role: .destructive) { confirmDelete = true }.disabled(busy || stale).accessibilityIdentifier("notebookDelete") }.listRowBackground(Palette.panel)
-                }
-            }.scrollContentBackground(.hidden).background { OrbitBackground() }
-                .navigationTitle(model.t(context.note == nil ? "notebookNew" : "notebookEdit")).navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(model.t("close")) { if dirty { confirmDiscard = true } else { dismiss() } }
-                            .disabled(busy).accessibilityIdentifier("notebookEditorClose")
+                    if stale {
+                        Label(model.t("notebookStaleDetail"), systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Palette.muted)
+                    } else if failed { NotebookFailure(model: model) }
+                    if context.note != nil {
+                        Button(model.t("notebookDelete"), role: .destructive) { confirmDelete = true }
+                            .frame(minHeight: 44).disabled(busy || stale).accessibilityIdentifier("notebookDelete")
                     }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button {
-                            working = true; failed = false
-                            Task {
-                                let success = await model.saveNotebook(.init(id: draftID, work: work, title: title, body: bodyText, topicID: topicID), expectedEpoch: context.epoch, expectedVersion: context.note?.version, scope: context.scope)
-                                working = false
-                                if success { dismiss() } else { failed = true }
-                            }
-                        } label: {
-                            if working { ProgressView().accessibilityLabel(model.t("notebookSave")) } else { Text(model.t("notebookSave")) }
-                        }.disabled(busy || stale || !hasText).accessibilityIdentifier("notebookSave")
-                    }
-                }
+                }.padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 32)
+                    .frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity)
+            }.background(Palette.background).foregroundStyle(Palette.ink).scrollDismissesKeyboard(.interactively)
+                .toolbar(.hidden, for: .navigationBar).safeAreaInset(edge: .top, spacing: 0) { editorHeader }
                 .sheet(isPresented: $showSongs) { PlatformNotebookSongPicker(model: model, selection: $work) }
+                .onChange(of: work) { old, new in if old != new { quote = nil } }
                 .alert(model.t("notebookDiscardConfirm"), isPresented: $confirmDiscard) {
                     Button(model.t("notebookDiscard"), role: .destructive) { dismiss() }
                     Button(model.t("notebookKeepEditing"), role: .cancel) {}
@@ -312,8 +346,89 @@ struct PlatformNotebookEditor: View {
                     }
                     Button(model.t("cancel"), role: .cancel) {}
                 } message: { Text(model.t("notebookDeleteDetail")) }
-        }.preferredColorScheme(.dark).tint(Palette.accent).interactiveDismissDisabled(dirty || busy)
-            .accessibilityIdentifier("notebookEditor")
+        }.tint(Palette.accent).interactiveDismissDisabled(dirty || busy).accessibilityIdentifier("notebookEditor")
+            .radioToast(model: model, identifier: "notebookToast")
+    }
+    private var editorHeader: some View {
+        HStack(spacing: 8) {
+            Button(model.t("cancel")) { if dirty { confirmDiscard = true } else { dismiss() } }
+                .font(.subheadline).foregroundStyle(Palette.muted).frame(minWidth: 44, minHeight: 44)
+                .disabled(busy).accessibilityIdentifier("notebookEditorClose")
+            Spacer(minLength: 4)
+            Text(model.t(context.note == nil ? "radio.newPage" : "notebookEdit")).radioMono(11, weight: .semibold)
+                .foregroundStyle(Palette.muted).multilineTextAlignment(.center)
+            Spacer(minLength: 4)
+            Button(action: save) {
+                Group { if working { ProgressView().tint(.white) } else { Text(model.t("notebookSave")) } }
+                    .font(.subheadline.weight(.bold)).foregroundStyle(.white)
+                    .padding(.horizontal, 18).frame(minHeight: 44).background(Palette.accent, in: Capsule())
+            }.buttonStyle(.plain).disabled(busy || stale).accessibilityIdentifier("notebookSave")
+        }.padding(.horizontal, 20).padding(.vertical, 8).background(Palette.background)
+    }
+    private var editorTopics: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(model.notebookState?.topics ?? [], id: \.id) { topic in editorTopic(topic.name, id: topic.id) }
+                editorTopic(model.t("notebookUncategorized"), id: nil)
+            }
+        }.accessibilityIdentifier("notebookTopicPicker")
+    }
+    private func editorTopic(_ name: String, id: UUID?) -> some View {
+        Button { topicID = id } label: {
+            Text(name).font(.subheadline).padding(.horizontal, 14).frame(minHeight: 44)
+                .foregroundStyle(topicID == id ? Palette.background : Palette.ink)
+                .background(topicID == id ? Palette.ink : .clear, in: Capsule())
+                .overlay(Capsule().stroke(Palette.line, lineWidth: topicID == id ? 0 : 1))
+        }.buttonStyle(.plain).disabled(busy || stale).accessibilityAddTraits(topicID == id ? .isSelected : [])
+            .accessibilityIdentifier("notebook.editorTopic." + (id?.uuidString ?? "uncategorized")).accessibilityLabel(name)
+    }
+    private var associatedWork: some View {
+        HStack(spacing: 12) {
+            Button { showSongs = true } label: {
+                HStack(spacing: 10) {
+                    if let track = model.notebookTrack(for: work) {
+                        OrbitArtwork(track: track, model: model, thumbnail: true).frame(width: 36, height: 36)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    } else { Image(systemName: "music.note").frame(width: 36, height: 36).foregroundStyle(Palette.muted) }
+                    Text((work == nil ? "" : model.t("radio.noteLinked") + " · ") + workTitle)
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true)
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("notebookChooseWork").disabled(busy || stale)
+            if work != nil {
+                Button { work = nil; quote = nil } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                    .buttonStyle(.plain).foregroundStyle(Palette.muted).accessibilityLabel(model.t("notebookNoWork"))
+                    .accessibilityIdentifier("notebookUnlinkWork").disabled(busy || stale)
+            }
+        }.padding(10).frame(minHeight: 56).background(Palette.panel, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.line, lineWidth: 1))
+    }
+    private func save() {
+        guard !busy, !stale else { return }
+        guard hasText else { model.showRadioToast(model.t("radio.noteEmpty")); return }
+        // Untitled is a localized display fallback, never text written by the user.
+        let draft = NotebookDraft(id: draftID, work: work, title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                                  body: bodyText, topicID: topicID, quote: quote)
+        working = true; failed = false
+        Task {
+            let success = await model.saveNotebook(draft, expectedEpoch: context.epoch, expectedVersion: context.note?.version, scope: context.scope)
+            working = false
+            if success { dismiss(); onSaved?() } else { failed = true }
+        }
+    }
+}
+
+private struct NotebookPaperLines: View {
+    let spacing: Double
+    var body: some View {
+        Canvas { context, size in
+            var lines = Path()
+            var y = CGFloat(spacing)
+            while y < size.height {
+                lines.move(to: CGPoint(x: 0, y: y)); lines.addLine(to: CGPoint(x: size.width, y: y)); y += spacing
+            }
+            context.stroke(lines, with: .color(Palette.line), lineWidth: 1)
+        }.allowsHitTesting(false).accessibilityHidden(true)
     }
 }
 
@@ -360,7 +475,7 @@ private struct PlatformNotebookSongPicker: View {
                 .searchable(text: $query, prompt: model.t("notebookSongSearch"))
                 .navigationTitle(model.t("notebookChooseWork")).navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button(model.t("close")) { dismiss() } } }
-        }.preferredColorScheme(.dark).tint(Palette.accent).accessibilityIdentifier("notebookSongPicker")
+        }.tint(Palette.accent).accessibilityIdentifier("notebookSongPicker")
     }
 }
 
@@ -425,7 +540,7 @@ private struct PlatformNotebookTopics: View {
                     }
                     Button(model.t("cancel"), role: .cancel) {}
                 } message: { Text(model.t("notebookClearDetail")) }
-        }.preferredColorScheme(.dark).tint(Palette.accent).interactiveDismissDisabled(busy)
+        }.tint(Palette.accent).interactiveDismissDisabled(busy)
             .accessibilityIdentifier("notebookTopics")
     }
     private struct TopicEditorContext: Identifiable { let id = UUID(); let topic: NotebookTopic? }
@@ -475,7 +590,7 @@ private struct NotebookTopicEditor: View {
                     Button(model.t("notebookDiscard"), role: .destructive) { dismiss() }
                     Button(model.t("notebookKeepEditing"), role: .cancel) {}
                 }
-        }.preferredColorScheme(.dark).tint(Palette.accent).interactiveDismissDisabled(dirty || working)
+        }.tint(Palette.accent).interactiveDismissDisabled(dirty || working)
     }
 }
 

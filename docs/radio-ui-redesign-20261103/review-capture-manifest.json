@@ -1,0 +1,74 @@
+[
+  {
+    "file": "docs/radio-ui-redesign-20261103/review-ja-AX.png",
+    "sourceAttachment": "Content-ja-Large-Header_0_79356307-1051-4D29-80F4-DB81B082536F.png",
+    "test": "PlatformContentUITests/testFourLocalesAndAccessibilitySizesKeepTabsReachable()",
+    "pixels": [
+      1170,
+      2532
+    ],
+    "sha256": "6387eef0c562f4797b73c990b075d5fa9fa053a894c6ae4a73f95e2bec7df2b9",
+    "device": "iPhone 16e / iOS 26.4 Simulator",
+    "fixtureOnly": true
+  },
+  {
+    "file": "docs/radio-ui-redesign-20261103/review-zh-Hant-AX.png",
+    "sourceAttachment": "Content-zh-Hant-Large-Header_0_59A8AE35-23BD-422E-A59A-9EE452790CF7.png",
+    "test": "PlatformContentUITests/testFourLocalesAndAccessibilitySizesKeepTabsReachable()",
+    "pixels": [
+      1170,
+      2532
+    ],
+    "sha256": "8039a2dd0ffaac289350fcc721772fcef3d5cc968619964bd2524028ae201125",
+    "device": "iPhone 16e / iOS 26.4 Simulator",
+    "fixtureOnly": true
+  },
+  {
+    "file": "docs/radio-ui-redesign-20261103/review-empty-title-quote.png",
+    "sourceAttachment": "Radio-User-Selected-Quote_0_6929F85E-8FD7-4D01-A600-BCAE19BFFB83.png",
+    "test": "PlatformContentUITests/testOnlyTheActivelyChosenLyricLineIsSavedToLocalNotebook()",
+    "pixels": [
+      1170,
+      2532
+    ],
+    "sha256": "9e4a26a4ca005d04351d3142499c4f3e978aa475fdfc0d0545bb39719e7aefa7",
+    "device": "iPhone 16e / iOS 26.4 Simulator",
+    "fixtureOnly": true
+  },
+  {
+    "file": "docs/radio-ui-redesign-20261103/review-privacy-night.png",
+    "sourceAttachment": "Radio-privacyPage-night_0_6732B5EF-F7CD-41AC-A5CC-5F0D860B4A64.png",
+    "test": "RadioRedesignUITests/testMeSettingsHaveOneRouteAndUseTheChosenAppearance()",
+    "pixels": [
+      1170,
+      2532
+    ],
+    "sha256": "8815717aecf1bf5e5bf2ef695102a96148910dc6d29f2de8d9bcbdd64c709e8d",
+    "device": "iPhone 16e / iOS 26.4 Simulator",
+    "fixtureOnly": true
+  },
+  {
+    "file": "docs/radio-ui-redesign-20261103/review-privacy-paper.png",
+    "sourceAttachment": "Radio-privacyPage-paper_0_62CA7F1A-DB85-44E3-BCC5-FD314F137282.png",
+    "test": "RadioRedesignUITests/testMeSettingsHaveOneRouteAndUseTheChosenAppearance()",
+    "pixels": [
+      1170,
+      2532
+    ],
+    "sha256": "3b4219c0ca61ecdb1ac6c5c8ee00e75b67054a227f29ca0025b4453b2a8bb48e",
+    "device": "iPhone 16e / iOS 26.4 Simulator",
+    "fixtureOnly": true
+  },
+  {
+    "file": "docs/radio-ui-redesign-20261103/review-tab-return.png",
+    "sourceAttachment": "Radio-Tab-Return-Notebook-State_0_BF981FB6-BA63-4A56-8F3E-90E243F16575.png",
+    "test": "RadioRedesignUITests/testSwitchingTabsKeepsTuningAndCatalogNotebookQueries()",
+    "pixels": [
+      1170,
+      2532
+    ],
+    "sha256": "e13aa0f869224faf92c847e85d087b2fb2f2a4b08755a10dda44422d5afea3c2",
+    "device": "iPhone 16e / iOS 26.4 Simulator",
+    "fixtureOnly": true
+  }
+]

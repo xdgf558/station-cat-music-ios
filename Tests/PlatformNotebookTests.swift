@@ -346,4 +346,153 @@ private final class NotebookWriter: @unchecked Sendable {
         await expect(.staleEdit) { _ = try await reopened.save(NotebookDraft(body: "late"), expectedEpoch: accountSaved.epoch, expectedVersion: nil, scope: account) }
         let recreated = try await reopened.snapshot(scope: account); XCTAssertTrue(recreated.notes.isEmpty)
     }
+    func testLegacySchemaOneWithoutQuoteLoadsWithoutRewritingUserNotes() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let store = PlatformNotebookStore(directory: root), empty = try await store.snapshot(scope: .guest)
+        let saved = try await store.save(.init(work: work, title: "Before the redesign", body: "My original words"),
+                                         expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+        let path = try file(in: root), bytes = try Data(contentsOf: path)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: bytes) as? [String: Any])
+        let state = try XCTUnwrap(json["state"] as? [String: Any])
+        let note = try XCTUnwrap((state["notes"] as? [[String: Any]])?.first)
+        XCTAssertNil(note["quote"], "The fixture has the actual old schema-one shape")
+        let reopened = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
+        XCTAssertEqual(reopened, saved); XCTAssertNil(reopened.notes[0].quote)
+        XCTAssertEqual(try Data(contentsOf: path), bytes, "Reading must not rewrite the user's file")
+    }
+
+    func testExplicitQuoteOnlyNoteSurvivesReopenAndTopicRemoval() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let store = PlatformNotebookStore(directory: root), empty = try await store.snapshot(scope: .guest)
+        let grouped = try await store.saveTopic(id: nil, name: "Selected lines", expectedEpoch: empty.epoch, scope: .guest)
+        let topic = try XCTUnwrap(grouped.topics.first)
+        let quote = String(repeating: "歌", count: PlatformNotebookStore.maximumQuoteLength)
+        let draft = NotebookDraft(work: work, topicID: topic.id, quote: quote)
+        let saved = try await store.save(draft, expectedEpoch: grouped.epoch, expectedVersion: nil, scope: .guest)
+        XCTAssertEqual(saved.notes[0].quote, quote); XCTAssertTrue(saved.notes[0].body.isEmpty)
+        XCTAssertTrue(saved.notes[0].title.isEmpty, "A selected quote must not become a generated title")
+        let reopened = PlatformNotebookStore(directory: root)
+        let loaded = try await reopened.snapshot(scope: .guest)
+        XCTAssertEqual(loaded, saved)
+        let uncategorized = try await reopened.removeTopic(id: topic.id, expectedEpoch: saved.epoch, scope: .guest)
+        XCTAssertNil(uncategorized.notes[0].topicID); XCTAssertEqual(uncategorized.notes[0].quote, quote)
+        XCTAssertEqual(uncategorized.notes[0].work, work)
+        let final = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
+        XCTAssertEqual(final, uncategorized)
+    }
+
+    func testBlankTitleRemainsEmptyThroughEditAndExistingTitlesAreNotRewritten() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let store = PlatformNotebookStore(directory: root), empty = try await store.snapshot(scope: .guest)
+        var draft = NotebookDraft(title: "  \n  ", body: "My own untitled writing")
+        let saved = try await store.save(draft, expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+        XCTAssertEqual(saved.notes[0].title, "")
+        draft.title = ""; draft.body += " and a later edit"
+        let edited = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest)
+        XCTAssertEqual(edited.notes[0].title, ""); XCTAssertEqual(edited.notes[0].body, draft.body)
+        // These may be user-entered words, even when they resemble old fallbacks.
+        let existingTitles = ["Untitled note", "未命名手记", "A selected lyric"]
+        for title in existingTitles {
+            _ = try await store.save(.init(work: work, title: title, quote: "A selected lyric"),
+                                     expectedEpoch: edited.epoch, expectedVersion: nil, scope: .guest)
+        }
+        let path = try file(in: root), bytes = try Data(contentsOf: path)
+        let reopened = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
+        XCTAssertEqual(reopened.notes.first(where: { $0.id == draft.id })?.title, "")
+        XCTAssertEqual(Set(reopened.notes.filter { $0.id != draft.id }.map(\.title)), Set(existingTitles))
+        XCTAssertEqual(try Data(contentsOf: path), bytes, "Reading must not guess which historical titles were generated")
+    }
+
+    func testQuotePolicyAndStoreShareCharacterLimitAndUnicodeRules() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let store = PlatformNotebookStore(directory: root), empty = try await store.snapshot(scope: .guest)
+        let composedCharacters = ["歌", "e\u{301}", "🇯🇵", "👨‍👩‍👧‍👦", "❤️‍🔥", "👩🏽‍💻"]
+        for character in composedCharacters {
+            let quote = String(repeating: character, count: 200)
+            XCTAssertEqual(quote.count, 200)
+            XCTAssertEqual(NotebookQuoteInput.validation(quote), .valid)
+            let draft = NotebookDraft(work: work, quote: quote)
+            let saved = try await store.save(draft, expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+            XCTAssertEqual(saved.notes.first(where: { $0.id == draft.id })?.quote, quote)
+            let reopened = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
+            XCTAssertEqual(reopened, saved, "Read validation must accept exactly the same quote as write validation")
+            XCTAssertEqual(NotebookQuoteInput.validation(quote + "a"), .tooLong)
+            await expect(.invalidInput) {
+                _ = try await store.save(.init(work: work, quote: quote + "a"), expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+            }
+        }
+        let invalidQuotes: [(String, NotebookQuoteInput.Validation)] = [
+            ("", .empty), ("  ", .empty), ("First\nsecond", .invalidCharacters),
+            ("First\r\nsecond", .invalidCharacters), ("First\u{0085}second", .invalidCharacters),
+            ("First\u{2028}second", .invalidCharacters), ("First\u{2029}second", .invalidCharacters),
+            ("a\u{0}b", .invalidCharacters), ("a\tb", .invalidCharacters),
+            ("a\u{202E}b", .invalidCharacters), ("a\u{2066}b", .invalidCharacters),
+            ("a\u{200B}b", .invalidCharacters), ("a\u{200C}b", .invalidCharacters),
+            ("a\u{FEFF}b", .invalidCharacters), ("a\u{200D}b", .invalidCharacters),
+            ("👨\u{200D}", .invalidCharacters)
+        ]
+        let path = try file(in: root), bytes = try Data(contentsOf: path)
+        for (quote, expected) in invalidQuotes {
+            XCTAssertEqual(NotebookQuoteInput.validation(quote), expected)
+            await expect(.invalidInput) {
+                _ = try await store.save(.init(work: work, quote: quote), expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+            }
+            XCTAssertEqual(try Data(contentsOf: path), bytes)
+        }
+    }
+
+    func testInvalidQuoteCannotOverwriteExistingWordsOrLoseTheDraft() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let store = PlatformNotebookStore(directory: root), empty = try await store.snapshot(scope: .guest)
+        let original = NotebookDraft(work: work, body: "My words", quote: "A deliberately selected line")
+        let saved = try await store.save(original, expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+        let path = try file(in: root), bytes = try Data(contentsOf: path)
+        for invalid in ["", "  ", String(repeating: "a", count: 201), "First\nsecond", "First\r\nsecond", "First\u{2028}second", "a\u{0}b"] {
+            let draft = NotebookDraft(id: original.id, work: work, title: "Unsaved", body: "Unsaved body", quote: invalid)
+            await expect(.invalidInput) { _ = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest) }
+            XCTAssertEqual(draft.quote, invalid); XCTAssertEqual(draft.body, "Unsaved body")
+            XCTAssertEqual(try Data(contentsOf: path), bytes)
+        }
+        await expect(.invalidInput) {
+            _ = try await store.save(.init(id: original.id, body: "My words", quote: original.quote),
+                                     expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest)
+        }
+        let unchanged = try await PlatformNotebookStore(directory: root).snapshot(scope: .guest)
+        XCTAssertEqual(unchanged, saved)
+    }
+
+    func testFailedQuoteWritePreservesOldFileAndCanRetrySameDraft() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let writer = NotebookWriter(), store = PlatformNotebookStore(directory: root, writeAtomically: { try writer.write($0, to: $1) })
+        let empty = try await store.snapshot(scope: .guest)
+        var draft = NotebookDraft(work: work, body: "My words", quote: "First selected line")
+        let saved = try await store.save(draft, expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+        let path = try file(in: root), bytes = try Data(contentsOf: path)
+        draft.quote = "A new selected line"; draft.body = "Unsaved writing"
+        writer.setFailing(true)
+        await expect(.storageUnavailable) { _ = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest) }
+        XCTAssertEqual(try Data(contentsOf: path), bytes)
+        XCTAssertEqual(draft.quote, "A new selected line"); XCTAssertEqual(draft.body, "Unsaved writing")
+        writer.setFailing(false)
+        let retry = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest)
+        XCTAssertEqual(retry.notes[0].quote, draft.quote); XCTAssertEqual(retry.notes[0].version, 2)
+    }
+
+    func testClearRejectsLateQuoteDraftAndUnlinkingCanRemoveTheQuote() async throws {
+        let root = folder(); defer { try? FileManager.default.removeItem(at: root) }
+        let store = PlatformNotebookStore(directory: root), empty = try await store.snapshot(scope: .guest)
+        var draft = NotebookDraft(work: work, body: "My own thought", quote: "Selected by me")
+        let saved = try await store.save(draft, expectedEpoch: empty.epoch, expectedVersion: nil, scope: .guest)
+        draft.work = nil; draft.quote = nil
+        let unlinked = try await store.save(draft, expectedEpoch: saved.epoch, expectedVersion: 1, scope: .guest)
+        XCTAssertNil(unlinked.notes[0].quote); XCTAssertNil(unlinked.notes[0].work)
+        let cleared = try await store.clear(expectedEpoch: unlinked.epoch, scope: .guest)
+        let reopened = PlatformNotebookStore(directory: root)
+        await expect(.staleEdit) {
+            _ = try await reopened.save(.init(work: work, quote: "Late selection"), expectedEpoch: saved.epoch, expectedVersion: nil, scope: .guest)
+        }
+        let after = try await reopened.snapshot(scope: .guest)
+        XCTAssertEqual(after, cleared)
+    }
+
 }

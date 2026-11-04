@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Local isolated workerd + actual URLSession/AVPlayer. No production networking."""
+"""Isolated library storage/privacy E2E; real audio only by explicit manual opt-in."""
 import os,json,plistlib,hashlib,subprocess,tempfile,time,re,uuid
 from contextlib import contextmanager
 from pathlib import Path
 root=Path(__file__).resolve().parents[1];os.chdir(root)
 backend=Path(os.environ['M5_BACKEND_PATH']).resolve();sim=os.environ['M1_SIMULATOR_ID']
+mode=os.environ.get('M5_REQUIRE_AUDIBLE_PLAYBACK','NO')
+assert mode in ('YES','NO'), 'Invalid explicit legacy music mode'
 manifest=json.loads((root/'contracts/backend-library-fixture.json').read_text())
 assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=backend,text=True).strip()==manifest['commit'], 'Backend media revision mismatch'
 for name,digest in manifest['sha256'].items():assert hashlib.sha256((backend/name).read_bytes()).hexdigest()==digest, 'Backend fixture changed: '+name
@@ -33,7 +35,7 @@ def fixture(label, run_id=None):
                 targets=[t for c in data['TestConfigurations'] for t in c['TestTargets']] if 'TestConfigurations' in data else [v for k,v in data.items() if k!='__xctestrun_metadata__']
                 for target in targets:
                     env=target.setdefault('EnvironmentVariables',{})
-                    env.update({'M5_PROBE_PORT':str(connection['port']),'M5_PROBE_KEY':connection['key']})
+                    env.update({'M5_PROBE_PORT':str(connection['port']),'M5_PROBE_KEY':connection['key'],'M5_REQUIRE_AUDIBLE_PLAYBACK':mode})
                     if run_id:env['M5_RESTART_RUN']=run_id
                 path=products/f'M5-{label}.xctestrun';path.write_bytes(plistlib.dumps(data))
                 yield path
@@ -49,8 +51,9 @@ def exited(pid):
     try:os.kill(pid,0);return False
     except ProcessLookupError:return True
 with fixture('library') as path:
-    log=test(path,'testRealWorkerTwoDevicesConflictHistoryEpochAndAudiblePlayback','M5-library-integration.log')
+    log=test(path,'testRealWorkerTwoDevicesConflictHistoryEpoch','M5-library-integration.log')
     assert 'M5_LIBRARY_PASSED' in log,'Missing library probe evidence'
+    assert 'M5_LIBRARY_EVENT_SOURCE:'+('audible' if mode=='YES' else 'fixture') in log,'Mismatched library event evidence'
 # A fresh real backend makes the reported version 0 -> B-clear 1 collision exact.
 run_id=str(uuid.uuid4())
 with fixture('privacy',run_id) as path:
@@ -67,4 +70,4 @@ with fixture('privacy',run_id) as path:
     assert len(recovered)==1 and int(recovered[0][0])==old,'Missing/mismatched recovery evidence'
     new=int(recovered[0][1]);assert new>1 and new!=old,'Recovery reused old host'
     (output/'M5-privacy-restart.json').write_text(json.dumps({'run':run_id,'oldPID':old,'newPID':new,'oldHostExited':True,'historyRemainedEmpty':True},indent=2)+'\n')
-print('M5 real Worker / native library / audible playback / privacy conflict across exited hosts passed. No production activation.')
+print('M5 real Worker / library storage / history epoch / privacy conflict across exited hosts passed; event source='+('audible' if mode=='YES' else 'fixture')+'. No production activation.')

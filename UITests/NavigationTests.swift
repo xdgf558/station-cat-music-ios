@@ -56,12 +56,12 @@ import XCTest
         app.navigationBars.buttons.firstMatch.tap()
         for _ in 0..<4 { if app.buttons["helpEntry"].isHittable { break }; app.swipeUp() }
         app.buttons["helpEntry"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.7 (20)")).firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.8 (21)")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["privacyPolicyLink"].firstMatch.exists)
         XCTAssertTrue(app.descendants(matching: .any)["termsLink"].firstMatch.exists)
         app.buttons["releaseNotesEntry"].tap()
-        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.7 (20)"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["单曲和专辑可生成分享卡片，展示作品介绍并提供 App Store 下载入口。"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Station Cat Music · 1.0.8 (21)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["全新暖纸质界面、衬线排版与猫耳唱片图标，提供日间及深夜外观。"].waitForExistence(timeout: 5))
         let previous = app.staticTexts["可在 App 内打开网易云官方歌曲网页，并保留重试和外部打开入口；播放、登录及可用范围仍由网易云决定。"]
         for _ in 0..<4 { if previous.exists { break }; app.swipeUp() }
         XCTAssertTrue(previous.exists)

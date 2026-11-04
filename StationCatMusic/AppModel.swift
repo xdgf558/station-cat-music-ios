@@ -1,10 +1,12 @@
 import SwiftUI
 import Observation
+import UIKit
 
 @MainActor @Observable final class AppModel {
     enum Phase: Equatable { case loading, loaded, empty, unavailable }
     enum StartupPhase: Equatable { case loading, ready, unavailable }
     private(set) var startupPhase: StartupPhase = .loading
+    private var startupSkipped = false
     private(set) var catalogFailure: CatalogFailure?
     private(set) var featuredFailure: CatalogFailure?
     var startupFailureKey: String {
@@ -18,6 +20,15 @@ import Observation
     var catalogCategory: PlatformCatalogCategory = .all
     var locale: String = L10n.resolve(Locale.preferredLanguages.first ?? "en")
     var selectedTab = 0
+    var radioSearchRequest = 0
+    var radioAlbumID: String?
+    var radioTuning = RadioDial.frequencies[0]
+    var notebookQuery = ""
+    var notebookFilter: NotebookFilter = .all
+    var radioNoteID: UUID?
+    var radioWantsPlatformPicker = false
+    var radioToast: String?
+    @ObservationIgnored private var radioToastTask: Task<Void, Never>?
     var showPlayer = false
     var linkUnavailable = false
     var favorites: Set<String> = []
@@ -179,7 +190,12 @@ import Observation
     private func finishStartup() {
         // A successful empty response is ready too. A failed secondary section
         // must not block a usable app, or a resolved cold-launch music link.
-        startupPhase = phase == .loaded || phase == .empty || featuredPhase == .loaded || featuredPhase == .empty || showPlayer || activeCollection != nil ? .ready : .unavailable
+        startupPhase = startupSkipped || phase == .loaded || phase == .empty || featuredPhase == .loaded || featuredPhase == .empty || showPlayer || activeCollection != nil ? .ready : .unavailable
+    }
+    func skipRadioStartup() {
+        guard platformMode, startupPhase == .loading else { return }
+        startupSkipped = true
+        startupPhase = .ready
     }
     func retryStartup() async {
         guard startupPhase == .unavailable else { return }
@@ -473,6 +489,9 @@ import Observation
         playback.clear(); platformAttribution = [:]; showPlayer = true
         resolvePlatformSelection(slug: work.slug, expectedID: work.id)
     }
+    var hasLegacyPlatformData: Bool {
+        hasLegacyOfflineFiles || !recent.isEmpty || account.enabled || account.scope.accountID != nil || !account.deletionHistory.isEmpty
+    }
     var favoriteCount: Int { platformMode ? favorites.count : favoriteTracks.count }
     var favoriteTracks: [Track] { tracks.filter { favorites.contains($0.id) } }
     var platformAlbums: [PlatformAlbum] { (try? PlatformAlbum.catalog(tracks)) ?? [] }
@@ -517,6 +536,9 @@ import Observation
         }
     }
     func changeScope(_ requested: AccountScope) async {
+        radioNoteID = nil; radioAlbumID = nil; radioSearchRequest = 0; radioWantsPlatformPicker = false
+        radioTuning = RadioDial.frequencies[0]; notebookQuery = ""; notebookFilter = .all
+        radioToastTask?.cancel(); radioToast = nil
         let scope = AccountScope(environment: self.scope.environment, accountID: requested.accountID)
         scopeTransition = true
         platformRoutingReady = false
@@ -661,12 +683,43 @@ import Observation
         else { playback.select(track) }
         showPlayer = true
     }
-    func selectPlatformTrack(_ track: Track) {
+    func selectPlatformTrack(_ track: Track, showPlatforms: Bool = false) {
+        radioWantsPlatformPicker = false
         guard platformMode, let release = track.release else { return }
+        radioWantsPlatformPicker = showPlatforms
         beginPlatformVisit()
         playback.select(track) // Stops any old item; no audio source or grant is requested.
         platformAttribution = [:]; showPlayer = true
         resolvePlatformSelection(slug: release.slug, expectedID: track.id)
+    }
+
+    var radioTracks: [Track] {
+        var seen = Set<String>()
+        return Array((discoveryTracks + tracks).filter { seen.insert($0.id).inserted }.prefix(RadioDial.frequencies.count))
+    }
+
+    func radioFrequency(for track: Track) -> String? {
+        guard let index = radioTracks.firstIndex(where: { $0.id == track.id }) else { return nil }
+        return String(format: "FM %.1f", RadioDial.frequencies[index])
+    }
+
+    func openRadioAlbum(id: String) {
+        guard platformAlbums.contains(where: { $0.id == id }) else { return }
+        radioWantsPlatformPicker = false
+        showPlayer = false
+        selectedTab = 1
+        radioAlbumID = id
+    }
+
+    func showRadioToast(_ text: String) {
+        radioToastTask?.cancel()
+        radioToast = text
+        UIAccessibility.post(notification: .announcement, argument: text)
+        radioToastTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(2200))
+            guard !Task.isCancelled else { return }
+            self?.radioToast = nil
+        }
     }
     func retryPlatformDetail() {
         guard let slug = platformPendingSlug else { return }
@@ -751,6 +804,7 @@ import Observation
                 return item.release?.slug == target.slug
             }
             guard let slug = target.slug ?? track?.release?.slug else { linkUnavailable = true; return }
+            radioWantsPlatformPicker = false
             beginPlatformVisit()
             linkUnavailable = false; platformAttribution = target.attribution
             if let track { playback.select(track) } else { playback.clear() }
